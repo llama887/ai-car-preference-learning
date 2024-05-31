@@ -10,6 +10,7 @@ import argparse
 import wandb
 from torch.optim.lr_scheduler import StepLR
 import torch.optim.lr_scheduler as lr_scheduler
+import optuna
 
 # plot the distribution of reward distributions for when the net gets it right and wrong
 
@@ -50,17 +51,6 @@ def preference_loss(predicted_probabilities, true_preferences):
     return F.binary_cross_entropy(predicted_probabilities, true_preferences)
 
 
-input_size = 450 * 2
-hidden_size = 128
-learning_rate = 0.0003
-
-net = TrajectoryRewardNet(input_size, hidden_size)
-for param in net.parameters():
-    if len(param.shape) > 1:
-        nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
-optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate, weight_decay=1e-4)
-
-
 def load_data(file_path):
     with open(file_path, "rb") as f:
         data = pickle.load(f)
@@ -69,7 +59,7 @@ def load_data(file_path):
     return triples, true_rewards
 
 
-def prepare_data(data, max_length=input_size // 2):
+def prepare_data(data, max_length=450):
     def pad_or_truncate(trajectory, length):
         if len(trajectory) > length:
             return trajectory[:length]
@@ -106,7 +96,7 @@ def visualize_trajectories(batch_1, batch_2):
     plt.show()
 
 
-def prepare_single_trajectory(trajectory, max_length=input_size // 2):
+def prepare_single_trajectory(trajectory, max_length=450):
     def pad_or_truncate(trajectory, length):
         if len(trajectory) > length:
             return trajectory[:length]
@@ -132,7 +122,9 @@ def calculate_accuracy(predicted_probabilities, true_preferences):
     return accuracy.item()
 
 
-def train_model(file_path, epochs=1000, batch_size=32, model_path="best.pth"):
+def train_model(
+    file_path, net, epochs=1000, optimizer=None, batch_size=32, model_path="best.pth"
+):
     wandb.init(project="Micro Preference")
     wandb.watch(net, log="all")
 
@@ -197,6 +189,10 @@ def train_model(file_path, epochs=1000, batch_size=32, model_path="best.pth"):
             loss = preference_loss(predicted_probabilities, batch_true_preferences)
             total_loss += loss.item()
 
+            if loss.item() < best_loss:
+                best_loss = loss.item()
+                torch.save(net.state_dict(), model_path)
+
             accuracy = calculate_accuracy(
                 predicted_probabilities, batch_true_preferences
             )
@@ -241,10 +237,6 @@ def train_model(file_path, epochs=1000, batch_size=32, model_path="best.pth"):
                 validation_predicted_probabilities, validation_true_preferences
             )
             validation_accuracies.append(validation_accuracy)
-
-        if validation_loss.item() < best_loss:
-            best_loss = validation_loss.item()
-            torch.save(net.state_dict(), model_path)
 
         wandb.log(
             {
@@ -306,6 +298,25 @@ def train_model(file_path, epochs=1000, batch_size=32, model_path="best.pth"):
     plt.legend()
     plt.savefig("figures/accuracy.png")
 
+    return best_loss
+
+
+def obejective(trial):
+    input_size = 450 * 2
+    hidden_size = trial.suggest_int("hidden_size", 64, 512)
+    learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
+    weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
+
+    net = TrajectoryRewardNet(input_size, hidden_size)
+    for param in net.parameters():
+        if len(param.shape) > 1:
+            nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
+    optimizer = torch.optim.Adam(
+        net.parameters(), lr=learning_rate, weight_decay=weight_decay
+    )
+
+    return train_model(file_path, net=net, epochs=epochs, optimizer=optimizer)
+
 
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(
@@ -322,7 +333,21 @@ if __name__ == "__main__":
         file_path = args.database
     else:
         file_path = "trajectories/database_350.pkl"
+
+    input_size = 450 * 2
+    hidden_size = 128
+    learning_rate = 0.0003
+
+    # net = TrajectoryRewardNet(input_size, hidden_size)
+    # for param in net.parameters():
+    #     if len(param.shape) > 1:
+    #         nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
+    # optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate, weight_decay=1e-4)
     if args.epochs:
-        train_model(file_path, epochs=args.epochs)
+        # train_model(file_path, epochs=args.epochs)
+        epochs = args.epochs
     else:
-        train_model(file_path, epochs=1000)
+        # train_model(file_path, epochs=1000)
+        epochs = 1000
+    study = optuna.create_study(direction="minimize")
+    study.optimize(obejective, n_trials=10)
