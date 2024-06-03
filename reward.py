@@ -138,17 +138,17 @@ def train_model(
     validation_trajectories1, validation_trajectories2, validation_true_preferences = (
         prepare_data(validation_data)
     )
-    # Log label balance
-    wandb.log(
-        {
-            "True Preferences Training": wandb.Histogram(
-                true_preferences.detach().cpu().numpy()
-            ),
-            "True Preferences Validation": wandb.Histogram(
-                validation_true_preferences.detach().cpu().numpy()
-            ),
-        }
-    )
+    # # Log label balance
+    # wandb.log(
+    #     {
+    #         "True Preferences Training": wandb.Histogram(
+    #             true_preferences.detach().cpu().numpy()
+    #         ),
+    #         "True Preferences Validation": wandb.Histogram(
+    #             validation_true_preferences.detach().cpu().numpy()
+    #         ),
+    #     }
+    # )
 
     dataset_size = len(true_preferences)
     validation_dataset_size = len(validation_true_preferences)
@@ -170,6 +170,7 @@ def train_model(
         net.train()
         total_loss = 0.0
         total_accuracy = 0.0
+        total_probability = 0.0
 
         TP_rewards = []
         TN_rewards = []
@@ -187,6 +188,7 @@ def train_model(
             rewards2 = net(batch_trajectories2)
 
             predicted_probabilities = bradley_terry_model(rewards1, rewards2)
+            total_probability += predicted_probabilities.sum().item()
 
             loss = preference_loss(predicted_probabilities, batch_true_preferences)
             total_loss += loss.item()
@@ -355,7 +357,7 @@ if __name__ == "__main__":
         epochs = 1000
 
     study = optuna.create_study(direction="minimize")
-    study.optimize(objective, n_trials=10)
+    study.optimize(objective, n_trials=5)
 
     # Load and print the best trial
     best_trial = study.best_trial
