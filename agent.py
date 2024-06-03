@@ -34,7 +34,8 @@ current_generation = 0  # Generation counter
 saved_trajectory_count = 0  # Counter for saved trajectories
 trajectory_path = "./trajectories/"
 reward_network = None
-
+number_of_trajectories = -1
+# need to save heading, there are 3dof
 
 class Car:
     def __init__(self):
@@ -408,7 +409,7 @@ if __name__ == "__main__":
             print(f"Saving {number_of_trajectories} trajectories...")
 
     # Load Config
-    config_path = "./config.txt"
+    config_path = "config\data_collection_config.txt"
     config = neat.config.Config(
         neat.DefaultGenome,
         neat.DefaultReproduction,

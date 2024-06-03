@@ -1,6 +1,8 @@
 ./trajectories/*
+./wandb/*
 test.py
 __pycache__
+best_model*
+best_model.pth
 ./figures/*
-best.pth
-./wandb/*
+test.pkl
