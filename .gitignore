@@ -1,3 +1,4 @@
-./trajectories/trajectory*
+./trajectories
+./wandb
 test.py
 __pycache__
