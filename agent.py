@@ -268,7 +268,7 @@ def run_simulation(genomes, config):
 
     # Initialize PyGame And The Display
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
 
     # For All Genomes Passed Create A New Neural Network
     for i, g in genomes:
