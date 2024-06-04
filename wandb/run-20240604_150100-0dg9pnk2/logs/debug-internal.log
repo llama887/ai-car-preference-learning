@@ -1,0 +1,178 @@
+2024-06-04 15:01:00,617 INFO    StreamThr :10833 [internal.py:wandb_internal():86] W&B internal server running at pid: 10833, started at: 2024-06-04 15:01:00.616540
+2024-06-04 15:01:00,618 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: status
+2024-06-04 15:01:00,618 INFO    WriterThread:10833 [datastore.py:open_for_write():85] open: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/run-0dg9pnk2.wandb
+2024-06-04 15:01:00,620 DEBUG   SenderThread:10833 [sender.py:send():380] send: header
+2024-06-04 15:01:00,652 DEBUG   SenderThread:10833 [sender.py:send():380] send: run
+2024-06-04 15:01:00,900 INFO    SenderThread:10833 [dir_watcher.py:__init__():211] watching files in: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files
+2024-06-04 15:01:00,900 INFO    SenderThread:10833 [sender.py:_start_run_threads():1122] run started: 0dg9pnk2 with start time 1717527660.616792
+2024-06-04 15:01:00,923 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: check_version
+2024-06-04 15:01:00,923 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: check_version
+2024-06-04 15:01:00,991 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: run_start
+2024-06-04 15:01:01,009 DEBUG   HandlerThread:10833 [system_info.py:__init__():32] System info init
+2024-06-04 15:01:01,010 DEBUG   HandlerThread:10833 [system_info.py:__init__():47] System info init done
+2024-06-04 15:01:01,010 INFO    HandlerThread:10833 [system_monitor.py:start():194] Starting system monitor
+2024-06-04 15:01:01,010 INFO    SystemMonitor:10833 [system_monitor.py:_start():158] Starting system asset monitoring threads
+2024-06-04 15:01:01,010 INFO    HandlerThread:10833 [system_monitor.py:probe():214] Collecting system info
+2024-06-04 15:01:01,011 DEBUG   HandlerThread:10833 [system_info.py:probe():196] Probing system
+2024-06-04 15:01:01,011 INFO    SystemMonitor:10833 [interfaces.py:start():190] Started cpu monitoring
+2024-06-04 15:01:01,011 INFO    SystemMonitor:10833 [interfaces.py:start():190] Started disk monitoring
+2024-06-04 15:01:01,013 INFO    SystemMonitor:10833 [interfaces.py:start():190] Started memory monitoring
+2024-06-04 15:01:01,013 INFO    SystemMonitor:10833 [interfaces.py:start():190] Started network monitoring
+2024-06-04 15:01:01,023 DEBUG   HandlerThread:10833 [system_info.py:_probe_git():181] Probing git
+2024-06-04 15:01:01,056 DEBUG   HandlerThread:10833 [system_info.py:_probe_git():189] Probing git done
+2024-06-04 15:01:01,056 DEBUG   HandlerThread:10833 [system_info.py:probe():244] Probing system done
+2024-06-04 15:01:01,056 DEBUG   HandlerThread:10833 [system_monitor.py:probe():223] {'os': 'macOS-13.6.4-x86_64-i386-64bit', 'python': '3.10.12', 'heartbeatAt': '2024-06-04T19:01:01.011409', 'startedAt': '2024-06-04T19:01:00.611514', 'docker': None, 'cuda': None, 'args': ('-t', '200', '-e', '1000', '-g', '10'), 'state': 'running', 'program': '/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/main.py', 'codePathLocal': 'main.py', 'codePath': 'main.py', 'git': {'remote': 'https://github.com/llama887/ai-car-preference-learning.git', 'commit': '2f3772a36c3d99c00b4ce4b05206ad0c6d956454'}, 'email': 'alextangym@gmail.com', 'root': '/Users/alextang/Documents/EmergeLab/ai-car-preference-learning', 'host': '10-18-150-190.dynapool.wireless.nyu.edu', 'username': 'alextang', 'executable': '/Users/alextang/.pyenv/versions/nocturne_lab/bin/python', 'cpu_count': 8, 'cpu_count_logical': 8, 'cpu_freq': {'current': 2400, 'min': 2400, 'max': 2400}, 'cpu_freq_per_core': [{'current': 2400, 'min': 2400, 'max': 2400}], 'disk': {'/': {'total': 460.4317207336426, 'used': 9.463157653808594}}, 'memory': {'total': 8.0}}
+2024-06-04 15:01:01,056 INFO    HandlerThread:10833 [system_monitor.py:probe():224] Finished collecting system info
+2024-06-04 15:01:01,056 INFO    HandlerThread:10833 [system_monitor.py:probe():227] Publishing system info
+2024-06-04 15:01:01,056 DEBUG   HandlerThread:10833 [system_info.py:_save_pip():52] Saving list of pip packages installed into the current environment
+2024-06-04 15:01:01,057 DEBUG   HandlerThread:10833 [system_info.py:_save_pip():68] Saving pip packages done
+2024-06-04 15:01:01,057 INFO    HandlerThread:10833 [system_monitor.py:probe():229] Finished publishing system info
+2024-06-04 15:01:01,064 DEBUG   SenderThread:10833 [sender.py:send():380] send: files
+2024-06-04 15:01:01,064 INFO    SenderThread:10833 [sender.py:_save_file():1378] saving file wandb-metadata.json with policy now
+2024-06-04 15:01:01,068 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: stop_status
+2024-06-04 15:01:01,068 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: stop_status
+2024-06-04 15:01:01,070 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: internal_messages
+2024-06-04 15:01:01,205 DEBUG   SenderThread:10833 [sender.py:send():380] send: telemetry
+2024-06-04 15:01:01,205 DEBUG   SenderThread:10833 [sender.py:send():380] send: telemetry
+2024-06-04 15:01:01,221 DEBUG   SenderThread:10833 [sender.py:send():380] send: exit
+2024-06-04 15:01:01,221 INFO    SenderThread:10833 [sender.py:send_exit():585] handling exit code: 1
+2024-06-04 15:01:01,221 INFO    SenderThread:10833 [sender.py:send_exit():587] handling runtime: 0
+2024-06-04 15:01:01,221 INFO    SenderThread:10833 [sender.py:_save_file():1378] saving file wandb-summary.json with policy end
+2024-06-04 15:01:01,221 INFO    SenderThread:10833 [sender.py:send_exit():593] send defer
+2024-06-04 15:01:01,221 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:01,221 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 0
+2024-06-04 15:01:01,221 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:01,221 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 0
+2024-06-04 15:01:01,221 INFO    SenderThread:10833 [sender.py:transition_state():613] send defer: 1
+2024-06-04 15:01:01,221 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:01,221 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 1
+2024-06-04 15:01:01,221 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:01,222 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 1
+2024-06-04 15:01:01,222 INFO    SenderThread:10833 [sender.py:transition_state():613] send defer: 2
+2024-06-04 15:01:01,222 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:01,222 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 2
+2024-06-04 15:01:01,222 INFO    HandlerThread:10833 [system_monitor.py:finish():203] Stopping system monitor
+2024-06-04 15:01:01,222 INFO    HandlerThread:10833 [interfaces.py:finish():202] Joined cpu monitor
+2024-06-04 15:01:01,222 INFO    HandlerThread:10833 [interfaces.py:finish():202] Joined disk monitor
+2024-06-04 15:01:01,222 INFO    HandlerThread:10833 [interfaces.py:finish():202] Joined memory monitor
+2024-06-04 15:01:01,222 INFO    HandlerThread:10833 [interfaces.py:finish():202] Joined network monitor
+2024-06-04 15:01:01,222 DEBUG   SystemMonitor:10833 [system_monitor.py:_start():172] Starting system metrics aggregation loop
+2024-06-04 15:01:01,222 DEBUG   SystemMonitor:10833 [system_monitor.py:_start():179] Finished system metrics aggregation loop
+2024-06-04 15:01:01,222 DEBUG   SystemMonitor:10833 [system_monitor.py:_start():183] Publishing last batch of metrics
+2024-06-04 15:01:01,223 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:01,223 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 2
+2024-06-04 15:01:01,223 INFO    SenderThread:10833 [sender.py:transition_state():613] send defer: 3
+2024-06-04 15:01:01,223 DEBUG   SenderThread:10833 [sender.py:send():380] send: stats
+2024-06-04 15:01:01,223 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:01,223 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 3
+2024-06-04 15:01:01,224 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:01,224 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 3
+2024-06-04 15:01:01,224 INFO    SenderThread:10833 [sender.py:transition_state():613] send defer: 4
+2024-06-04 15:01:01,224 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:01,224 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 4
+2024-06-04 15:01:01,224 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:01,224 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 4
+2024-06-04 15:01:01,224 INFO    SenderThread:10833 [sender.py:transition_state():613] send defer: 5
+2024-06-04 15:01:01,224 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:01,224 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 5
+2024-06-04 15:01:01,225 DEBUG   SenderThread:10833 [sender.py:send():380] send: summary
+2024-06-04 15:01:01,225 INFO    SenderThread:10833 [sender.py:_save_file():1378] saving file wandb-summary.json with policy end
+2024-06-04 15:01:01,225 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:01,225 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 5
+2024-06-04 15:01:01,225 INFO    SenderThread:10833 [sender.py:transition_state():613] send defer: 6
+2024-06-04 15:01:01,225 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:01,225 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 6
+2024-06-04 15:01:01,225 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:01,225 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 6
+2024-06-04 15:01:01,228 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: status_report
+2024-06-04 15:01:01,281 INFO    SenderThread:10833 [sender.py:transition_state():613] send defer: 7
+2024-06-04 15:01:01,281 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:01,281 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 7
+2024-06-04 15:01:01,282 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:01,282 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 7
+2024-06-04 15:01:01,384 INFO    wandb-upload_0:10833 [upload_job.py:push():131] Uploaded file /var/folders/7v/x_g69gt91jv5rpg_5mv7sqlh0000gn/T/tmp_lwoi6f2wandb/ztv1726j-wandb-metadata.json
+2024-06-04 15:01:01,908 INFO    Thread-12 :10833 [dir_watcher.py:_on_file_modified():288] file/dir modified: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/config.yaml
+2024-06-04 15:01:01,908 INFO    Thread-12 :10833 [dir_watcher.py:_on_file_created():271] file/dir created: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/wandb-metadata.json
+2024-06-04 15:01:01,909 INFO    Thread-12 :10833 [dir_watcher.py:_on_file_created():271] file/dir created: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/output.log
+2024-06-04 15:01:01,909 INFO    Thread-12 :10833 [dir_watcher.py:_on_file_created():271] file/dir created: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/requirements.txt
+2024-06-04 15:01:01,909 INFO    Thread-12 :10833 [dir_watcher.py:_on_file_created():271] file/dir created: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/wandb-summary.json
+2024-06-04 15:01:02,227 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: poll_exit
+2024-06-04 15:01:03,241 INFO    SenderThread:10833 [sender.py:transition_state():613] send defer: 8
+2024-06-04 15:01:03,241 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: poll_exit
+2024-06-04 15:01:03,241 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:03,242 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 8
+2024-06-04 15:01:03,242 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:03,242 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 8
+2024-06-04 15:01:03,242 INFO    SenderThread:10833 [job_builder.py:build():281] Attempting to build job artifact
+2024-06-04 15:01:03,242 INFO    SenderThread:10833 [job_builder.py:_get_source_type():393] is repo sourced job
+2024-06-04 15:01:03,245 INFO    SenderThread:10833 [job_builder.py:build():369] adding wandb-job metadata file
+2024-06-04 15:01:03,248 INFO    SenderThread:10833 [sender.py:transition_state():613] send defer: 9
+2024-06-04 15:01:03,249 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:03,249 DEBUG   SenderThread:10833 [sender.py:send():380] send: artifact
+2024-06-04 15:01:03,249 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 9
+2024-06-04 15:01:03,802 INFO    wandb-upload_1:10833 [upload_job.py:push():86] Skipped uploading /Users/alextang/Library/Application Support/wandb/artifacts/staging/tmphb8cbho4
+2024-06-04 15:01:03,915 INFO    Thread-12 :10833 [dir_watcher.py:_on_file_modified():288] file/dir modified: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/output.log
+2024-06-04 15:01:04,012 INFO    wandb-upload_0:10833 [upload_job.py:push():89] Uploaded file /Users/alextang/Library/Application Support/wandb/artifacts/staging/tmpo4q3rkxj
+2024-06-04 15:01:04,669 INFO    SenderThread:10833 [sender.py:send_artifact():1456] sent artifact job-https___github.com_llama887_ai-car-preference-learning.git_main.py - {'id': 'QXJ0aWZhY3Q6ODYwMjM5NDYz', 'state': 'PENDING', 'artifactSequence': {'id': 'QXJ0aWZhY3RDb2xsZWN0aW9uOjE4MjAxODA2MQ==', 'latestArtifact': {'id': 'QXJ0aWZhY3Q6ODYwMDQ2NTk1', 'versionIndex': 1}}}
+2024-06-04 15:01:04,670 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:04,670 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 9
+2024-06-04 15:01:04,670 INFO    SenderThread:10833 [dir_watcher.py:finish():358] shutting down directory watcher
+2024-06-04 15:01:04,922 INFO    SenderThread:10833 [dir_watcher.py:finish():388] scan: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files
+2024-06-04 15:01:04,923 INFO    SenderThread:10833 [dir_watcher.py:finish():402] scan save: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/requirements.txt requirements.txt
+2024-06-04 15:01:04,923 INFO    SenderThread:10833 [dir_watcher.py:finish():402] scan save: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/output.log output.log
+2024-06-04 15:01:04,927 INFO    SenderThread:10833 [dir_watcher.py:finish():402] scan save: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/config.yaml config.yaml
+2024-06-04 15:01:04,931 INFO    SenderThread:10833 [dir_watcher.py:finish():402] scan save: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/wandb-summary.json wandb-summary.json
+2024-06-04 15:01:04,932 INFO    SenderThread:10833 [dir_watcher.py:finish():402] scan save: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/wandb-metadata.json wandb-metadata.json
+2024-06-04 15:01:04,935 INFO    SenderThread:10833 [sender.py:transition_state():613] send defer: 10
+2024-06-04 15:01:04,936 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:04,936 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 10
+2024-06-04 15:01:04,940 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:04,940 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 10
+2024-06-04 15:01:04,940 INFO    SenderThread:10833 [file_pusher.py:finish():175] shutting down file pusher
+2024-06-04 15:01:05,119 INFO    wandb-upload_1:10833 [upload_job.py:push():131] Uploaded file /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/requirements.txt
+2024-06-04 15:01:05,179 INFO    wandb-upload_0:10833 [upload_job.py:push():131] Uploaded file /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/output.log
+2024-06-04 15:01:05,185 INFO    wandb-upload_2:10833 [upload_job.py:push():131] Uploaded file /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/config.yaml
+2024-06-04 15:01:05,196 INFO    wandb-upload_3:10833 [upload_job.py:push():131] Uploaded file /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/files/wandb-summary.json
+2024-06-04 15:01:05,400 INFO    Thread-11 (_thread_body):10833 [sender.py:transition_state():613] send defer: 11
+2024-06-04 15:01:05,401 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:05,401 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 11
+2024-06-04 15:01:05,401 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:05,401 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 11
+2024-06-04 15:01:05,401 INFO    SenderThread:10833 [file_pusher.py:join():181] waiting for file pusher
+2024-06-04 15:01:05,402 INFO    SenderThread:10833 [sender.py:transition_state():613] send defer: 12
+2024-06-04 15:01:05,402 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:05,402 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 12
+2024-06-04 15:01:05,403 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:05,403 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 12
+2024-06-04 15:01:05,403 INFO    SenderThread:10833 [file_stream.py:finish():595] file stream finish called
+2024-06-04 15:01:05,533 INFO    SenderThread:10833 [file_stream.py:finish():599] file stream finish is done
+2024-06-04 15:01:05,533 INFO    SenderThread:10833 [sender.py:transition_state():613] send defer: 13
+2024-06-04 15:01:05,533 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:05,533 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 13
+2024-06-04 15:01:05,534 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:05,534 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 13
+2024-06-04 15:01:05,534 INFO    SenderThread:10833 [sender.py:transition_state():613] send defer: 14
+2024-06-04 15:01:05,534 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: defer
+2024-06-04 15:01:05,534 INFO    HandlerThread:10833 [handler.py:handle_request_defer():172] handle defer: 14
+2024-06-04 15:01:05,534 DEBUG   SenderThread:10833 [sender.py:send():380] send: final
+2024-06-04 15:01:05,534 DEBUG   SenderThread:10833 [sender.py:send():380] send: footer
+2024-06-04 15:01:05,534 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: defer
+2024-06-04 15:01:05,534 INFO    SenderThread:10833 [sender.py:send_request_defer():609] handle sender defer: 14
+2024-06-04 15:01:05,535 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: poll_exit
+2024-06-04 15:01:05,535 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: poll_exit
+2024-06-04 15:01:05,535 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: server_info
+2024-06-04 15:01:05,535 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: get_summary
+2024-06-04 15:01:05,535 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: server_info
+2024-06-04 15:01:05,537 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: sampled_history
+2024-06-04 15:01:05,537 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: internal_messages
+2024-06-04 15:01:05,537 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: job_info
+2024-06-04 15:01:05,606 DEBUG   SenderThread:10833 [sender.py:send_request():407] send_request: job_info
+2024-06-04 15:01:05,606 INFO    MainThread:10833 [wandb_run.py:_footer_history_summary_info():3599] rendering history
+2024-06-04 15:01:05,606 INFO    MainThread:10833 [wandb_run.py:_footer_history_summary_info():3631] rendering summary
+2024-06-04 15:01:05,607 INFO    MainThread:10833 [wandb_run.py:_footer_sync_info():3558] logging synced files
+2024-06-04 15:01:05,607 DEBUG   HandlerThread:10833 [handler.py:handle_request():146] handle_request: shutdown
+2024-06-04 15:01:05,607 INFO    HandlerThread:10833 [handler.py:finish():866] shutting down handler
+2024-06-04 15:01:06,543 INFO    WriterThread:10833 [datastore.py:close():294] close: /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/run-20240604_150100-0dg9pnk2/run-0dg9pnk2.wandb
+2024-06-04 15:01:06,612 INFO    SenderThread:10833 [sender.py:finish():1534] shutting down sender
+2024-06-04 15:01:06,613 INFO    SenderThread:10833 [file_pusher.py:finish():175] shutting down file pusher
+2024-06-04 15:01:06,613 INFO    SenderThread:10833 [file_pusher.py:join():181] waiting for file pusher

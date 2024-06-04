@@ -1,0 +1,328 @@
+Epoch 0/1000, Train Loss: 1.8990444540977478, Val Loss: 0.5926043391227722, Train Acc: 0.5625, Val Acc: 0.949999988079071, LR: 0.00043708895474548203
+Epoch 10/1000, Train Loss: 1.146031767129898, Val Loss: 0.49809640645980835, Train Acc: 0.6125, Val Acc: 0.949999988079071, LR: 0.00042406874275994415
+Epoch 20/1000, Train Loss: 0.9412093609571457, Val Loss: 0.4079364836215973, Train Acc: 0.675, Val Acc: 0.949999988079071, LR: 0.00041104853077440616
+Epoch 30/1000, Train Loss: 0.7811713814735413, Val Loss: 0.4198719561100006, Train Acc: 0.7375, Val Acc: 0.949999988079071, LR: 0.00039802831878886817
+Epoch 40/1000, Train Loss: 0.7046659290790558, Val Loss: 0.44684290885925293, Train Acc: 0.75, Val Acc: 0.949999988079071, LR: 0.0003850081068033302
+Epoch 50/1000, Train Loss: 0.9384014904499054, Val Loss: 0.4696884751319885, Train Acc: 0.7625, Val Acc: 0.949999988079071, LR: 0.00037198789481779213
+Epoch 60/1000, Train Loss: 0.746417447924614, Val Loss: 0.528961718082428, Train Acc: 0.7875, Val Acc: 0.949999988079071, LR: 0.0003589676828322542
+Epoch 70/1000, Train Loss: 0.5332808494567871, Val Loss: 0.5925229787826538, Train Acc: 0.8375, Val Acc: 0.949999988079071, LR: 0.00034594747084671615
+Epoch 80/1000, Train Loss: 0.4695885628461838, Val Loss: 0.5928629636764526, Train Acc: 0.825, Val Acc: 0.949999988079071, LR: 0.0003329272588611783
+Epoch 90/1000, Train Loss: 0.37019459903240204, Val Loss: 0.5742958188056946, Train Acc: 0.85, Val Acc: 0.949999988079071, LR: 0.00031990704687564044
+Epoch 100/1000, Train Loss: 0.45818526297807693, Val Loss: 0.5739808678627014, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 0.00030688683489010234
+Epoch 110/1000, Train Loss: 0.41157305240631104, Val Loss: 0.5875926613807678, Train Acc: 0.8625, Val Acc: 0.949999988079071, LR: 0.0002938666229045643
+Epoch 120/1000, Train Loss: 0.6204604208469391, Val Loss: 0.5952624082565308, Train Acc: 0.8, Val Acc: 0.949999988079071, LR: 0.0002808464109190263
+Epoch 130/1000, Train Loss: 0.6227001398801804, Val Loss: 0.5776849985122681, Train Acc: 0.8375, Val Acc: 0.949999988079071, LR: 0.00026782619893348826
+Epoch 140/1000, Train Loss: 0.5578956305980682, Val Loss: 0.5752865076065063, Train Acc: 0.8625, Val Acc: 0.949999988079071, LR: 0.00025480598694795016
+Epoch 150/1000, Train Loss: 0.4012094587087631, Val Loss: 0.6038556098937988, Train Acc: 0.85, Val Acc: 0.949999988079071, LR: 0.00024178577496241206
+Epoch 160/1000, Train Loss: 0.5104154795408249, Val Loss: 0.6090654730796814, Train Acc: 0.85, Val Acc: 0.949999988079071, LR: 0.00022876556297687432
+Epoch 170/1000, Train Loss: 0.5542239546775818, Val Loss: 0.6355341076850891, Train Acc: 0.8125, Val Acc: 0.949999988079071, LR: 0.00021574535099133665
+Epoch 180/1000, Train Loss: 0.3810938373208046, Val Loss: 0.5757054090499878, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 0.00020272513900579893
+Epoch 190/1000, Train Loss: 0.4419381469488144, Val Loss: 0.6374878883361816, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 0.00018970492702026124
+Epoch 200/1000, Train Loss: 0.42425984889268875, Val Loss: 0.6385118961334229, Train Acc: 0.8625, Val Acc: 0.949999988079071, LR: 0.00017668471503472352
+Epoch 210/1000, Train Loss: 0.3608103543519974, Val Loss: 0.626705527305603, Train Acc: 0.9125, Val Acc: 0.949999988079071, LR: 0.00016366450304918575
+Epoch 220/1000, Train Loss: 0.2518805265426636, Val Loss: 0.6168056130409241, Train Acc: 0.95, Val Acc: 0.949999988079071, LR: 0.00015064429106364803
+Epoch 230/1000, Train Loss: 0.5108462870121002, Val Loss: 0.6101869344711304, Train Acc: 0.8375, Val Acc: 0.949999988079071, LR: 0.00013762407907811044
+Epoch 240/1000, Train Loss: 0.340642012655735, Val Loss: 0.6357777714729309, Train Acc: 0.9, Val Acc: 0.949999988079071, LR: 0.00012460386709257264
+Epoch 250/1000, Train Loss: 0.3559621386229992, Val Loss: 0.6151890158653259, Train Acc: 0.8625, Val Acc: 0.949999988079071, LR: 0.00011158365510703488
+Epoch 260/1000, Train Loss: 0.4358932822942734, Val Loss: 0.5957894325256348, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 9.856344312149707e-05
+Epoch 270/1000, Train Loss: 0.5273107588291168, Val Loss: 0.5823097229003906, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 8.554323113595923e-05
+Epoch 280/1000, Train Loss: 0.4182611182332039, Val Loss: 0.5840116739273071, Train Acc: 0.8625, Val Acc: 0.949999988079071, LR: 7.252301915042138e-05
+Epoch 290/1000, Train Loss: 0.35673316568136215, Val Loss: 0.6016197204589844, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 5.950280716488355e-05
+Epoch 300/1000, Train Loss: 0.3174927979707718, Val Loss: 0.5894262194633484, Train Acc: 0.925, Val Acc: 0.949999988079071, LR: 4.6482595179345804e-05
+Epoch 310/1000, Train Loss: 0.25983821600675583, Val Loss: 0.60401451587677, Train Acc: 0.9375, Val Acc: 0.949999988079071, LR: 3.3462383193808044e-05
+Epoch 320/1000, Train Loss: 0.44462285935878754, Val Loss: 0.6103774905204773, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 2.044217120827027e-05
+Epoch 330/1000, Train Loss: 0.42394496500492096, Val Loss: 0.6053334474563599, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 7.421959222732484e-06
+Epoch 340/1000, Train Loss: 0.3850819915533066, Val Loss: 0.6051667928695679, Train Acc: 0.8625, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 350/1000, Train Loss: 0.3941090479493141, Val Loss: 0.6046470403671265, Train Acc: 0.9125, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 360/1000, Train Loss: 0.3303743749856949, Val Loss: 0.603349506855011, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 370/1000, Train Loss: 0.3463345617055893, Val Loss: 0.6032689809799194, Train Acc: 0.9125, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 380/1000, Train Loss: 0.2789465934038162, Val Loss: 0.6042080521583557, Train Acc: 0.95, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 390/1000, Train Loss: 0.31098511070013046, Val Loss: 0.6060348153114319, Train Acc: 0.9, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 400/1000, Train Loss: 0.33436278253793716, Val Loss: 0.6050085425376892, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 410/1000, Train Loss: 0.23748327046632767, Val Loss: 0.6059843897819519, Train Acc: 0.9, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 420/1000, Train Loss: 0.46166135370731354, Val Loss: 0.6083778738975525, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 430/1000, Train Loss: 0.2783548831939697, Val Loss: 0.6080801486968994, Train Acc: 0.9375, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 440/1000, Train Loss: 0.40801723301410675, Val Loss: 0.6078464388847351, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 450/1000, Train Loss: 0.36928169429302216, Val Loss: 0.6076959371566772, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 460/1000, Train Loss: 0.3448740914463997, Val Loss: 0.6063264608383179, Train Acc: 0.8625, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 470/1000, Train Loss: 0.31246572360396385, Val Loss: 0.6077674627304077, Train Acc: 0.925, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 480/1000, Train Loss: 0.3662707954645157, Val Loss: 0.6083018779754639, Train Acc: 0.9125, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 490/1000, Train Loss: 0.3340807929635048, Val Loss: 0.6068368554115295, Train Acc: 0.8625, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 500/1000, Train Loss: 0.4096485897898674, Val Loss: 0.6057336330413818, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 510/1000, Train Loss: 0.4194026216864586, Val Loss: 0.6061757206916809, Train Acc: 0.8625, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 520/1000, Train Loss: 0.34180428087711334, Val Loss: 0.6059748530387878, Train Acc: 0.9, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 530/1000, Train Loss: 0.292827595025301, Val Loss: 0.6060567498207092, Train Acc: 0.9, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 540/1000, Train Loss: 0.29418426007032394, Val Loss: 0.6071556806564331, Train Acc: 0.9375, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 550/1000, Train Loss: 0.2269519679248333, Val Loss: 0.6078908443450928, Train Acc: 0.925, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 560/1000, Train Loss: 0.3018813878297806, Val Loss: 0.6076215505599976, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 570/1000, Train Loss: 0.278798621147871, Val Loss: 0.6076314449310303, Train Acc: 0.9125, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 580/1000, Train Loss: 0.3959488123655319, Val Loss: 0.6087085008621216, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 590/1000, Train Loss: 0.34088777005672455, Val Loss: 0.6083210110664368, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 600/1000, Train Loss: 0.3382255956530571, Val Loss: 0.609716534614563, Train Acc: 0.85, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 610/1000, Train Loss: 0.37752528488636017, Val Loss: 0.6100932359695435, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 620/1000, Train Loss: 0.2943364307284355, Val Loss: 0.6116995811462402, Train Acc: 0.9, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 630/1000, Train Loss: 0.28786954656243324, Val Loss: 0.6135194301605225, Train Acc: 0.9, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 640/1000, Train Loss: 0.25317060202360153, Val Loss: 0.6158128380775452, Train Acc: 0.9375, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 650/1000, Train Loss: 0.3412160836160183, Val Loss: 0.6161752939224243, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 660/1000, Train Loss: 0.4074677601456642, Val Loss: 0.6161482930183411, Train Acc: 0.925, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 670/1000, Train Loss: 0.33215466141700745, Val Loss: 0.6164630055427551, Train Acc: 0.9125, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 680/1000, Train Loss: 0.41440529376268387, Val Loss: 0.6163934469223022, Train Acc: 0.8625, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 690/1000, Train Loss: 0.2794637680053711, Val Loss: 0.6161739826202393, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 700/1000, Train Loss: 0.32799921184778214, Val Loss: 0.6158910393714905, Train Acc: 0.9, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 710/1000, Train Loss: 0.3199043869972229, Val Loss: 0.6185817718505859, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 720/1000, Train Loss: 0.24630390852689743, Val Loss: 0.6211579442024231, Train Acc: 0.925, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 730/1000, Train Loss: 0.366369865834713, Val Loss: 0.6198319792747498, Train Acc: 0.8625, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 740/1000, Train Loss: 0.36580560356378555, Val Loss: 0.6193526983261108, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 750/1000, Train Loss: 0.3749716207385063, Val Loss: 0.6205331087112427, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 760/1000, Train Loss: 0.30949748307466507, Val Loss: 0.6194083094596863, Train Acc: 0.9, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 770/1000, Train Loss: 0.3242557570338249, Val Loss: 0.6202272176742554, Train Acc: 0.925, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 780/1000, Train Loss: 0.3244333043694496, Val Loss: 0.6204946637153625, Train Acc: 0.9, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 790/1000, Train Loss: 0.33577486127614975, Val Loss: 0.6205281019210815, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 800/1000, Train Loss: 0.2574233189225197, Val Loss: 0.6208306550979614, Train Acc: 0.9125, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 810/1000, Train Loss: 0.3314151018857956, Val Loss: 0.6215330958366394, Train Acc: 0.9, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 820/1000, Train Loss: 0.24272463098168373, Val Loss: 0.6207238435745239, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 830/1000, Train Loss: 0.23785670846700668, Val Loss: 0.6196085214614868, Train Acc: 0.9375, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 840/1000, Train Loss: 0.28880082815885544, Val Loss: 0.6186076402664185, Train Acc: 0.925, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 850/1000, Train Loss: 0.306373730301857, Val Loss: 0.6207184791564941, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 860/1000, Train Loss: 0.2989078685641289, Val Loss: 0.623650848865509, Train Acc: 0.9625, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 870/1000, Train Loss: 0.3144216239452362, Val Loss: 0.6238772869110107, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 880/1000, Train Loss: 0.3160848394036293, Val Loss: 0.6239231824874878, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 890/1000, Train Loss: 0.21923386119306087, Val Loss: 0.6241849660873413, Train Acc: 0.925, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 900/1000, Train Loss: 0.39998161792755127, Val Loss: 0.6270607709884644, Train Acc: 0.875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 910/1000, Train Loss: 0.30400244891643524, Val Loss: 0.6265156269073486, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 920/1000, Train Loss: 0.33831899613142014, Val Loss: 0.6278318166732788, Train Acc: 0.8625, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 930/1000, Train Loss: 0.3655714988708496, Val Loss: 0.6287303566932678, Train Acc: 0.8875, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 940/1000, Train Loss: 0.28656430542469025, Val Loss: 0.6286078095436096, Train Acc: 0.925, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 950/1000, Train Loss: 0.2637864425778389, Val Loss: 0.6289119720458984, Train Acc: 0.9125, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 960/1000, Train Loss: 0.32419005781412125, Val Loss: 0.6295859217643738, Train Acc: 0.9125, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 970/1000, Train Loss: 0.33714132755994797, Val Loss: 0.6289834976196289, Train Acc: 0.9, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 980/1000, Train Loss: 0.2612093314528465, Val Loss: 0.6288323402404785, Train Acc: 0.9, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Epoch 990/1000, Train Loss: 0.2994912341237068, Val Loss: 0.6297743916511536, Train Acc: 0.8625, Val Acc: 0.949999988079071, LR: 4.383909759440339e-06
+Finished training model...
+Simulating on true reward function...
+Running for a maximum of 10 generations...
+ ****** Running generation 0 ******
+Population's average fitness: 168.46333 stdev: 203.13668
+Best fitness: 542.66667 - size: (4, 20) - species 1 - id 1
+Average adjusted fitness: 0.302
+Mean genetic distance 1.089, standard deviation 0.255
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    0    20    542.7    0.302     0
+Total extinctions: 0
+Generation time: 1.150 sec
+ ****** Running generation 1 ******
+[33m[W 2024-06-04 15:03:07,779][39m Trial 0 failed with parameters: {'hidden_size': 308, 'learning_rate': 0.0004383909759440358, 'weight_decay': 0.0007645367281637934} because of the following error: The value None could not be cast to float..
+[33m[W 2024-06-04 15:03:07,779][39m Trial 0 failed with value None.
+Population's average fitness: 318.99667 stdev: 232.13079
+Best fitness: 542.66667 - size: (4, 20) - species 1 - id 1
+Average adjusted fitness: 0.580
+Mean genetic distance 1.029, standard deviation 0.344
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    1    20    542.7    0.580     1
+Total extinctions: 0
+Generation time: 0.936 sec (1.043 average)
+ ****** Running generation 2 ******
+Population's average fitness: 593.22667 stdev: 844.14957
+Best fitness: 4155.20000 - size: (4, 20) - species 1 - id 39
+Average adjusted fitness: 0.141
+Mean genetic distance 0.983, standard deviation 0.365
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    2    20   4155.2    0.141     0
+Total extinctions: 0
+Generation time: 2.489 sec (1.525 average)
+ ****** Running generation 3 ******
+Population's average fitness: 3206.71000 stdev: 8782.69352
+Best fitness: 40889.33333 - size: (4, 19) - species 1 - id 65
+Average adjusted fitness: 0.078
+Mean genetic distance 1.197, standard deviation 0.392
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    3    20  40889.3    0.078     0
+Total extinctions: 0
+Generation time: 7.715 sec (3.072 average)
+ ****** Running generation 4 ******
+Population's average fitness: 5780.75667 stdev: 11935.67542
+Best fitness: 40889.33333 - size: (4, 19) - species 1 - id 65
+Average adjusted fitness: 0.141
+Mean genetic distance 0.979, standard deviation 0.497
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    4    20  40889.3    0.141     1
+Total extinctions: 0
+Generation time: 7.734 sec (4.005 average)
+ ****** Running generation 5 ******
+Population's average fitness: 10484.28667 stdev: 16939.62270
+Best fitness: 40889.33333 - size: (4, 19) - species 1 - id 65
+Average adjusted fitness: 0.256
+Mean genetic distance 0.901, standard deviation 0.427
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    5    20  40889.3    0.256     2
+Total extinctions: 0
+Generation time: 7.697 sec (4.620 average)
+ ****** Running generation 6 ******
+Population's average fitness: 8985.57000 stdev: 16009.12696
+Best fitness: 40889.33333 - size: (4, 19) - species 1 - id 65
+Average adjusted fitness: 0.220
+Mean genetic distance 1.030, standard deviation 0.466
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    6    20  40889.3    0.220     3
+Total extinctions: 0
+Generation time: 7.710 sec (5.061 average)
+ ****** Running generation 7 ******
+Population's average fitness: 16823.74000 stdev: 19706.23073
+Best fitness: 40919.06667 - size: (5, 18) - species 1 - id 136
+Average adjusted fitness: 0.411
+Mean genetic distance 1.243, standard deviation 0.544
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    7    20  40919.1    0.411     0
+Total extinctions: 0
+Generation time: 7.696 sec (5.391 average)
+ ****** Running generation 8 ******
+Population's average fitness: 20510.62667 stdev: 20388.11176
+Best fitness: 40948.86667 - size: (5, 17) - species 1 - id 144
+Average adjusted fitness: 0.501
+Mean genetic distance 1.599, standard deviation 0.284
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    8    20  40948.9    0.501     0
+Total extinctions: 0
+Generation time: 7.583 sec (5.634 average)
+ ****** Running generation 9 ******
+Population's average fitness: 24065.36333 stdev: 22242.89458
+Best fitness: 67650.00000 - size: (5, 19) - species 1 - id 160
+Average adjusted fitness: 0.356
+Mean genetic distance 1.551, standard deviation 0.210
+Population of 20 members in 2 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    9    10  67650.0    0.356     0
+     2    0    10       --       --     0
+Total extinctions: 0
+Generation time: 7.558 sec (5.827 average)
+Simulating on trained reward function...
+Running for a maximum of 10 generations...
+ ****** Running generation 0 ******
+Population's average fitness: -1.10965 stdev: 3.21336
+Best fitness: 2.14862 - size: (4, 20) - species 1 - id 18
+Average adjusted fitness: 0.791
+Mean genetic distance 1.125, standard deviation 0.191
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    0    20      2.1    0.791     0
+Total extinctions: 0
+Generation time: 2.493 sec
+ ****** Running generation 1 ******
+Population's average fitness: -0.68298 stdev: 2.05637
+Best fitness: 3.95432 - size: (4, 20) - species 1 - id 3
+Average adjusted fitness: 0.430
+Mean genetic distance 1.329, standard deviation 0.219
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    1    20      4.0    0.430     0
+Total extinctions: 0
+Generation time: 0.976 sec (1.735 average)
+ ****** Running generation 2 ******
+Population's average fitness: -0.44853 stdev: 1.39586
+Best fitness: 2.36529 - size: (4, 19) - species 1 - id 53
+Average adjusted fitness: 0.520
+Mean genetic distance 1.183, standard deviation 0.391
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    2    20      2.4    0.520     1
+Total extinctions: 0
+Generation time: 1.005 sec (1.491 average)
+ ****** Running generation 3 ******
+Population's average fitness: -0.50237 stdev: 1.39348
+Best fitness: 3.89177 - size: (5, 18) - species 1 - id 61
+Average adjusted fitness: 0.357
+Mean genetic distance 1.256, standard deviation 0.343
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    3    20      3.9    0.357     2
+Total extinctions: 0
+Generation time: 1.001 sec (1.369 average)
+ ****** Running generation 4 ******
+Population's average fitness: -0.57667 stdev: 1.79767
+Best fitness: 2.46354 - size: (5, 18) - species 1 - id 78
+Average adjusted fitness: 0.539
+Mean genetic distance 0.925, standard deviation 0.247
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    4    20      2.5    0.539     3
+Total extinctions: 0
+Generation time: 0.989 sec (1.293 average)
+ ****** Running generation 5 ******
+Population's average fitness: 0.00158 stdev: 1.98509
+Best fitness: 4.05617 - size: (4, 17) - species 1 - id 91
+Average adjusted fitness: 0.501
+Mean genetic distance 1.054, standard deviation 0.216
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    5    20      4.1    0.501     0
+Total extinctions: 0
+Generation time: 0.941 sec (1.234 average)
+ ****** Running generation 6 ******
+Population's average fitness: -0.40888 stdev: 1.43004
+Best fitness: 2.52906 - size: (5, 18) - species 1 - id 121
+Average adjusted fitness: 0.416
+Mean genetic distance 1.165, standard deviation 0.168
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    6    20      2.5    0.416     1
+Total extinctions: 0
+Generation time: 0.897 sec (1.186 average)
+ ****** Running generation 7 ******
+Population's average fitness: -0.25454 stdev: 1.38548
+Best fitness: 2.69304 - size: (6, 20) - species 1 - id 139
+Average adjusted fitness: 0.430
+Mean genetic distance 1.173, standard deviation 0.260
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    7    20      2.7    0.430     2
+Total extinctions: 0
+Generation time: 0.858 sec (1.145 average)
+ ****** Running generation 8 ******
+Population's average fitness: -1.10047 stdev: 1.88215
+Best fitness: 2.37877 - size: (5, 19) - species 1 - id 154
+Average adjusted fitness: 0.597
+Mean genetic distance 1.094, standard deviation 0.347
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    8    20      2.4    0.597     3
+Total extinctions: 0
+Generation time: 0.855 sec (1.113 average)
+ ****** Running generation 9 ******
+Population's average fitness: -0.61886 stdev: 1.57619
+Best fitness: 1.75401 - size: (5, 14) - species 1 - id 168
+Average adjusted fitness: 0.636
+Mean genetic distance 1.327, standard deviation 0.235
+Population of 20 members in 1 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    9    20      1.8    0.636     4
+Total extinctions: 0
+Generation time: 0.819 sec (1.083 average)

@@ -1,0 +1,38 @@
+[33m[W 2024-06-04 15:01:01,216][39m Trial 0 failed with parameters: {'hidden_size': 75, 'learning_rate': 0.0009216454168549117, 'weight_decay': 0.0009642565763475622} because of the following error: RuntimeError('Found dtype Long but expected Float').
+Traceback (most recent call last):
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 196, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 435, in objective
+    train_model(
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 278, in train_model
+    loss = preference_loss(predicted_probabilities, batch_true_pref)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 78, in preference_loss
+    return F.binary_cross_entropy(predicted_probabilities, true_preferences)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/functional.py", line 3127, in binary_cross_entropy
+    return torch._C._nn.binary_cross_entropy(input, target, weight, reduction_enum)
+RuntimeError: Found dtype Long but expected Float
+[33m[W 2024-06-04 15:01:01,217][39m Trial 0 failed with value None.
+Traceback (most recent call last):
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/main.py", line 72, in <module>
+    run_study(database_path, args.epochs[0])
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 419, in run_study
+    study.optimize(objective, n_trials=1)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/study.py", line 451, in optimize
+    _optimize(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 62, in _optimize
+    _optimize_sequential(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 159, in _optimize_sequential
+    frozen_trial = _run_trial(study, func, catch)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 247, in _run_trial
+    raise func_err
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 196, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 435, in objective
+    train_model(
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 278, in train_model
+    loss = preference_loss(predicted_probabilities, batch_true_pref)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 78, in preference_loss
+    return F.binary_cross_entropy(predicted_probabilities, true_preferences)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/functional.py", line 3127, in binary_cross_entropy
+    return torch._C._nn.binary_cross_entropy(input, target, weight, reduction_enum)
+RuntimeError: Found dtype Long but expected Float
