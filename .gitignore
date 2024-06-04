@@ -1,6 +1,12 @@
 ./trajectories/*
+<<<<<<< HEAD
 ./wandb/*
 __pycache__
 best_model*
 best_model.pth
 ./figures/*
+=======
+./wandb
+test.py
+__pycache__
+>>>>>>> one-command-does-everything

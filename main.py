@@ -1,10 +1,10 @@
 import argparse
 
-from reward import train_model, TrajectoryRewardNet
+from reward import TrajectoryRewardNet, run_study
 
 import agent
-from agent import run_simulation, TRAJECTORY_LENGTH
-import neat
+from agent import run_population, TRAJECTORY_LENGTH
+
 import glob
 import os
 import sys
@@ -15,23 +15,11 @@ def start_simulation(config_path, max_generations, number_of_trajectories=-1):
     # Set number of trajectories
     agent.number_of_trajectories = number_of_trajectories
 
-    # Load Config
-    config_path = config_path
-    config = neat.config.Config(
-        neat.DefaultGenome,
-        neat.DefaultReproduction,
-        neat.DefaultSpeciesSet,
-        neat.DefaultStagnation,
-        config_path,
+    run_population(
+        config_path=config_path,
+        max_generations=max_generations,
+        number_of_trajectories=number_of_trajectories,
     )
-
-    # Create Population And Add Reporters
-    population = neat.Population(config)
-    population.add_reporter(neat.StdOutReporter(True))
-    stats = neat.StatisticsReporter()
-    population.add_reporter(stats)
-
-    population.run(run_simulation, max_generations)
 
 
 if __name__ == "__main__":
@@ -67,19 +55,29 @@ if __name__ == "__main__":
         os.remove(f)
     print(f"Saving {args.trajectories[0]} trajectories...")
 
-    # start the simulation in data collecting mode
+    # # start the simulation in data collecting mode
+    # start_simulation(
+    #     "./config/data_collection_config.txt",
+    #     args.trajectories[0],
+    #     args.trajectories[0],
+    # )
     start_simulation(
         "./config/data_collection_config.txt",
         args.trajectories[0],
         args.trajectories[0],
     )
 
+    print("Starting training on trajectories...")
     # train model on collected data
-    train_model(database_path, epochs=args.epochs)
+    # train_model(database_path, epochs=args.epochs)
+    run_study(database_path, args.epochs[0])
+    print("Finished training model...")
 
+    print("Simulating on true reward function...")
     # run the simulation with the true reward function
     start_simulation("./config/agent_config.txt", args.generations[0])
 
+    print("Simulating on trained reward function...")
     # run the simulation with the trained reward function
     agent.reward_network = TrajectoryRewardNet(TRAJECTORY_LENGTH * 2)
     start_simulation("./config/agent_config.txt", args.generations[0])
