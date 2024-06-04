@@ -38,12 +38,12 @@ def plot_trajectories(trajectories, title):
     plt.figure(figsize=(10, 6))
     for trajectory in trajectories:
         xs, ys = zip(*trajectory)  # Unpack x and y coordinates
-        plt.plot(xs, ys, marker="o")  # Plot the trajectory with markers
+        plt.plot(xs, ys, alpha=0.7)  # Plot the trajectory with markers
     plt.title(title)
     plt.xlabel("X")
     plt.ylabel("Y")
     plt.grid(True)
-    plt.show()
+    plt.savefig(f"figures/{title}.png")
 
 
 # Plot false positives
