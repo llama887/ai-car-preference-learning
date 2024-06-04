@@ -5,7 +5,7 @@ with open("trajectories/database_50.pkl", "rb") as f:
     database = pickle.load(f)
 
 duplicate_data = []
-for i in range(25):
+for i in range(20):
     data = [database[i] for _ in range(2)]
     duplicate_data.extend(data)
 

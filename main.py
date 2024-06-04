@@ -8,6 +8,7 @@ import neat
 import glob
 import os
 import sys
+import re
 
 
 def start_simulation(config_path, max_generations, number_of_trajectories=-1):

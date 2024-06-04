@@ -13,6 +13,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 import optuna
 import glob
 import os
+import shutil
 
 # plot the distribution of reward distributions for when the net gets it right and wrong
 
@@ -283,7 +284,7 @@ def train_model(
 
         if epoch % 10 == 0:
             print(
-                f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {validation_loss.item()}, Train Acc: {average_training_accuracy}, Val Acc: {validation_accuracy}, LR: {scheduler.get_last_lr()[0]}"
+                f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {validation_loss.item()}, Train Acc: {average_training_accuracy}, Val Acc: {validation_accuracy}"
             )
 
     plt.figure()
@@ -347,6 +348,13 @@ if __name__ == "__main__":
     else:
         file_path = "trajectories/database_350.pkl"
 
+    try:
+        shutil.rmtree("./wandb")
+    except OSError as e:
+        pass
+    for file in glob.glob("best_model*.pth"):
+        os.remove(file)
+
     input_size = 450 * 2
     hidden_size = 128
     learning_rate = 0.0003
@@ -373,5 +381,7 @@ if __name__ == "__main__":
     )
 
     # Delete saved hyperparameter trials
-    for file in glob.glob("best_model_trial_*.pth"):
+    for file in glob.glob("best_model_trial*.pth"):
         os.remove(file)
+
+    os.remove("best.pth")
