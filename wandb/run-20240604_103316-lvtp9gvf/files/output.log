@@ -1,0 +1,80 @@
+Epoch 0/1000, Train Loss: 2.4049935936927795, Val Loss: 0.6126473546028137, Train Acc: 0.45, Val Acc: 0.8999999761581421, LR: 0.0006640742830340822
+Epoch 10/1000, Train Loss: 1.6188502311706543, Val Loss: 0.5995102524757385, Train Acc: 0.675, Val Acc: 0.800000011920929, LR: 0.0006508995262114986
+Epoch 20/1000, Train Loss: 1.9182147979736328, Val Loss: 0.5860112905502319, Train Acc: 0.6, Val Acc: 0.800000011920929, LR: 0.0006377247693889149
+Epoch 30/1000, Train Loss: 1.7026744484901428, Val Loss: 0.5489964485168457, Train Acc: 0.6, Val Acc: 0.800000011920929, LR: 0.0006245500125663312
+Epoch 40/1000, Train Loss: 1.2920843362808228, Val Loss: 0.5411784648895264, Train Acc: 0.6, Val Acc: 0.800000011920929, LR: 0.0006113752557437475
+Epoch 50/1000, Train Loss: 1.9556699991226196, Val Loss: 0.5575715899467468, Train Acc: 0.425, Val Acc: 0.800000011920929, LR: 0.0005982004989211638
+Epoch 60/1000, Train Loss: 1.6994855999946594, Val Loss: 0.5666795372962952, Train Acc: 0.575, Val Acc: 0.800000011920929, LR: 0.0005850257420985802
+Epoch 70/1000, Train Loss: 1.5231510400772095, Val Loss: 0.5264354348182678, Train Acc: 0.45, Val Acc: 0.800000011920929, LR: 0.0005718509852759965
+Epoch 80/1000, Train Loss: 1.2679770588874817, Val Loss: 0.48331841826438904, Train Acc: 0.7, Val Acc: 0.800000011920929, LR: 0.0005586762284534128
+Epoch 90/1000, Train Loss: 1.3808770179748535, Val Loss: 0.42407315969467163, Train Acc: 0.575, Val Acc: 0.800000011920929, LR: 0.0005455014716308291
+Epoch 100/1000, Train Loss: 1.1752023696899414, Val Loss: 0.44009608030319214, Train Acc: 0.65, Val Acc: 0.800000011920929, LR: 0.0005323267148082454
+Epoch 110/1000, Train Loss: 0.7406452894210815, Val Loss: 0.41438037157058716, Train Acc: 0.8, Val Acc: 0.800000011920929, LR: 0.0005191519579856617
+Epoch 120/1000, Train Loss: 1.1667832732200623, Val Loss: 0.38665571808815, Train Acc: 0.725, Val Acc: 0.800000011920929, LR: 0.0005059772011630781
+Epoch 130/1000, Train Loss: 1.199532389640808, Val Loss: 0.3987404406070709, Train Acc: 0.675, Val Acc: 0.800000011920929, LR: 0.0004928024443404944
+Epoch 140/1000, Train Loss: 1.1538140773773193, Val Loss: 0.38166823983192444, Train Acc: 0.75, Val Acc: 0.800000011920929, LR: 0.00047962768751791076
+Epoch 150/1000, Train Loss: 0.848680168390274, Val Loss: 0.3950120806694031, Train Acc: 0.8, Val Acc: 0.800000011920929, LR: 0.0004664529306953272
+Epoch 160/1000, Train Loss: 0.7855042517185211, Val Loss: 0.3953651487827301, Train Acc: 0.775, Val Acc: 0.800000011920929, LR: 0.00045327817387274367
+Epoch 170/1000, Train Loss: 1.1172035932540894, Val Loss: 0.39753299951553345, Train Acc: 0.75, Val Acc: 0.800000011920929, LR: 0.00044010341705016015
+Epoch 180/1000, Train Loss: 0.9966565072536469, Val Loss: 0.3934326171875, Train Acc: 0.675, Val Acc: 0.800000011920929, LR: 0.0004269286602275767
+Epoch 190/1000, Train Loss: 0.9893025457859039, Val Loss: 0.38894471526145935, Train Acc: 0.7, Val Acc: 0.800000011920929, LR: 0.0004137539034049931
+Epoch 200/1000, Train Loss: 0.9950503408908844, Val Loss: 0.4005216658115387, Train Acc: 0.775, Val Acc: 0.800000011920929, LR: 0.0004005791465824096
+Epoch 210/1000, Train Loss: 1.0488770604133606, Val Loss: 0.38840600848197937, Train Acc: 0.775, Val Acc: 0.800000011920929, LR: 0.000387404389759826
+Epoch 220/1000, Train Loss: 0.8270910680294037, Val Loss: 0.3995463252067566, Train Acc: 0.7, Val Acc: 0.800000011920929, LR: 0.0003742296329372424
+Epoch 230/1000, Train Loss: 0.7964835166931152, Val Loss: 0.4024590849876404, Train Acc: 0.75, Val Acc: 0.800000011920929, LR: 0.0003610548761146587
+Epoch 240/1000, Train Loss: 0.8996789455413818, Val Loss: 0.4046573042869568, Train Acc: 0.7, Val Acc: 0.800000011920929, LR: 0.0003478801192920752
+Epoch 250/1000, Train Loss: 0.8652780652046204, Val Loss: 0.40293532609939575, Train Acc: 0.825, Val Acc: 0.800000011920929, LR: 0.00033470536246949157
+Epoch 260/1000, Train Loss: 0.7741515934467316, Val Loss: 0.4036807119846344, Train Acc: 0.825, Val Acc: 0.800000011920929, LR: 0.000321530605646908
+[33m[W 2024-06-04 10:33:21,692][39m Trial 0 failed with parameters: {'hidden_size': 167, 'learning_rate': 0.0006653917587163406, 'weight_decay': 0.0004364422384393541} because of the following error: KeyboardInterrupt().
+Traceback (most recent call last):
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 196, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 323, in objective
+    train_model(file_path, net=net, epochs=epochs, optimizer=optimizer)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 184, in train_model
+    rewards1 = net(batch_trajectories1)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1561, in _call_impl
+    result = forward_call(*args, **kwargs)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 33, in forward
+    x = F.relu(self.bn1(self.fc1(x)))
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/linear.py", line 116, in forward
+    return F.linear(input, self.weight, self.bias)
+KeyboardInterrupt
+[33m[W 2024-06-04 10:33:21,694][39m Trial 0 failed with value None.
+Traceback (most recent call last):
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 360, in <module>
+    study.optimize(objective, n_trials=1)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/study.py", line 451, in optimize
+    _optimize(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 62, in _optimize
+    _optimize_sequential(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 159, in _optimize_sequential
+    frozen_trial = _run_trial(study, func, catch)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 247, in _run_trial
+    raise func_err
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 196, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 323, in objective
+    train_model(file_path, net=net, epochs=epochs, optimizer=optimizer)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 184, in train_model
+    rewards1 = net(batch_trajectories1)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1561, in _call_impl
+    result = forward_call(*args, **kwargs)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 33, in forward
+    x = F.relu(self.bn1(self.fc1(x)))
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/linear.py", line 116, in forward
+    return F.linear(input, self.weight, self.bias)
+KeyboardInterrupt
+Epoch 270/1000, Train Loss: 1.1943720579147339, Val Loss: 0.39903944730758667, Train Acc: 0.7, Val Acc: 0.800000011920929, LR: 0.0003083558488243243

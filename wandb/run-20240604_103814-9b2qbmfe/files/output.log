@@ -1,0 +1,66 @@
+Epoch 0/1000, Train Loss: 2.1434711813926697, Val Loss: 0.6495307683944702, Train Acc: 0.45, Val Acc: 0.800000011920929, LR: 0.000934614194142009
+Epoch 10/1000, Train Loss: 1.775056004524231, Val Loss: 0.5862100720405579, Train Acc: 0.45, Val Acc: 0.800000011920929, LR: 0.0009160721197907818
+Epoch 20/1000, Train Loss: 1.7153045535087585, Val Loss: 0.5792466998100281, Train Acc: 0.475, Val Acc: 0.800000011920929, LR: 0.0008975300454395549
+Epoch 30/1000, Train Loss: 1.5528792142868042, Val Loss: 0.5795625448226929, Train Acc: 0.525, Val Acc: 0.800000011920929, LR: 0.0008789879710883275
+Epoch 40/1000, Train Loss: 1.0491423606872559, Val Loss: 0.5485081672668457, Train Acc: 0.65, Val Acc: 0.800000011920929, LR: 0.0008604458967371006
+Epoch 50/1000, Train Loss: 1.2355582118034363, Val Loss: 0.45637911558151245, Train Acc: 0.6, Val Acc: 0.800000011920929, LR: 0.0008419038223858733
+Epoch 60/1000, Train Loss: 1.1792314648628235, Val Loss: 0.43125486373901367, Train Acc: 0.775, Val Acc: 0.800000011920929, LR: 0.0008233617480346458
+Epoch 70/1000, Train Loss: 1.0697486996650696, Val Loss: 0.41974371671676636, Train Acc: 0.775, Val Acc: 0.800000011920929, LR: 0.0008048196736834184
+Epoch 80/1000, Train Loss: 0.9657539129257202, Val Loss: 0.39332151412963867, Train Acc: 0.675, Val Acc: 0.800000011920929, LR: 0.000786277599332191
+Epoch 90/1000, Train Loss: 0.6258562803268433, Val Loss: 0.38604292273521423, Train Acc: 0.85, Val Acc: 0.800000011920929, LR: 0.0007677355249809638
+Epoch 100/1000, Train Loss: 0.9555510580539703, Val Loss: 0.41306257247924805, Train Acc: 0.7, Val Acc: 0.800000011920929, LR: 0.0007491934506297364
+Epoch 110/1000, Train Loss: 0.8655363321304321, Val Loss: 0.38398751616477966, Train Acc: 0.725, Val Acc: 0.800000011920929, LR: 0.0007306513762785093
+Epoch 120/1000, Train Loss: 1.024232804775238, Val Loss: 0.4138244092464447, Train Acc: 0.675, Val Acc: 0.800000011920929, LR: 0.000712109301927282
+Epoch 130/1000, Train Loss: 0.8778082430362701, Val Loss: 0.39635494351387024, Train Acc: 0.7, Val Acc: 0.800000011920929, LR: 0.0006935672275760549
+[33m[W 2024-06-04 10:38:18,440][39m Trial 0 failed with parameters: {'hidden_size': 436, 'learning_rate': 0.0009364684015771317, 'weight_decay': 0.0004327126840409296} because of the following error: KeyboardInterrupt().
+Traceback (most recent call last):
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 196, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 317, in objective
+    train_model(
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 203, in train_model
+    optimizer.step()
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/optim/lr_scheduler.py", line 75, in wrapper
+    return wrapped(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/optim/optimizer.py", line 385, in wrapper
+    out = func(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/optim/optimizer.py", line 76, in _use_grad
+    ret = func(self, *args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/optim/adam.py", line 166, in step
+    adam(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/optim/adam.py", line 316, in adam
+    func(params,
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/optim/adam.py", line 439, in _single_tensor_adam
+    denom = (exp_avg_sq.sqrt() / bias_correction2_sqrt).add_(eps)
+KeyboardInterrupt
+[33m[W 2024-06-04 10:38:18,442][39m Trial 0 failed with value None.
+Traceback (most recent call last):
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 359, in <module>
+    study.optimize(objective, n_trials=1)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/study.py", line 451, in optimize
+    _optimize(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 62, in _optimize
+    _optimize_sequential(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 159, in _optimize_sequential
+    frozen_trial = _run_trial(study, func, catch)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 247, in _run_trial
+    raise func_err
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 196, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 317, in objective
+    train_model(
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 203, in train_model
+    optimizer.step()
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/optim/lr_scheduler.py", line 75, in wrapper
+    return wrapped(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/optim/optimizer.py", line 385, in wrapper
+    out = func(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/optim/optimizer.py", line 76, in _use_grad
+    ret = func(self, *args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/optim/adam.py", line 166, in step
+    adam(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/optim/adam.py", line 316, in adam
+    func(params,
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/optim/adam.py", line 439, in _single_tensor_adam
+    denom = (exp_avg_sq.sqrt() / bias_correction2_sqrt).add_(eps)
+KeyboardInterrupt

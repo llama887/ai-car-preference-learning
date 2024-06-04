@@ -35,7 +35,9 @@ saved_trajectory_count = 0  # Counter for saved trajectories
 trajectory_path = "./trajectories/"
 reward_network = None
 number_of_trajectories = -1
+population = ""
 # need to save heading, there are 3dof
+
 
 class Car:
     def __init__(self):
@@ -260,16 +262,17 @@ def generate_database(trajectory_path):
     with open(trajectory_path + f"database_{len(trajectory_pairs)}.pkl", "wb") as f:
         pickle.dump(trajectory_pairs, f)
 
+    print("Done saving to database...")
+
 
 def run_simulation(genomes, config):
-
     # Empty Collections For Nets and Cars
     nets = []
     cars = []
 
     # Initialize PyGame And The Display
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
 
     # For All Genomes Passed Create A New Neural Network
     for i, g in genomes:
@@ -346,28 +349,66 @@ def run_simulation(genomes, config):
         ):
             print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
             generate_database(trajectory_path)
-            sys.exit(0)
-        # Draw Map And All Cars That Are Alive
-        screen.blit(game_map, (0, 0))
-        for car in cars:
-            if car.is_alive():
-                car.draw(screen)
+            pygame.display.quit()
+            pygame.quit()
+            break
+            # sys.exit(0)
+        else:
+            # Draw Map And All Cars That Are Alive
+            screen.blit(game_map, (0, 0))
+            for car in cars:
+                if car.is_alive():
+                    car.draw(screen)
 
-        # Display Info
-        text = generation_font.render(
-            "Generation: " + str(current_generation), True, (0, 0, 0)
-        )
-        text_rect = text.get_rect()
-        text_rect.center = (900, 450)
-        screen.blit(text, text_rect)
+            # Display Info
+            text = generation_font.render(
+                "Generation: " + str(current_generation), True, (0, 0, 0)
+            )
+            text_rect = text.get_rect()
+            text_rect.center = (900, 450)
+            screen.blit(text, text_rect)
 
-        text = alive_font.render("Still Alive: " + str(still_alive), True, (0, 0, 0))
-        text_rect = text.get_rect()
-        text_rect.center = (900, 490)
-        screen.blit(text, text_rect)
+            text = alive_font.render(
+                "Still Alive: " + str(still_alive), True, (0, 0, 0)
+            )
+            text_rect = text.get_rect()
+            text_rect.center = (900, 490)
+            screen.blit(text, text_rect)
 
-        pygame.display.flip()
-        clock.tick(60)  # 60 FPS
+            pygame.display.flip()
+            clock.tick(60)  # 60 FPS
+
+
+def run_population(config_path, max_generations, number_of_trajectories):
+    # Load Config
+    config = neat.config.Config(
+        neat.DefaultGenome,
+        neat.DefaultReproduction,
+        neat.DefaultSpeciesSet,
+        neat.DefaultStagnation,
+        config_path,
+    )
+
+    # Create Population And Add Reporters
+    global population
+    population = neat.Population(config)
+    population.add_reporter(neat.StdOutReporter(True))
+    stats = neat.StatisticsReporter()
+    population.add_reporter(stats)
+
+    if number_of_trajectories >= 0:
+        max_generations = math.ceil(number_of_trajectories / config.pop_size)
+        max_generations += 1
+
+    print(f"Running for a maximum of {max_generations} generations...")
+    # Run Simulation For A Maximum of 1000 Generations
+    best_genome = population.run(
+        run_simulation,
+        max_generations,
+    )
+
+    global current_generation
+    current_generation = 0
 
 
 if __name__ == "__main__":
@@ -408,23 +449,8 @@ if __name__ == "__main__":
                 os.remove(f)
             print(f"Saving {number_of_trajectories} trajectories...")
 
-    # Load Config
-    config_path = "config\data_collection_config.txt"
-    config = neat.config.Config(
-        neat.DefaultGenome,
-        neat.DefaultReproduction,
-        neat.DefaultSpeciesSet,
-        neat.DefaultStagnation,
-        config_path,
-    )
-
-    # Create Population And Add Reporters
-    population = neat.Population(config)
-    population.add_reporter(neat.StdOutReporter(True))
-    stats = neat.StatisticsReporter()
-    population.add_reporter(stats)
-
-    # Run Simulation For A Maximum of 1000 Generations
-    population.run(
-        run_simulation, 1000 if number_of_trajectories < 0 else number_of_trajectories
+    run_population(
+        "config/data_collection_config.txt",
+        max_generations=number_of_trajectories,
+        number_of_trajectories=number_of_trajectories,
     )

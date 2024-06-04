@@ -1,0 +1,52 @@
+{
+    "os": "macOS-13.6.4-x86_64-i386-64bit",
+    "python": "3.10.12",
+    "heartbeatAt": "2024-06-04T14:50:59.399506",
+    "startedAt": "2024-06-04T14:50:59.039453",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "-t",
+        "100",
+        "-e",
+        "1000",
+        "-g",
+        "10"
+    ],
+    "state": "running",
+    "program": "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/main.py",
+    "codePathLocal": "main.py",
+    "codePath": "main.py",
+    "git": {
+        "remote": "https://github.com/llama887/ai-car-preference-learning.git",
+        "commit": "28628c2923aef4059f20b35b8c434b086433ddcd"
+    },
+    "email": "alextangym@gmail.com",
+    "root": "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning",
+    "host": "10-18-150-190.dynapool.wireless.nyu.edu",
+    "username": "alextang",
+    "executable": "/Users/alextang/.pyenv/versions/nocturne_lab/bin/python",
+    "cpu_count": 8,
+    "cpu_count_logical": 8,
+    "cpu_freq": {
+        "current": 2400,
+        "min": 2400,
+        "max": 2400
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2400,
+            "min": 2400,
+            "max": 2400
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 460.4317207336426,
+            "used": 9.463157653808594
+        }
+    },
+    "memory": {
+        "total": 8.0
+    }
+}

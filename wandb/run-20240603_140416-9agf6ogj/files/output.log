@@ -1,0 +1,76 @@
+Epoch 0/1000, Train Loss: 2.1787465810775757, Val Loss: 0.6143000721931458, Train Acc: 0.45, Val Acc: 1.0, LR: 0.0009580492746022554
+Epoch 10/1000, Train Loss: 2.006769061088562, Val Loss: 0.5662884712219238, Train Acc: 0.5, Val Acc: 0.8999999761581421, LR: 0.0009390422650862891
+Epoch 20/1000, Train Loss: 1.9462875723838806, Val Loss: 0.5328060388565063, Train Acc: 0.5, Val Acc: 0.8999999761581421, LR: 0.0009200352555703228
+Epoch 30/1000, Train Loss: 1.610964298248291, Val Loss: 0.5304656028747559, Train Acc: 0.525, Val Acc: 0.8999999761581421, LR: 0.0009010282460543564
+Epoch 40/1000, Train Loss: 1.2843551635742188, Val Loss: 0.5231050252914429, Train Acc: 0.625, Val Acc: 0.8999999761581421, LR: 0.0008820212365383899
+Epoch 50/1000, Train Loss: 1.1611811816692352, Val Loss: 0.4583452343940735, Train Acc: 0.65, Val Acc: 0.8999999761581421, LR: 0.0008630142270224236
+Epoch 60/1000, Train Loss: 1.2892481684684753, Val Loss: 0.40317875146865845, Train Acc: 0.65, Val Acc: 0.8999999761581421, LR: 0.0008440072175064571
+Epoch 70/1000, Train Loss: 1.1741543412208557, Val Loss: 0.3572870194911957, Train Acc: 0.65, Val Acc: 0.8999999761581421, LR: 0.0008250002079904907
+Epoch 80/1000, Train Loss: 0.8914514780044556, Val Loss: 0.3267061114311218, Train Acc: 0.825, Val Acc: 0.8999999761581421, LR: 0.0008059931984745243
+Epoch 90/1000, Train Loss: 0.8147492408752441, Val Loss: 0.30659252405166626, Train Acc: 0.7, Val Acc: 0.8999999761581421, LR: 0.0007869861889585577
+Epoch 100/1000, Train Loss: 1.4458724856376648, Val Loss: 0.3227084279060364, Train Acc: 0.625, Val Acc: 0.8999999761581421, LR: 0.0007679791794425913
+Epoch 110/1000, Train Loss: 1.1200453042984009, Val Loss: 0.2889297306537628, Train Acc: 0.725, Val Acc: 0.8999999761581421, LR: 0.0007489721699266252
+Epoch 120/1000, Train Loss: 1.0304296016693115, Val Loss: 0.33365103602409363, Train Acc: 0.675, Val Acc: 0.8999999761581421, LR: 0.0007299651604106588
+Epoch 130/1000, Train Loss: 1.3113421201705933, Val Loss: 0.3059367835521698, Train Acc: 0.75, Val Acc: 0.8999999761581421, LR: 0.0007109581508946923
+Epoch 140/1000, Train Loss: 1.1528579592704773, Val Loss: 0.31857138872146606, Train Acc: 0.675, Val Acc: 0.8999999761581421, LR: 0.0006919511413787261
+Epoch 150/1000, Train Loss: 1.0649179816246033, Val Loss: 0.32594069838523865, Train Acc: 0.7, Val Acc: 0.8999999761581421, LR: 0.0006729441318627595
+Epoch 160/1000, Train Loss: 0.8596330285072327, Val Loss: 0.27174705266952515, Train Acc: 0.8, Val Acc: 0.8999999761581421, LR: 0.000653937122346793
+Epoch 170/1000, Train Loss: 0.7923009991645813, Val Loss: 0.2843749523162842, Train Acc: 0.725, Val Acc: 0.8999999761581421, LR: 0.0006349301128308266
+Epoch 180/1000, Train Loss: 0.9635500311851501, Val Loss: 0.3023838996887207, Train Acc: 0.7, Val Acc: 0.8999999761581421, LR: 0.0006159231033148602
+Epoch 190/1000, Train Loss: 0.656804770231247, Val Loss: 0.301395446062088, Train Acc: 0.85, Val Acc: 0.8999999761581421, LR: 0.0005969160937988936
+[33m[W 2024-06-03 14:04:21,111][39m Trial 0 failed with parameters: {'hidden_size': 315, 'learning_rate': 0.000959949975553852, 'weight_decay': 0.0008600451026612257} because of the following error: KeyboardInterrupt().
+Traceback (most recent call last):
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 196, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 320, in obejective
+    return train_model(file_path, net=net, epochs=epochs, optimizer=optimizer)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 186, in train_model
+    rewards1 = net(batch_trajectories1)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1561, in _call_impl
+    result = forward_call(*args, **kwargs)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 40, in forward
+    x = self.dropout3(x)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/dropout.py", line 59, in forward
+    return F.dropout(input, self.p, self.training, self.inplace)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/functional.py", line 1268, in dropout
+    return _VF.dropout_(input, p, training) if inplace else _VF.dropout(input, p, training)
+KeyboardInterrupt
+[33m[W 2024-06-03 14:04:21,113][39m Trial 0 failed with value None.
+Traceback (most recent call last):
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 355, in <module>
+    study.optimize(obejective, n_trials=1)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/study.py", line 451, in optimize
+    _optimize(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 62, in _optimize
+    _optimize_sequential(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 159, in _optimize_sequential
+    frozen_trial = _run_trial(study, func, catch)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 247, in _run_trial
+    raise func_err
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 196, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 320, in obejective
+    return train_model(file_path, net=net, epochs=epochs, optimizer=optimizer)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 186, in train_model
+    rewards1 = net(batch_trajectories1)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1561, in _call_impl
+    result = forward_call(*args, **kwargs)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 40, in forward
+    x = self.dropout3(x)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/modules/dropout.py", line 59, in forward
+    return F.dropout(input, self.p, self.training, self.inplace)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/torch/nn/functional.py", line 1268, in dropout
+    return _VF.dropout_(input, p, training) if inplace else _VF.dropout(input, p, training)
+KeyboardInterrupt

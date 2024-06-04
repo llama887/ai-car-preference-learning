@@ -14,6 +14,8 @@ import optuna
 
 # plot the distribution of reward distributions for when the net gets it right and wrong
 
+study = ""
+
 
 class TrajectoryRewardNet(nn.Module):
     def __init__(self, input_size, hidden_size=128, dropout_prob=0.5):
@@ -301,7 +303,15 @@ def train_model(
     return best_loss
 
 
-def obejective(trial):
+def run_study(file_path, epochs):
+    global study
+    study = optuna.create_study(direction="minimize")
+    study.set_user_attr("file_path", file_path)
+    study.set_user_attr("epochs", epochs)
+    study.optimize(objective, n_trials=1)
+
+
+def objective(trial):
     input_size = 450 * 2
     hidden_size = trial.suggest_int("hidden_size", 64, 512)
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
@@ -314,8 +324,12 @@ def obejective(trial):
     optimizer = torch.optim.Adam(
         net.parameters(), lr=learning_rate, weight_decay=weight_decay
     )
-
-    return train_model(file_path, net=net, epochs=epochs, optimizer=optimizer)
+    train_model(
+        file_path=study.user_attrs["file_path"],
+        net=net,
+        epochs=study.user_attrs["epochs"],
+        optimizer=optimizer,
+    )
 
 
 if __name__ == "__main__":
@@ -349,5 +363,5 @@ if __name__ == "__main__":
     else:
         # train_model(file_path, epochs=1000)
         epochs = 1000
-    study = optuna.create_study(direction="minimize")
-    study.optimize(obejective, n_trials=10)
+
+    run_study(file_path=file_path, epochs=epochs)

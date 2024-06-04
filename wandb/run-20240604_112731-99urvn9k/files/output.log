@@ -1,0 +1,34 @@
+[33m[W 2024-06-04 11:27:32,406][39m Trial 0 failed with parameters: {'hidden_size': 81, 'learning_rate': 0.0006009183597350543, 'weight_decay': 0.0006143627892981534} because of the following error: FileNotFoundError(2, 'No such file or directory').
+Traceback (most recent call last):
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 196, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 327, in objective
+    train_model(
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 133, in train_model
+    data, true_rewards = load_data(file_path)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 57, in load_data
+    with open(file_path, "rb") as f:
+FileNotFoundError: [Errno 2] No such file or directory: 'trajectories/database_100.pkl'
+[33m[W 2024-06-04 11:27:32,406][39m Trial 0 failed with value None.
+Traceback (most recent call last):
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/main.py", line 95, in <module>
+    run_study(database_path, args.epochs[0])
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 311, in run_study
+    study.optimize(objective, n_trials=1)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/study.py", line 451, in optimize
+    _optimize(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 62, in _optimize
+    _optimize_sequential(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 159, in _optimize_sequential
+    frozen_trial = _run_trial(study, func, catch)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 247, in _run_trial
+    raise func_err
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 196, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 327, in objective
+    train_model(
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 133, in train_model
+    data, true_rewards = load_data(file_path)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 57, in load_data
+    with open(file_path, "rb") as f:
+FileNotFoundError: [Errno 2] No such file or directory: 'trajectories/database_100.pkl'

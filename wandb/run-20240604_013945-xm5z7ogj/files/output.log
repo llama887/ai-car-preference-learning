@@ -1,0 +1,91 @@
+Epoch 0/1000, Train Loss: 1.3794912099838257, Val Loss: 0.6046879291534424, Train Acc: 0.625, Val Acc: 0.800000011920929, LR: 0.0008454827109531502
+Epoch 10/1000, Train Loss: 1.3821386694908142, Val Loss: 0.5857894420623779, Train Acc: 0.575, Val Acc: 0.800000011920929, LR: 0.0008287089412121909
+Epoch 20/1000, Train Loss: 2.8983163833618164, Val Loss: 0.5694733262062073, Train Acc: 0.475, Val Acc: 0.800000011920929, LR: 0.0008119351714712317
+Epoch 30/1000, Train Loss: 1.4387628436088562, Val Loss: 0.5385003685951233, Train Acc: 0.525, Val Acc: 0.800000011920929, LR: 0.0007951614017302723
+Epoch 40/1000, Train Loss: 1.648764431476593, Val Loss: 0.4899066388607025, Train Acc: 0.6, Val Acc: 0.800000011920929, LR: 0.0007783876319893131
+Epoch 50/1000, Train Loss: 1.1401303112506866, Val Loss: 0.48425760865211487, Train Acc: 0.65, Val Acc: 0.800000011920929, LR: 0.0007616138622483535
+Epoch 60/1000, Train Loss: 1.0835262537002563, Val Loss: 0.43060606718063354, Train Acc: 0.725, Val Acc: 0.800000011920929, LR: 0.000744840092507394
+Epoch 70/1000, Train Loss: 0.8914332389831543, Val Loss: 0.4116304814815521, Train Acc: 0.65, Val Acc: 0.800000011920929, LR: 0.0007280663227664343
+Epoch 80/1000, Train Loss: 0.8956152200698853, Val Loss: 0.3820045590400696, Train Acc: 0.75, Val Acc: 0.800000011920929, LR: 0.0007112925530254747
+Epoch 90/1000, Train Loss: 0.8705296814441681, Val Loss: 0.3840034604072571, Train Acc: 0.75, Val Acc: 0.800000011920929, LR: 0.0006945187832845155
+Epoch 100/1000, Train Loss: 0.7775780856609344, Val Loss: 0.39290758967399597, Train Acc: 0.775, Val Acc: 0.800000011920929, LR: 0.000677745013543556
+[33m[W 2024-06-04 01:39:50,537][39m Trial 0 failed with parameters: {'hidden_size': 417, 'learning_rate': 0.0008471600879272462, 'weight_decay': 0.00017027222761830383} because of the following error: KeyboardInterrupt().
+Traceback (most recent call last):
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 196, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 318, in objective
+    return train_model(file_path, net=net, epochs=epochs, optimizer=optimizer)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 270, in train_model
+    wandb.log(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/wandb_run.py", line 419, in wrapper
+    return func(self, *args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/wandb_run.py", line 370, in wrapper_fn
+    return func(self, *args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/wandb_run.py", line 360, in wrapper
+    return func(self, *args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/wandb_run.py", line 1792, in log
+    self._log(data=data, step=step, commit=commit)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/wandb_run.py", line 1567, in _log
+    self._partial_history_callback(data, step, commit)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/wandb_run.py", line 1439, in _partial_history_callback
+    self._backend.interface.publish_partial_history(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/interface/interface.py", line 546, in publish_partial_history
+    self._publish_partial_history(partial_history)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/interface/interface_shared.py", line 89, in _publish_partial_history
+    self._publish(rec)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/interface/interface_sock.py", line 51, in _publish
+    self._sock_client.send_record_publish(record)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/lib/sock_client.py", line 221, in send_record_publish
+    self.send_server_request(server_req)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/lib/sock_client.py", line 155, in send_server_request
+    self._send_message(msg)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/lib/sock_client.py", line 152, in _send_message
+    self._sendall_with_error_handle(header + data)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/lib/sock_client.py", line 130, in _sendall_with_error_handle
+    sent = self._sock.send(data)
+KeyboardInterrupt
+[33m[W 2024-06-04 01:39:50,540][39m Trial 0 failed with value None.
+Traceback (most recent call last):
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 353, in <module>
+    study.optimize(objective, n_trials=1)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/study.py", line 451, in optimize
+    _optimize(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 62, in _optimize
+    _optimize_sequential(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 159, in _optimize_sequential
+    frozen_trial = _run_trial(study, func, catch)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 247, in _run_trial
+    raise func_err
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/optuna/study/_optimize.py", line 196, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 318, in objective
+    return train_model(file_path, net=net, epochs=epochs, optimizer=optimizer)
+  File "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/reward.py", line 270, in train_model
+    wandb.log(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/wandb_run.py", line 419, in wrapper
+    return func(self, *args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/wandb_run.py", line 370, in wrapper_fn
+    return func(self, *args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/wandb_run.py", line 360, in wrapper
+    return func(self, *args, **kwargs)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/wandb_run.py", line 1792, in log
+    self._log(data=data, step=step, commit=commit)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/wandb_run.py", line 1567, in _log
+    self._partial_history_callback(data, step, commit)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/wandb_run.py", line 1439, in _partial_history_callback
+    self._backend.interface.publish_partial_history(
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/interface/interface.py", line 546, in publish_partial_history
+    self._publish_partial_history(partial_history)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/interface/interface_shared.py", line 89, in _publish_partial_history
+    self._publish(rec)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/interface/interface_sock.py", line 51, in _publish
+    self._sock_client.send_record_publish(record)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/lib/sock_client.py", line 221, in send_record_publish
+    self.send_server_request(server_req)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/lib/sock_client.py", line 155, in send_server_request
+    self._send_message(msg)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/lib/sock_client.py", line 152, in _send_message
+    self._sendall_with_error_handle(header + data)
+  File "/Users/alextang/.pyenv/versions/nocturne_lab/lib/python3.10/site-packages/wandb/sdk/lib/sock_client.py", line 130, in _sendall_with_error_handle
+    sent = self._sock.send(data)
+KeyboardInterrupt
