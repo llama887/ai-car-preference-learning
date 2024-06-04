@@ -18,6 +18,8 @@ import pickle
 from reward import TrajectoryRewardNet, prepare_single_trajectory
 import torch
 
+import re
+
 # Constants
 
 WIDTH = 1920
@@ -36,6 +38,7 @@ trajectory_path = "./trajectories/"
 reward_network = None
 number_of_trajectories = -1
 # need to save heading, there are 3dof
+
 
 class Car:
     def __init__(self):
@@ -394,7 +397,10 @@ if __name__ == "__main__":
 
     if args.reward is not None:
         print("Loading reward network...")
-        reward_network = TrajectoryRewardNet(TRAJECTORY_LENGTH * 2)
+        hidden_size = re.search(r"best_model_(\d+)\.pth", args.reward)
+        reward_network = TrajectoryRewardNet(
+            TRAJECTORY_LENGTH * 2, hidden_size=int(hidden_size.group(1))
+        )
         weights = torch.load(args.reward)
         reward_network.load_state_dict(weights)
 
