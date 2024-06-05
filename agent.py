@@ -38,6 +38,9 @@ trajectory_path = "./trajectories/"
 reward_network = None
 number_of_trajectories = -1
 population = ""
+run_averages = []
+run_maxes = []
+
 # need to save heading, there are 3dof
 
 
@@ -336,14 +339,24 @@ def run_simulation(genomes, config):
                 number_of_trajectories > 0
                 and saved_trajectory_count < number_of_trajectories
             ):
+                avg_distance = 0
+                max_distance = 0
                 for i, car in enumerate(cars):
                     if saved_trajectory_count >= number_of_trajectories:
                         break
                     car.save_trajectory(
                         f"{trajectory_path}trajectory_{current_generation}_{i}.pkl"
                     )
+                    avg_distance += car.distance
+                    max_distance += car.distance
                     print("Saved trajectory")
                     saved_trajectory_count += 1
+                avg_distance /= len(cars)
+                global run_averages
+                global run_maxes
+                run_averages.append(avg_distance)
+                run_maxes.append(max_distance)
+
             break
         if (
             number_of_trajectories > 0
@@ -398,7 +411,9 @@ def run_population(config_path, max_generations, number_of_trajectories):
     stats = neat.StatisticsReporter()
     population.add_reporter(stats)
 
-    if number_of_trajectories >= 0:
+    if number_of_trajectories < 0:
+        max_generations = number_of_trajectories
+    else:
         max_generations = math.ceil(number_of_trajectories / config.pop_size)
         max_generations += 1
 
@@ -409,8 +424,12 @@ def run_population(config_path, max_generations, number_of_trajectories):
         max_generations,
     )
 
-    global current_generation
+    global current_generation, run_averages, run_maxes
     current_generation = 0
+    ret = (run_averages, run_maxes)
+    print(ret)
+    run_averages, run_maxes = [], []
+    return ret
 
 
 if __name__ == "__main__":

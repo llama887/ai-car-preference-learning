@@ -23,6 +23,8 @@ import optuna
 
 study = ""
 
+os.environ["WANDB_SILENT"] = "true"
+
 
 class TrajectoryRewardNet(nn.Module):
     def __init__(self, input_size, hidden_size=128, dropout_prob=0.5):
@@ -357,6 +359,26 @@ def run_study(file_path, epochs):
     study.set_user_attr("epochs", epochs)
     study.optimize(objective, n_trials=1)
 
+    # Load and print the best trial
+    best_trial = study.best_trial
+    print(f"Best trial: {best_trial.number}")
+    print(f"Value: {best_trial.value}")
+    print(f"Params: {best_trial.params}")
+
+    input_size = 450 * 2
+    # Load the best model
+    best_model = TrajectoryRewardNet(input_size, best_trial.params["hidden_size"])
+    best_model.load_state_dict(torch.load(f"best_model_trial_{best_trial.number}.pth"))
+    torch.save(
+        best_model.state_dict(), f"best_model_{best_trial.params['hidden_size']}.pth"
+    )
+
+    # Delete saved hyperparameter trials
+    for file in glob.glob("best_model_trial*.pth"):
+        os.remove(file)
+
+    os.remove("best.pth")
+
 
 def objective(trial):
     input_size = 450 * 2
@@ -420,24 +442,4 @@ if __name__ == "__main__":
     else:
         epochs = 1000
 
-    study = optuna.create_study(direction="minimize")
-    study.optimize(objective, n_trials=5)
-
-    # Load and print the best trial
-    best_trial = study.best_trial
-    print(f"Best trial: {best_trial.number}")
-    print(f"Value: {best_trial.value}")
-    print(f"Params: {best_trial.params}")
-
-    # Load the best model
-    best_model = TrajectoryRewardNet(input_size, best_trial.params["hidden_size"])
-    best_model.load_state_dict(torch.load(f"best_model_trial_{best_trial.number}.pth"))
-    torch.save(
-        best_model.state_dict(), f"best_model_{best_trial.params['hidden_size']}.pth"
-    )
-
-    # Delete saved hyperparameter trials
-    for file in glob.glob("best_model_trial*.pth"):
-        os.remove(file)
-
-    os.remove("best.pth")
+    run_study(file_path=file_path, epochs=epochs)
