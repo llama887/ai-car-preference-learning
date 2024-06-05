@@ -340,7 +340,6 @@ def run_simulation(genomes, config):
                     car.save_trajectory(
                         f"{trajectory_path}trajectory_{current_generation}_{i}.pkl"
                     )
-                    print("Saved trajectory")
                     saved_trajectory_count += 1
             break
         if (
