@@ -1,0 +1,16 @@
+2024-06-05 11:45:00,552 INFO    MainThread:10044 [wandb_setup.py:_flush():76] Current SDK version is 0.17.0
+2024-06-05 11:45:00,552 INFO    MainThread:10044 [wandb_setup.py:_flush():76] Configure stats pid to 10044
+2024-06-05 11:45:00,552 INFO    MainThread:10044 [wandb_setup.py:_flush():76] Loading settings from C:\Users\mailf\.config\wandb\settings
+2024-06-05 11:45:00,552 INFO    MainThread:10044 [wandb_setup.py:_flush():76] Loading settings from C:\Users\mailf\OneDrive\Documents\GitHub\preference_learning\docs\simulations\ai-car-preference-learning\wandb\settings
+2024-06-05 11:45:00,552 INFO    MainThread:10044 [wandb_setup.py:_flush():76] Loading settings from environment variables: {'silent': 'true'}
+2024-06-05 11:45:00,553 INFO    MainThread:10044 [wandb_setup.py:_flush():76] Applying setup settings: {'_disable_service': False}
+2024-06-05 11:45:00,554 INFO    MainThread:10044 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'reward.py', 'program_abspath': 'C:\\Users\\mailf\\OneDrive\\Documents\\GitHub\\preference_learning\\docs\\simulations\\ai-car-preference-learning\\reward.py', 'program': '.\\reward.py'}
+2024-06-05 11:45:00,554 INFO    MainThread:10044 [wandb_setup.py:_flush():76] Applying login settings: {}
+2024-06-05 11:45:00,554 INFO    MainThread:10044 [wandb_init.py:_log_setup():520] Logging user logs to C:\Users\mailf\OneDrive\Documents\GitHub\preference_learning\docs\simulations\ai-car-preference-learning\wandb\run-20240605_114500-3feg6ahk\logs\debug.log
+2024-06-05 11:45:00,554 INFO    MainThread:10044 [wandb_init.py:_log_setup():521] Logging internal logs to C:\Users\mailf\OneDrive\Documents\GitHub\preference_learning\docs\simulations\ai-car-preference-learning\wandb\run-20240605_114500-3feg6ahk\logs\debug-internal.log
+2024-06-05 11:45:00,554 INFO    MainThread:10044 [wandb_init.py:init():560] calling init triggers
+2024-06-05 11:45:00,555 INFO    MainThread:10044 [wandb_init.py:init():567] wandb.init called with sweep_config: {}
+config: {}
+2024-06-05 11:45:00,555 INFO    MainThread:10044 [wandb_init.py:init():605] wandb.init() called when a run is still active
+2024-06-05 11:45:00,555 INFO    MainThread:10044 [wandb_watch.py:watch():51] Watching
+2024-06-05 11:45:11,386 WARNING MsgRouterThr:10044 [router.py:message_loop():77] message_loop has been closed

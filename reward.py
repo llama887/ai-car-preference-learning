@@ -15,6 +15,8 @@ import glob
 import os
 import yaml
 
+os.environ["WANDB_SILENT"] = "true"
+
 
 class TrajectoryRewardNet(nn.Module):
     def __init__(self, input_size, hidden_size=128, dropout_prob=0.5):
@@ -363,7 +365,7 @@ if __name__ == "__main__":
     study = optuna.create_study(direction="minimize")
     for file in glob.glob("best_model*.pth"):
         os.remove(file)
-    study.optimize(objective, n_trials=20)
+    study.optimize(objective, n_trials=2)
 
     # Load and print the best trial
     best_trial = study.best_trial

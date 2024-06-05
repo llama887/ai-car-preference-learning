@@ -1,0 +1,4 @@
+dropout_prob: 0.20006083580543488
+hidden_size: 526
+learning_rate: 0.0009031188992770172
+weight_decay: 0.0005991557157116233
