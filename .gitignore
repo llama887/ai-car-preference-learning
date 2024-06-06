@@ -6,3 +6,4 @@ best_model.pth
 best.pth
 figures/*
 test.py
+archive

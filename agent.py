@@ -388,7 +388,13 @@ if __name__ == "__main__":
         type=str,
         help="Directory to reward function weights",
     )
+    parse.add_argument("--headless", help="Run simulation without GUI")
     args = parse.parse_args()
+
+    headless = False
+    if args.headless:
+        os.environ["SDL_VIDEODRIVER"] = "dummy"
+        headless = True
 
     if args.reward and args.trajectories[0] > 0:
         print("Cannot save trajectories and train reward function at the same time")
