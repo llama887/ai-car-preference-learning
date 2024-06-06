@@ -17,12 +17,10 @@ import optuna
 import glob
 import os
 import shutil
-import optuna
 
 # plot the distribution of reward distributions for when the net gets it right and wrong
 
 study = ""
-
 os.environ["WANDB_SILENT"] = "true"
 
 
@@ -156,7 +154,7 @@ def calculate_accuracy(predicted_probabilities, true_preferences):
 
 
 def train_model(
-    file_path, net, epochs=1000, optimizer=None, batch_size=32, model_path="best.pth"
+    file_path, net, epochs=1000, optimizer=None, batch_size=50, model_path="best.pth"
 ):
     wandb.init(project="Micro Preference")
     wandb.watch(net, log="all")
@@ -357,7 +355,7 @@ def run_study(file_path, epochs):
     study = optuna.create_study(direction="minimize")
     study.set_user_attr("file_path", file_path)
     study.set_user_attr("epochs", epochs)
-    study.optimize(objective, n_trials=1)
+    study.optimize(objective, n_trials=2)
 
     # Load and print the best trial
     best_trial = study.best_trial
@@ -366,18 +364,13 @@ def run_study(file_path, epochs):
     print(f"Params: {best_trial.params}")
 
     input_size = 450 * 2
+
     # Load the best model
     best_model = TrajectoryRewardNet(input_size, best_trial.params["hidden_size"])
     best_model.load_state_dict(torch.load(f"best_model_trial_{best_trial.number}.pth"))
     torch.save(
         best_model.state_dict(), f"best_model_{best_trial.params['hidden_size']}.pth"
     )
-
-    # Delete saved hyperparameter trials
-    for file in glob.glob("best_model_trial*.pth"):
-        os.remove(file)
-
-    os.remove("best.pth")
 
 
 def objective(trial):
@@ -442,4 +435,10 @@ if __name__ == "__main__":
     else:
         epochs = 1000
 
-    run_study(file_path=file_path, epochs=epochs)
+    run_study(file_path, epochs)
+
+    # Delete saved hyperparameter trials
+    for file in glob.glob("best_model_trial*.pth"):
+        os.remove(file)
+
+    os.remove("best.pth")

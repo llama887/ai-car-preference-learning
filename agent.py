@@ -38,6 +38,7 @@ trajectory_path = "./trajectories/"
 reward_network = None
 number_of_trajectories = -1
 population = ""
+agent_distances = []
 run_averages = []
 run_maxes = []
 
@@ -286,7 +287,7 @@ def run_simulation(genomes, config):
         g.fitness = 0
 
         cars.append(Car())
-
+    print("THIS GENERATION HAS", len(cars), "CARS.")
     # Clock Settings
     # Font Settings & Loading Map
     clock = pygame.time.Clock()
@@ -330,33 +331,41 @@ def run_simulation(genomes, config):
                 car.update(game_map)
                 genomes[i][1].fitness += car.get_reward()
 
-        if still_alive == 0:
+        if still_alive == 0 and number_of_trajectories > 0:
+            print("ALL DIED")
             break
 
+        global run_averages, run_maxes, agent_distances
         counter += 1
-        if counter == TRAJECTORY_LENGTH:  # Stop After About 7 Seconds
+        if counter == TRAJECTORY_LENGTH or (
+            still_alive == 0 and number_of_trajectories < 0
+        ):  # Stop After About 7 Seconds
             if (
-                number_of_trajectories > 0
-                and saved_trajectory_count < number_of_trajectories
+                number_of_trajectories < 0
+                or saved_trajectory_count < number_of_trajectories
             ):
                 avg_distance = 0
                 max_distance = 0
+                n = len(agent_distances)
+                generation_distances = []
                 for i, car in enumerate(cars):
-                    if saved_trajectory_count >= number_of_trajectories:
+                    if (
+                        saved_trajectory_count >= number_of_trajectories
+                        and number_of_trajectories > 0
+                    ):
                         break
                     car.save_trajectory(
                         f"{trajectory_path}trajectory_{current_generation}_{i}.pkl"
                     )
+                    generation_distances.append(car.distance)
                     avg_distance += car.distance
-                    max_distance += car.distance
-                    print("Saved trajectory")
+                    max_distance = max(car.distance, max_distance)
+                    # print("Saved trajectory")
                     saved_trajectory_count += 1
                 avg_distance /= len(cars)
-                global run_averages
-                global run_maxes
                 run_averages.append(avg_distance)
                 run_maxes.append(max_distance)
-
+                agent_distances.append(generation_distances)
             break
         if (
             number_of_trajectories > 0
@@ -411,9 +420,7 @@ def run_population(config_path, max_generations, number_of_trajectories):
     stats = neat.StatisticsReporter()
     population.add_reporter(stats)
 
-    if number_of_trajectories < 0:
-        max_generations = number_of_trajectories
-    else:
+    if number_of_trajectories >= 0:
         max_generations = math.ceil(number_of_trajectories / config.pop_size)
         max_generations += 1
 
@@ -424,11 +431,10 @@ def run_population(config_path, max_generations, number_of_trajectories):
         max_generations,
     )
 
-    global current_generation, run_averages, run_maxes
+    global current_generation, run_averages, run_maxes, agent_distances
     current_generation = 0
-    ret = (run_averages, run_maxes)
-    print(ret)
-    run_averages, run_maxes = [], []
+    ret = agent_distances.copy()
+    agent_distances = []
     return ret
 
 

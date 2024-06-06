@@ -1,6 +1,8 @@
 ./trajectories/*
 ./wandb/*
+/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/*
 test.py
+scratch.py
 
 __pycache__
 best_model*

@@ -27,18 +27,36 @@ def start_simulation(config_path, max_generations, number_of_trajectories=-1):
     )
 
 
+def handle_plotting(true_agent_distances, trained_agent_distances):
+    traj_per_generation = len(true_agent_distances[0])
+    num_generations = len(true_agent_distances)
+    true_reward_averages = [
+        (sum(generation) / traj_per_generation) for generation in true_agent_distances
+    ]
+    true_reward_maxes = [max(generation) for generation in true_agent_distances]
+
+    trained_reward_averages = [
+        (sum(generation) / traj_per_generation)
+        for generation in trained_agent_distances
+    ]
+    trained_reward_maxes = [max(generation) for generation in trained_agent_distances]
+    graph_avg_max(
+        (true_reward_averages, trained_reward_averages),
+        (true_reward_maxes, trained_reward_maxes),
+    )
+
+
 def graph_avg_max(averages, maxes):
     true_reward_averages, trained_reward_averages = averages
     true_reward_maxes, trained_reward_maxes = maxes
 
-    wandb.init(project="Micro Preference")
-
     os.makedirs("figures", exist_ok=True)
 
-    plt.figure()
     x_values = range(len(trained_reward_averages))
+
+    plt.figure()
     plt.plot(x_values, true_reward_averages, label="Ground Truth")
-    plt.plot(x_values, trained_reward_averages, label="Trained Reward")
+    plt.plot(x_values, trained_reward_averages, label="Trained Reward", marker="o")
     plt.xlabel("Generation")
     plt.ylabel("Distance")
     plt.title("Ground Truth vs Trained Reward: Average Distance")
@@ -46,19 +64,37 @@ def graph_avg_max(averages, maxes):
     plt.savefig("figures/average.png")
 
     plt.figure()
-    x_values = range(len(trained_reward_maxes))
     plt.plot(x_values, true_reward_maxes, label="Ground Truth")
-    plt.plot(x_values, trained_reward_maxes, label="Trained Reward")
+    plt.plot(x_values, trained_reward_maxes, label="Trained Reward", marker="o")
     plt.xlabel("Generation")
     plt.ylabel("Distance")
     plt.title("Ground Truth vs Trained Reward: Max Distance")
     plt.legend()
     plt.savefig("figures/max.png")
 
-    wandb.log({"plot": wandb.Image("figures/average.png")})
-    wandb.log({"plot": wandb.Image("figures/max.png")})
+    wandb.log({"Avg Plot": wandb.Image("figures/average.png")})
+    wandb.log({"Max Plot": wandb.Image("figures/max.png")})
 
-    wandb.finish()
+    wandb.log(
+        {
+            "Wandb Avg Plot": wandb.plot.line_series(
+                xs=x_values,
+                ys=[true_reward_averages, trained_reward_averages],
+                keys=["True Average", "Trained Average"],
+                title="Ground Truth vs Trained Reward: Average Distance",
+            )
+        }
+    )
+    wandb.log(
+        {
+            "Wandb Max Plot": wandb.plot.line_series(
+                xs=x_values,
+                ys=[true_reward_maxes, trained_reward_maxes],
+                keys=["True Max", "Trained Max"],
+                title="Ground Truth vs Trained Reward: Max Distance",
+            )
+        }
+    )
 
 
 if __name__ == "__main__":
@@ -114,24 +150,23 @@ if __name__ == "__main__":
 
     print("Simulating on true reward function...")
     # run the simulation with the true reward function
-    true_reward_averages, true_reward_maxes = start_simulation(
-        "./config/agent_config.txt", args.generations[0]
+    # true_reward_averages, true_reward_maxes = start_simulation(
+    #     "./config/agent_config.txt",
+    #     args.generations[0],
+    # )
+    true_agent_distances = start_simulation(
+        "./config/agent_config.txt",
+        args.generations[0],
     )
-
     print("Simulating on trained reward function...")
     # run the simulation with the trained reward function
     agent.reward_network = TrajectoryRewardNet(TRAJECTORY_LENGTH * 2)
-    trained_reward_averages, trained_reward_maxes = start_simulation(
-        "./config/agent_config.txt", args.generations[0]
+    # trained_reward_averages, trained_reward_maxes = start_simulation(
+    #     "./config/agent_config.txt",
+    #     args.generations[0],
+    # )
+    trained_agent_distances = start_simulation(
+        "./config/agent_config.txt",
+        args.generations[0],
     )
-
-    graph_avg_max(
-        (true_reward_averages, trained_reward_averages),
-        (true_reward_maxes, trained_reward_maxes),
-    )
-
-    print(
-        "AVERAGES, MAXES",
-        (true_reward_averages, trained_reward_averages),
-        (true_reward_maxes, trained_reward_maxes),
-    )
+    handle_plotting(true_agent_distances, trained_agent_distances)
