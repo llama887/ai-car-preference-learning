@@ -35,10 +35,7 @@ def plot_trajectories(trajectories, title):
     plt.figure(figsize=(10, 6))
     for idx, trajectory in enumerate(trajectories):
         xs, ys = zip(*trajectory)  # Unpack x and y coordinates
-        ys = [-y for y in ys]
-        plt.plot(
-            xs, ys, alpha=0.7, label=f"Trajectory {idx + 1}"
-        )  # Plot the trajectory with markers
+        plt.plot(xs, ys, alpha=0.7)  # Plot the trajectory with markers
     plt.title(title)
     plt.xlabel("X")
     plt.ylabel("Y")

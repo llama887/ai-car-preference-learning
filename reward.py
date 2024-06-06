@@ -16,7 +16,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 import optuna
 import glob
 import os
-import shutil
+import yaml
 
 # plot the distribution of reward distributions for when the net gets it right and wrong
 
@@ -28,24 +28,29 @@ class TrajectoryRewardNet(nn.Module):
     def __init__(self, input_size, hidden_size=128, dropout_prob=0.5):
         super(TrajectoryRewardNet, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
-        self.bn1 = nn.LayerNorm(hidden_size)
+        self.ln1 = nn.LayerNorm(hidden_size)
         self.dropout1 = nn.Dropout(dropout_prob)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.bn2 = nn.LayerNorm(hidden_size)
+        self.ln2 = nn.LayerNorm(hidden_size)
         self.dropout2 = nn.Dropout(dropout_prob)
-        self.fc3 = nn.Linear(hidden_size, hidden_size)
-        self.bn3 = nn.LayerNorm(hidden_size)
+        self.fc3 = nn.Linear(hidden_size, hidden_size // 2)
+        self.ln3 = nn.LayerNorm(hidden_size // 2)
         self.dropout3 = nn.Dropout(dropout_prob)
-        self.fc4 = nn.Linear(hidden_size, 1)
+        self.fc4 = nn.Linear(hidden_size // 2, hidden_size // 4)
+        self.ln4 = nn.LayerNorm(hidden_size // 4)
+        self.dropout4 = nn.Dropout(dropout_prob)
+        self.fc5 = nn.Linear(hidden_size // 4, 1)
 
     def forward(self, x):
-        x = F.relu(self.bn1(self.fc1(x)))
+        x = F.relu(self.ln1(self.fc1(x)))
         x = self.dropout1(x)
-        x = F.relu(self.bn2(self.fc2(x)))
+        x = F.relu(self.ln2(self.fc2(x)))
         x = self.dropout2(x)
-        x = F.relu(self.bn3(self.fc3(x)))
+        x = F.relu(self.ln3(self.fc3(x)))
         x = self.dropout3(x)
-        x = self.fc4(x)
+        x = F.relu(self.ln4(self.fc4(x)))
+        x = self.dropout4(x)
+        x = self.fc5(x)
         return x
 
 
@@ -375,11 +380,12 @@ def run_study(file_path, epochs):
 
 def objective(trial):
     input_size = 450 * 2
-    hidden_size = trial.suggest_int("hidden_size", 64, 512)
+    hidden_size = trial.suggest_int("hidden_size", 128, 1024)
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
+    dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.5)
 
-    net = TrajectoryRewardNet(input_size, hidden_size)
+    net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob)
     for param in net.parameters():
         if len(param.shape) > 1:
             nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
@@ -413,22 +419,14 @@ if __name__ == "__main__":
     parse.add_argument(
         "-e", "--epochs", type=int, help="Number of epochs to train the model"
     )
+    parse.add_argument(
+        "-p", "--parameters", type=str, help="Directory to hyperparameter yaml file"
+    )
     args = parse.parse_args()
     if args.database:
         file_path = args.database
     else:
         file_path = "trajectories/database_350.pkl"
-
-    try:
-        shutil.rmtree("./wandb")
-    except OSError as e:
-        pass
-    for file in glob.glob("best_model*.pth"):
-        os.remove(file)
-
-    input_size = 450 * 2
-    hidden_size = 128
-    learning_rate = 0.0003
 
     if args.epochs:
         epochs = args.epochs
@@ -438,7 +436,5 @@ if __name__ == "__main__":
     run_study(file_path, epochs)
 
     # Delete saved hyperparameter trials
-    for file in glob.glob("best_model_trial*.pth"):
+    for file in glob.glob("best_model_trial_*.pth"):
         os.remove(file)
-
-    os.remove("best.pth")
