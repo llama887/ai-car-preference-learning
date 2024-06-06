@@ -18,6 +18,8 @@ import pickle
 from reward import TrajectoryRewardNet, prepare_single_trajectory
 import torch
 
+import re
+
 # Constants
 
 WIDTH = 1920
@@ -34,6 +36,8 @@ current_generation = 0  # Generation counter
 saved_trajectory_count = 0  # Counter for saved trajectories
 trajectory_path = "./trajectories/"
 reward_network = None
+number_of_trajectories = -1
+# need to save heading, there are 3dof
 
 
 class Car:
@@ -336,7 +340,6 @@ def run_simulation(genomes, config):
                     car.save_trajectory(
                         f"{trajectory_path}trajectory_{current_generation}_{i}.pkl"
                     )
-                    print("Saved trajectory")
                     saved_trajectory_count += 1
             break
         if (
@@ -393,7 +396,10 @@ if __name__ == "__main__":
 
     if args.reward is not None:
         print("Loading reward network...")
-        reward_network = TrajectoryRewardNet(TRAJECTORY_LENGTH * 2)
+        hidden_size = re.search(r"best_model_(\d+)\.pth", args.reward)
+        reward_network = TrajectoryRewardNet(
+            TRAJECTORY_LENGTH * 2, hidden_size=int(hidden_size.group(1))
+        )
         weights = torch.load(args.reward)
         reward_network.load_state_dict(weights)
 
@@ -408,7 +414,7 @@ if __name__ == "__main__":
             print(f"Saving {number_of_trajectories} trajectories...")
 
     # Load Config
-    config_path = "./config.txt"
+    config_path = "config\data_collection_config.txt"
     config = neat.config.Config(
         neat.DefaultGenome,
         neat.DefaultReproduction,

@@ -8,30 +8,43 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import argparse
 import wandb
+from torch.optim.lr_scheduler import StepLR
+import torch.optim.lr_scheduler as lr_scheduler
+import optuna
+import glob
+import os
+import yaml
+
+os.environ["WANDB_SILENT"] = "true"
 
 
 class TrajectoryRewardNet(nn.Module):
     def __init__(self, input_size, hidden_size=128, dropout_prob=0.5):
         super(TrajectoryRewardNet, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
-        self.bn1 = nn.LayerNorm(hidden_size)
+        self.ln1 = nn.LayerNorm(hidden_size)
         self.dropout1 = nn.Dropout(dropout_prob)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.bn2 = nn.LayerNorm(hidden_size)
+        self.ln2 = nn.LayerNorm(hidden_size)
         self.dropout2 = nn.Dropout(dropout_prob)
-        self.fc3 = nn.Linear(hidden_size, hidden_size)
-        self.bn3 = nn.LayerNorm(hidden_size)
+        self.fc3 = nn.Linear(hidden_size, hidden_size // 2)
+        self.ln3 = nn.LayerNorm(hidden_size // 2)
         self.dropout3 = nn.Dropout(dropout_prob)
-        self.fc4 = nn.Linear(hidden_size, 1)
+        self.fc4 = nn.Linear(hidden_size // 2, hidden_size // 4)
+        self.ln4 = nn.LayerNorm(hidden_size // 4)
+        self.dropout4 = nn.Dropout(dropout_prob)
+        self.fc5 = nn.Linear(hidden_size // 4, 1)
 
     def forward(self, x):
-        x = F.relu(self.bn1(self.fc1(x)))
+        x = F.relu(self.ln1(self.fc1(x)))
         x = self.dropout1(x)
-        x = F.relu(self.bn2(self.fc2(x)))
+        x = F.relu(self.ln2(self.fc2(x)))
         x = self.dropout2(x)
-        x = F.relu(self.bn3(self.fc3(x)))
+        x = F.relu(self.ln3(self.fc3(x)))
         x = self.dropout3(x)
-        x = self.fc4(x)
+        x = F.relu(self.ln4(self.fc4(x)))
+        x = self.dropout4(x)
+        x = self.fc5(x)
         return x
 
 
@@ -46,17 +59,6 @@ def preference_loss(predicted_probabilities, true_preferences):
     return F.binary_cross_entropy(predicted_probabilities, true_preferences)
 
 
-input_size = 450 * 2
-hidden_size = 128
-learning_rate = 0.0003
-
-net = TrajectoryRewardNet(input_size, hidden_size)
-for param in net.parameters():
-    if len(param.shape) > 1:
-        nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
-optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate, weight_decay=1e-4)
-
-
 def load_data(file_path):
     with open(file_path, "rb") as f:
         data = pickle.load(f)
@@ -65,7 +67,7 @@ def load_data(file_path):
     return triples, true_rewards
 
 
-def prepare_data(data, max_length=input_size // 2):
+def prepare_data(data, max_length=450):
     def pad_or_truncate(trajectory, length):
         if len(trajectory) > length:
             return trajectory[:length]
@@ -102,7 +104,7 @@ def visualize_trajectories(batch_1, batch_2):
     plt.show()
 
 
-def prepare_single_trajectory(trajectory, max_length=input_size // 2):
+def prepare_single_trajectory(trajectory, max_length=450):
     def pad_or_truncate(trajectory, length):
         if len(trajectory) > length:
             return trajectory[:length]
@@ -128,7 +130,9 @@ def calculate_accuracy(predicted_probabilities, true_preferences):
     return accuracy.item()
 
 
-def train_model(file_path, epochs=1000, batch_size=32, model_path="best.pth"):
+def train_model(
+    file_path, net, epochs=1000, optimizer=None, batch_size=32, model_path="best.pth"
+):
     wandb.init(project="Micro Preference")
     wandb.watch(net, log="all")
 
@@ -140,17 +144,17 @@ def train_model(file_path, epochs=1000, batch_size=32, model_path="best.pth"):
     validation_trajectories1, validation_trajectories2, validation_true_preferences = (
         prepare_data(validation_data)
     )
-    # Log label balance
-    wandb.log(
-        {
-            "True Preferences Training": wandb.Histogram(
-                true_preferences.detach().cpu().numpy()
-            ),
-            "True Preferences Validation": wandb.Histogram(
-                validation_true_preferences.detach().cpu().numpy()
-            ),
-        }
-    )
+    # # Log label balance
+    # wandb.log(
+    #     {
+    #         "True Preferences Training": wandb.Histogram(
+    #             true_preferences.detach().cpu().numpy()
+    #         ),
+    #         "True Preferences Validation": wandb.Histogram(
+    #             validation_true_preferences.detach().cpu().numpy()
+    #         ),
+    #     }
+    # )
 
     dataset_size = len(true_preferences)
     validation_dataset_size = len(validation_true_preferences)
@@ -164,10 +168,20 @@ def train_model(file_path, epochs=1000, batch_size=32, model_path="best.pth"):
     training_accuracies = []
     validation_accuracies = []
 
+    scheduler = lr_scheduler.LinearLR(
+        optimizer, start_factor=1.0, end_factor=0.01, total_iters=epochs
+    )
+
     for epoch in range(epochs):
         net.train()
         total_loss = 0.0
         total_accuracy = 0.0
+        total_probability = 0.0
+
+        TP_rewards = []
+        TN_rewards = []
+        FP_rewards = []
+        FN_rewards = []
 
         for i in range(0, dataset_size, batch_size):
             optimizer.zero_grad()
@@ -180,9 +194,14 @@ def train_model(file_path, epochs=1000, batch_size=32, model_path="best.pth"):
             rewards2 = net(batch_trajectories2)
 
             predicted_probabilities = bradley_terry_model(rewards1, rewards2)
+            total_probability += predicted_probabilities.sum().item()
 
             loss = preference_loss(predicted_probabilities, batch_true_preferences)
             total_loss += loss.item()
+
+            if loss.item() < best_loss:
+                best_loss = loss.item()
+                torch.save(net.state_dict(), model_path)
 
             accuracy = calculate_accuracy(
                 predicted_probabilities, batch_true_preferences
@@ -192,6 +211,19 @@ def train_model(file_path, epochs=1000, batch_size=32, model_path="best.pth"):
             loss.backward()
             torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
             optimizer.step()
+
+            scheduler.step()
+
+            # Classify rewards
+            for idx, prob in enumerate(predicted_probabilities):
+                if prob > 0.5 and batch_true_preferences[idx] == 1:
+                    TP_rewards.append(true_rewards[i + idx][0])
+                elif prob <= 0.5 and batch_true_preferences[idx] == 0:
+                    TN_rewards.append(true_rewards[i + idx][1])
+                elif prob > 0.5 and batch_true_preferences[idx] == 0:
+                    FP_rewards.append(true_rewards[i + idx][1])
+                elif prob <= 0.5 and batch_true_preferences[idx] == 1:
+                    FN_rewards.append(true_rewards[i + idx][0])
 
         average_training_loss = total_loss / (dataset_size // batch_size)
         training_losses.append(average_training_loss)
@@ -216,10 +248,6 @@ def train_model(file_path, epochs=1000, batch_size=32, model_path="best.pth"):
             )
             validation_accuracies.append(validation_accuracy)
 
-        if validation_loss.item() < best_loss:
-            best_loss = validation_loss.item()
-            torch.save(net.state_dict(), model_path)
-
         wandb.log(
             {
                 "Train Loss": average_training_loss,
@@ -234,6 +262,28 @@ def train_model(file_path, epochs=1000, batch_size=32, model_path="best.pth"):
         for name, param in net.named_parameters():
             wandb.log(
                 {f"weights/{name}": wandb.Histogram(param.detach().cpu().numpy())},
+                step=epoch,
+            )
+
+        # Log reward distributions
+        if TP_rewards:
+            wandb.log(
+                {"TP Reward Distribution": wandb.Histogram(np.array(TP_rewards))},
+                step=epoch,
+            )
+        if TN_rewards:
+            wandb.log(
+                {"TN Reward Distribution": wandb.Histogram(np.array(TN_rewards))},
+                step=epoch,
+            )
+        if FP_rewards:
+            wandb.log(
+                {"FP Reward Distribution": wandb.Histogram(np.array(FP_rewards))},
+                step=epoch,
+            )
+        if FN_rewards:
+            wandb.log(
+                {"FN Reward Distribution": wandb.Histogram(np.array(FN_rewards))},
                 step=epoch,
             )
 
@@ -258,6 +308,35 @@ def train_model(file_path, epochs=1000, batch_size=32, model_path="best.pth"):
     plt.legend()
     plt.savefig("figures/accuracy.png")
 
+    return best_loss
+
+
+def objective(trial):
+    input_size = 450 * 2
+    hidden_size = trial.suggest_int("hidden_size", 128, 1024)
+    learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
+    weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
+    dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.5)
+
+    net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob)
+    for param in net.parameters():
+        if len(param.shape) > 1:
+            nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
+    optimizer = torch.optim.Adam(
+        net.parameters(), lr=learning_rate, weight_decay=weight_decay
+    )
+
+    best_loss = train_model(file_path, net=net, epochs=epochs, optimizer=optimizer)
+
+    # Save the best model parameters
+    if trial.should_prune():
+        raise optuna.TrialPruned()
+    else:
+        # Save model state with trial number to avoid overwrite
+        torch.save(net.state_dict(), f"best_model_trial_{trial.number}.pth")
+
+    return best_loss
+
 
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(
@@ -269,12 +348,40 @@ if __name__ == "__main__":
     parse.add_argument(
         "-e", "--epochs", type=int, help="Number of epochs to train the model"
     )
+    parse.add_argument(
+        "-p", "--parameters", type=str, help="Directory to hyperparameter yaml file"
+    )
     args = parse.parse_args()
     if args.database:
         file_path = args.database
     else:
         file_path = "trajectories/database_350.pkl"
+
     if args.epochs:
-        train_model(file_path, epochs=args.epochs)
+        epochs = args.epochs
     else:
-        train_model(file_path, epochs=1000)
+        epochs = 1000
+
+    study = optuna.create_study(direction="minimize")
+    for file in glob.glob("best_model*.pth"):
+        os.remove(file)
+    study.optimize(objective, n_trials=20)
+
+    # Load and print the best trial
+    best_trial = study.best_trial
+    print(f"Best trial: {best_trial.number}")
+    print(f"Value: {best_trial.value}")
+    print(f"Params: {best_trial.params}")
+    with open("best_params.yaml", "w") as f:
+        yaml.dump(best_trial.params, f)
+
+    # Load the best model
+    best_model = TrajectoryRewardNet(450 * 2, best_trial.params["hidden_size"])
+    best_model.load_state_dict(torch.load(f"best_model_trial_{best_trial.number}.pth"))
+    torch.save(
+        best_model.state_dict(), f"best_model_{best_trial.params['hidden_size']}.pth"
+    )
+
+    # Delete saved hyperparameter trials
+    for file in glob.glob("best_model_trial_*.pth"):
+        os.remove(file)
