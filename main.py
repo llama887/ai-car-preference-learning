@@ -29,7 +29,6 @@ def start_simulation(config_path, max_generations, number_of_trajectories=-1):
 
 def handle_plotting(true_agent_distances, trained_agent_distances):
     traj_per_generation = len(true_agent_distances[0])
-    num_generations = len(true_agent_distances)
     true_reward_averages = [
         (sum(generation) / traj_per_generation) for generation in true_agent_distances
     ]
@@ -44,6 +43,8 @@ def handle_plotting(true_agent_distances, trained_agent_distances):
         (true_reward_averages, trained_reward_averages),
         (true_reward_maxes, trained_reward_maxes),
     )
+    graph_death_rates(true_agent_distances, "GT")
+    graph_death_rates(trained_agent_distances, "Trained")
 
 
 def graph_avg_max(averages, maxes):
@@ -56,7 +57,7 @@ def graph_avg_max(averages, maxes):
 
     plt.figure()
     plt.plot(x_values, true_reward_averages, label="Ground Truth")
-    plt.plot(x_values, trained_reward_averages, label="Trained Reward", marker="o")
+    plt.plot(x_values, trained_reward_averages, label="Trained Reward")
     plt.xlabel("Generation")
     plt.ylabel("Distance")
     plt.title("Ground Truth vs Trained Reward: Average Distance")
@@ -65,15 +66,12 @@ def graph_avg_max(averages, maxes):
 
     plt.figure()
     plt.plot(x_values, true_reward_maxes, label="Ground Truth")
-    plt.plot(x_values, trained_reward_maxes, label="Trained Reward", marker="o")
+    plt.plot(x_values, trained_reward_maxes, label="Trained Reward")
     plt.xlabel("Generation")
     plt.ylabel("Distance")
     plt.title("Ground Truth vs Trained Reward: Max Distance")
     plt.legend()
     plt.savefig("figures/max.png")
-
-    wandb.log({"Avg Plot": wandb.Image("figures/average.png")})
-    wandb.log({"Max Plot": wandb.Image("figures/max.png")})
 
     wandb.log(
         {
@@ -92,6 +90,54 @@ def graph_avg_max(averages, maxes):
                 ys=[true_reward_maxes, trained_reward_maxes],
                 keys=["True Max", "Trained Max"],
                 title="Ground Truth vs Trained Reward: Max Distance",
+            )
+        }
+    )
+
+
+def graph_death_rates(distances_per_generation, agent_type):
+    fig = plt.figure()
+    generation_graph = fig.add_subplot(projection="3d")
+
+    traj_per_generation = len(distances_per_generation[0])
+    sorted_distances = [sorted(generation) for generation in distances_per_generation]
+
+    xs = []
+    ys = []
+    generations = []
+
+    for generation, distances_in_generation in enumerate(sorted_distances):
+        percent_alive = []
+        distance_travelled = []
+        for number_dead, traj_distance in enumerate(distances_in_generation):
+            percent_alive.append(
+                (traj_per_generation - number_dead - 1) / traj_per_generation * 100
+            )
+            distance_travelled.append(traj_distance)
+        xs.append(distance_travelled)
+        ys.append(percent_alive)
+        generations.append(generation + 1)
+        generation_graph.plot(
+            distance_travelled,
+            percent_alive,
+            zs=generation + 1,
+            zdir="y",
+        )
+
+    generation_graph.set_xlabel("Distance Travelled")
+    generation_graph.set_ylabel("Generation")
+    generation_graph.set_zlabel("Percent Alive")
+    generation_graph.set_yticks(generations)
+    plt.title(f"Survival Rate of {agent_type} Agents vs. Distance")
+    plt.savefig(f"figures/survival_{agent_type}.png")
+
+    wandb.log(
+        {
+            f"Survival Rate of {agent_type} Agents": wandb.plot.line_series(
+                xs,
+                ys,
+                keys=[f"Generation {gen}" for gen in generations],
+                title="Ground Truth vs Trained Reward: Average Distance",
             )
         }
     )
@@ -131,11 +177,6 @@ if __name__ == "__main__":
     print(f"Saving {args.trajectories[0]} trajectories...")
 
     # # start the simulation in data collecting mode
-    # start_simulation(
-    #     "./config/data_collection_config.txt",
-    #     args.trajectories[0],
-    #     args.trajectories[0],
-    # )
     start_simulation(
         "./config/data_collection_config.txt",
         args.trajectories[0],
@@ -143,17 +184,11 @@ if __name__ == "__main__":
     )
 
     print("Starting training on trajectories...")
-    # train model on collected data
-    # train_model(database_path, epochs=args.epochs)
     run_study(database_path, args.epochs[0])
     print("Finished training model...")
 
     print("Simulating on true reward function...")
     # run the simulation with the true reward function
-    # true_reward_averages, true_reward_maxes = start_simulation(
-    #     "./config/agent_config.txt",
-    #     args.generations[0],
-    # )
     true_agent_distances = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
@@ -161,10 +196,6 @@ if __name__ == "__main__":
     print("Simulating on trained reward function...")
     # run the simulation with the trained reward function
     agent.reward_network = TrajectoryRewardNet(TRAJECTORY_LENGTH * 2)
-    # trained_reward_averages, trained_reward_maxes = start_simulation(
-    #     "./config/agent_config.txt",
-    #     args.generations[0],
-    # )
     trained_agent_distances = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
