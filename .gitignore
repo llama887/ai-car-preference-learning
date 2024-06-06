@@ -3,5 +3,6 @@ wandb
 __pycache__
 best_model*
 best_model.pth
+best.pth
 figures/*
 test.py
