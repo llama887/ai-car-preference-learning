@@ -289,7 +289,7 @@ def train_model(
 
         if epoch % 10 == 0:
             print(
-                f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {validation_loss.item()}, Train Acc: {average_training_accuracy}, Val Acc: {validation_accuracy}, LR: {scheduler.get_last_lr()[0]}"
+                f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {validation_loss.item()}, Train Acc: {average_training_accuracy}, Val Acc: {validation_accuracy}"
             )
 
     plt.figure()
@@ -365,7 +365,7 @@ if __name__ == "__main__":
     study = optuna.create_study(direction="minimize")
     for file in glob.glob("best_model*.pth"):
         os.remove(file)
-    study.optimize(objective, n_trials=2)
+    study.optimize(objective, n_trials=20)
 
     # Load and print the best trial
     best_trial = study.best_trial
