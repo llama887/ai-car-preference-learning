@@ -20,6 +20,8 @@ import torch
 
 import re
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 # Constants
 
 WIDTH = 1920
@@ -480,7 +482,7 @@ if __name__ == "__main__":
         hidden_size = re.search(r"best_model_(\d+)\.pth", args.reward)
         reward_network = TrajectoryRewardNet(
             TRAJECTORY_LENGTH * 2, hidden_size=int(hidden_size.group(1))
-        )
+        ).to(device)
         weights = torch.load(args.reward)
         reward_network.load_state_dict(weights)
         run_type = "trainedRF"

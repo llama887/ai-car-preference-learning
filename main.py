@@ -11,7 +11,9 @@ import glob
 import os
 import sys
 import re
+import torch
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 os.environ["WANDB_SILENT"] = "true"
 
@@ -207,7 +209,7 @@ if __name__ == "__main__":
     )
     print("Simulating on trained reward function...")
     # run the simulation with the trained reward function
-    agent.reward_network = TrajectoryRewardNet(TRAJECTORY_LENGTH * 2)
+    agent.reward_network = TrajectoryRewardNet(TRAJECTORY_LENGTH * 2).to(device)
     trained_agent_distances = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
