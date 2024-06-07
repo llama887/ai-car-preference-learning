@@ -384,7 +384,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
             print("Best hyperparameters saved.")
 
         # Load the best model
-        best_model = TrajectoryRewardNet(input_size, best_trial.params["hidden_size"])
+        best_model = TrajectoryRewardNet(input_size, best_trial.params["hidden_size"]).to(device)
         best_model.load_state_dict(
             torch.load(f"best_model_trial_{best_trial.number}.pth")
         )
@@ -406,7 +406,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
             weight_decay = data["weight_decay"]
             dropout_prob = data["dropout_prob"]
 
-            net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob)
+            net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(device)
             for param in net.parameters():
                 if len(param.shape) > 1:
                     nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
