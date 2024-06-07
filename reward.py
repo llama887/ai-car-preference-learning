@@ -22,6 +22,7 @@ import yaml
 
 study = ""
 os.environ["WANDB_SILENT"] = "true"
+INPUT_SIZE = 450 * 2
 
 
 class TrajectoryRewardNet(nn.Module):
@@ -355,27 +356,65 @@ def train_model(
     return best_loss
 
 
-def run_study(file_path, epochs):
-    global study
-    study = optuna.create_study(direction="minimize")
-    study.set_user_attr("file_path", file_path)
-    study.set_user_attr("epochs", epochs)
-    study.optimize(objective, n_trials=2)
+def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
+    input_size = INPUT_SIZE
+    if not parameters_path:
+        print("RUNNING WITH OPTUNA:")
+        global study
+        study = optuna.create_study(direction="minimize")
+        study.set_user_attr("file_path", trajectories_file_path)
+        study.set_user_attr("epochs", epochs)
+        study.optimize(objective, n_trials=2)
 
-    # Load and print the best trial
-    best_trial = study.best_trial
-    print(f"Best trial: {best_trial.number}")
-    print(f"Value: {best_trial.value}")
-    print(f"Params: {best_trial.params}")
+        # Load and print the best trial
+        best_trial = study.best_trial
+        print(f"Best trial: {best_trial.number}")
+        print(f"Value: {best_trial.value}")
+        print(f"Params: {best_trial.params}")
 
-    input_size = 450 * 2
+        with open("best_params.yaml", "w") as f:
+            yaml.dump(best_trial.params, f)
+            print("Best hyperparameters saved.")
 
-    # Load the best model
-    best_model = TrajectoryRewardNet(input_size, best_trial.params["hidden_size"])
-    best_model.load_state_dict(torch.load(f"best_model_trial_{best_trial.number}.pth"))
-    torch.save(
-        best_model.state_dict(), f"best_model_{best_trial.params['hidden_size']}.pth"
-    )
+        # Load the best model
+        best_model = TrajectoryRewardNet(input_size, best_trial.params["hidden_size"])
+        best_model.load_state_dict(
+            torch.load(f"best_model_trial_{best_trial.number}.pth")
+        )
+        torch.save(
+            best_model.state_dict(),
+            f"best_model_{best_trial.params['hidden_size']}.pth",
+        )
+
+        # Delete saved hyperparameter trials
+        for file in glob.glob("best_model_trial_*.pth"):
+            os.remove(file)
+
+    else:
+        print("RUNNING WITHOUT OPTUNA:")
+        with open(parameters_path, "r") as file:
+            data = yaml.safe_load(file)
+            hidden_size = data["hidden_size"]
+            learning_rate = data["learning_rate"]
+            weight_decay = data["weight_decay"]
+            dropout_prob = data["dropout_prob"]
+
+            net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob)
+            for param in net.parameters():
+                if len(param.shape) > 1:
+                    nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
+            optimizer = torch.optim.Adam(
+                net.parameters(), lr=learning_rate, weight_decay=weight_decay
+            )
+            best_loss = train_model(
+                file_path=trajectories_file_path,
+                net=net,
+                epochs=epochs,
+                optimizer=optimizer,
+            )
+
+            torch.save(net.state_dict(), f"model_{epochs}.pth")
+        return best_loss
 
 
 def objective(trial):
@@ -424,17 +463,13 @@ if __name__ == "__main__":
     )
     args = parse.parse_args()
     if args.database:
-        file_path = args.database
+        data_path = args.database
     else:
-        file_path = "trajectories/database_350.pkl"
+        data_path = "trajectories/database_350.pkl"
 
     if args.epochs:
         epochs = args.epochs
     else:
         epochs = 1000
 
-    run_study(file_path, epochs)
-
-    # Delete saved hyperparameter trials
-    for file in glob.glob("best_model_trial_*.pth"):
-        os.remove(file)
+    train_reward_function(data_path, epochs, args.parameters)
