@@ -16,7 +16,7 @@ import re
 os.environ["WANDB_SILENT"] = "true"
 
 
-def start_simulation(config_path, max_generations, number_of_trajectories=-1):
+def start_simulation(config_path, max_generations, number_of_trajectories, run_type):
     # Set number of trajectories
     agent.number_of_trajectories = number_of_trajectories
 
@@ -24,6 +24,7 @@ def start_simulation(config_path, max_generations, number_of_trajectories=-1):
         config_path=config_path,
         max_generations=max_generations,
         number_of_trajectories=number_of_trajectories,
+        runType=run_type,
     )
 
 
@@ -168,20 +169,16 @@ if __name__ == "__main__":
     if args.trajectories[0] < 0 or args.generations[0] < 0 or args.epochs[0] < 0:
         print("Invalid input. All arguments must be positive integers.")
         sys.exit(1)
-    database_path = f"trajectories/database_{args.trajectories[0]//2}.pkl"
 
-    print("Removing old trajectories...")
-    old_trajectories = glob.glob("trajectories/trajectory*")
-    for f in old_trajectories:
-        os.remove(f)
-    print(f"Saving {args.trajectories[0]} trajectories...")
-
-    # # start the simulation in data collecting mode
+    # start the simulation in data collecting mode
     start_simulation(
         "./config/data_collection_config.txt",
         args.trajectories[0],
         args.trajectories[0],
+        "collect",
     )
+
+    database_path = f"trajectories/database_{args.trajectories[0]//2}.pkl"
 
     print("Starting training on trajectories...")
     run_study(database_path, args.epochs[0])
@@ -192,6 +189,8 @@ if __name__ == "__main__":
     true_agent_distances = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
+        0,
+        "trueRF",
     )
     print("Simulating on trained reward function...")
     # run the simulation with the trained reward function
@@ -199,5 +198,7 @@ if __name__ == "__main__":
     trained_agent_distances = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
+        0,
+        "trainedRF",
     )
     handle_plotting(true_agent_distances, trained_agent_distances)
