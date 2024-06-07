@@ -70,7 +70,7 @@ class Car:
 
     def draw(self, screen):
         screen.blit(self.rotated_sprite, self.position)  # Draw Sprite
-        self.draw_radar(screen)  # OPTIONAL FOR SENSORS
+        # self.draw_radar(screen)  # OPTIONAL FOR SENSORS
 
     def draw_radar(self, screen):
         # Optionally Draw All Sensors / Radars
@@ -349,26 +349,28 @@ def run_simulation(genomes, config):
             print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
             generate_database(trajectory_path)
             sys.exit(0)
-        # Draw Map And All Cars That Are Alive
-        screen.blit(game_map, (0, 0))
-        for car in cars:
-            if car.is_alive():
-                car.draw(screen)
+        if not headless:
+            # Draw Map And All Cars That Are Alive
+            screen.blit(game_map, (0, 0))
+            for car in cars:
+                if car.is_alive():
+                    car.draw(screen)
 
-        # Display Info
-        text = generation_font.render(
-            "Generation: " + str(current_generation), True, (0, 0, 0)
-        )
-        text_rect = text.get_rect()
-        text_rect.center = (900, 450)
-        screen.blit(text, text_rect)
+            # Display Info
+            text = generation_font.render(
+                "Generation: " + str(current_generation), True, (0, 0, 0)
+            )
+            text_rect = text.get_rect()
+            text_rect.center = (900, 450)
+            screen.blit(text, text_rect)
 
-        text = alive_font.render("Still Alive: " + str(still_alive), True, (0, 0, 0))
-        text_rect = text.get_rect()
-        text_rect.center = (900, 490)
-        screen.blit(text, text_rect)
-
-        pygame.display.flip()
+            text = alive_font.render(
+                "Still Alive: " + str(still_alive), True, (0, 0, 0)
+            )
+            text_rect = text.get_rect()
+            text_rect.center = (900, 490)
+            screen.blit(text, text_rect)
+            pygame.display.flip()
         clock.tick(60)  # 60 FPS
 
 
@@ -388,7 +390,9 @@ if __name__ == "__main__":
         type=str,
         help="Directory to reward function weights",
     )
-    parse.add_argument("--headless", help="Run simulation without GUI")
+    parse.add_argument(
+        "--headless", action="store_true", help="Run simulation without GUI"
+    )
     args = parse.parse_args()
 
     headless = False
@@ -420,7 +424,11 @@ if __name__ == "__main__":
             print(f"Saving {number_of_trajectories} trajectories...")
 
     # Load Config
-    config_path = "config\data_collection_config.txt"
+    config_path = (
+        "config\data_collection_config.txt"
+        if reward_network is None
+        else "config/agent_config.txt"
+    )
     config = neat.config.Config(
         neat.DefaultGenome,
         neat.DefaultReproduction,
