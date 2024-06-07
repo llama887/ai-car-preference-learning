@@ -77,7 +77,7 @@ class Car:
 
     def draw(self, screen):
         screen.blit(self.rotated_sprite, self.position)  # Draw Sprite
-        self.draw_radar(screen)  # OPTIONAL FOR SENSORS
+        # self.draw_radar(screen)  # OPTIONAL FOR SENSORS
 
     def draw_radar(self, screen):
         # Optionally Draw All Sensors / Radars
@@ -372,26 +372,28 @@ def run_simulation(genomes, config):
                 pygame.quit()
             break
 
-        # Draw Map And All Cars That Are Alive
-        screen.blit(game_map, (0, 0))
-        for car in cars:
-            if car.is_alive():
-                car.draw(screen)
+        if not headless:
+            # Draw Map And All Cars That Are Alive
+            screen.blit(game_map, (0, 0))
+            for car in cars:
+                if car.is_alive():
+                    car.draw(screen)
 
-        # Display Info
-        text = generation_font.render(
-            "Generation: " + str(current_generation), True, (0, 0, 0)
-        )
-        text_rect = text.get_rect()
-        text_rect.center = (900, 450)
-        screen.blit(text, text_rect)
+            # Display Info
+            text = generation_font.render(
+                "Generation: " + str(current_generation), True, (0, 0, 0)
+            )
+            text_rect = text.get_rect()
+            text_rect.center = (900, 450)
+            screen.blit(text, text_rect)
 
-        text = alive_font.render("Still Alive: " + str(still_alive), True, (0, 0, 0))
-        text_rect = text.get_rect()
-        text_rect.center = (900, 490)
-        screen.blit(text, text_rect)
-
-        pygame.display.flip()
+            text = alive_font.render(
+                "Still Alive: " + str(still_alive), True, (0, 0, 0)
+            )
+            text_rect = text.get_rect()
+            text_rect.center = (900, 490)
+            screen.blit(text, text_rect)
+            pygame.display.flip()
         clock.tick(60)  # 60 FPS
 
 
@@ -458,7 +460,15 @@ if __name__ == "__main__":
         type=str,
         help="Directory to reward function weights",
     )
+    parse.add_argument(
+        "--headless", action="store_true", help="Run simulation without GUI"
+    )
     args = parse.parse_args()
+
+    headless = False
+    if args.headless:
+        os.environ["SDL_VIDEODRIVER"] = "dummy"
+        headless = True
 
     if args.reward and args.trajectories[0] > 0:
         print("Cannot save trajectories and train reward function at the same time")
@@ -474,6 +484,11 @@ if __name__ == "__main__":
         reward_network.load_state_dict(weights)
         run_type = "trainedRF"
 
+    config_path = (
+        "config\data_collection_config.txt"
+        if reward_network is None
+        else "config/agent_config.txt"
+    )
     # number_of_trajectories = [-1]
     if args.trajectories[0] > 0:
         number_of_trajectories = args.trajectories[0]
@@ -481,7 +496,7 @@ if __name__ == "__main__":
 
     try:
         run_population(
-            "config/data_collection_config.txt",
+            config_path=config_path,
             max_generations=DEFAULT_MAX_GENERATIONS,
             number_of_trajectories=number_of_trajectories,
             runType=run_type,
