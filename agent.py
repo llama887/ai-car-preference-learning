@@ -32,13 +32,16 @@ BORDER_COLOR = (255, 255, 255, 255)  # Color To Crash on Hit
 
 TRAJECTORY_LENGTH = 30 * 15
 
+DEFAULT_MAX_GENERATIONS = 1000
+
 current_generation = 0  # Generation counter
 saved_trajectory_count = 0  # Counter for saved trajectories
 trajectory_path = "./trajectories/"
 reward_network = None
-number_of_trajectories = -1
+number_of_trajectories = 0
 population = ""
 agent_distances = []
+run_type = "collect"
 
 
 # need to save heading, there are 3dof
@@ -226,6 +229,13 @@ def generate_database(trajectory_path):
             reward, trajectory = pickle.load(f)
             trajectories.append((reward, trajectory))
 
+    # Pads shorter tajectoires so there is a consistent input size
+    def pad_trajectory(trajectory, max_length):
+        return trajectory + [trajectory[-1]] * (max_length - len(trajectory))
+
+    if not trajectories:
+        print("No trajectories saved.")
+        return
     max_length, max_index = max(
         (len(trajectory), index)
         for index, (reward, trajectory) in enumerate(trajectories)
@@ -234,10 +244,6 @@ def generate_database(trajectory_path):
     random.shuffle(trajectories)
     if len(trajectories) % 2 != 0:
         trajectories.pop()
-
-    # Pads shorter tajectoires so there is a consistent input size
-    def pad_trajectory(trajectory, max_length):
-        return trajectory + [trajectory[-1]] * (max_length - len(trajectory))
 
     trajectory_pairs = [
         (
@@ -249,6 +255,7 @@ def generate_database(trajectory_path):
         )
         for i in range(0, len(trajectories), 2)
     ]
+
     print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
     # Delete all trajectories
@@ -257,14 +264,18 @@ def generate_database(trajectory_path):
     for f in old_trajectories:
         os.remove(f)
 
-    # Delete old database
+    # Delete old database if it is redundant (same size)
     print("Removing old database...")
-    old_trajectories = glob.glob(trajectory_path + "database*")
+    old_trajectories = glob.glob(
+        trajectory_path + f"database_{len(trajectory_pairs)}.pkl"
+    )
     for f in old_trajectories:
         os.remove(f)
 
+    global run_type
+    prefix = "database" if run_type == "collect" else run_type
     # Save To Database
-    with open(trajectory_path + f"database_{len(trajectory_pairs)}.pkl", "wb") as f:
+    with open(trajectory_path + f"{prefix}_{len(trajectory_pairs)}.pkl", "wb") as f:
         pickle.dump(trajectory_pairs, f)
 
     print("Done saving to database...")
@@ -294,12 +305,11 @@ def run_simulation(genomes, config):
     alive_font = pygame.font.SysFont("Arial", 20)
     game_map = pygame.image.load("maps/map.png").convert()  # Convert Speeds Up A Lot
 
-    global current_generation
+    global current_generation, saved_trajectory_count, run_type
     current_generation += 1
 
     # Simple Counter To Roughly Limit Time (Not Good Practice)
     counter = 0
-    global saved_trajectory_count
 
     while True:
         # Exit On Quit Event
@@ -330,72 +340,62 @@ def run_simulation(genomes, config):
                 car.update(game_map)
                 genomes[i][1].fitness += car.get_reward()
 
-        if still_alive == 0 and number_of_trajectories > 0:
-            print("ALL DIED")
-            break
-
         global agent_distances
         counter += 1
-        if counter == TRAJECTORY_LENGTH or (
-            still_alive == 0 and number_of_trajectories < 0
-        ):  # Stop After About 7 Seconds
-            if (
-                number_of_trajectories < 0
-                or saved_trajectory_count < number_of_trajectories
-            ):
-                n = len(agent_distances)
+
+        # If we're collecting data, we stop when we reach ~7 seconds
+        if counter == TRAJECTORY_LENGTH or still_alive == 0:
+            for i, car in enumerate(cars):
+                if (
+                    saved_trajectory_count >= number_of_trajectories
+                    and run_type == "collect"
+                ):
+                    break
+                car.save_trajectory(
+                    f"{trajectory_path}trajectory_{current_generation}_{i}.pkl"
+                )
+                saved_trajectory_count += 1
+            if run_type != "collect":
+                global agent_distances
                 generation_distances = []
                 for i, car in enumerate(cars):
-                    if (
-                        saved_trajectory_count >= number_of_trajectories
-                        and number_of_trajectories > 0
-                    ):
-                        break
-                    car.save_trajectory(
-                        f"{trajectory_path}trajectory_{current_generation}_{i}.pkl"
-                    )
                     generation_distances.append(car.distance)
-                    # print("Saved trajectory")
-                    saved_trajectory_count += 1
                 agent_distances.append(generation_distances)
+
+            if (
+                run_type == "collect"
+                and saved_trajectory_count >= number_of_trajectories
+            ):
+                # print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
+                # generate_database(trajectory_path)
+                pygame.display.quit()
+                pygame.quit()
             break
-        if (
-            number_of_trajectories > 0
-            and saved_trajectory_count >= number_of_trajectories
-        ):
-            print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
-            generate_database(trajectory_path)
-            pygame.display.quit()
-            pygame.quit()
-            break
-            # sys.exit(0)
-        else:
-            # Draw Map And All Cars That Are Alive
-            screen.blit(game_map, (0, 0))
-            for car in cars:
-                if car.is_alive():
-                    car.draw(screen)
 
-            # Display Info
-            text = generation_font.render(
-                "Generation: " + str(current_generation), True, (0, 0, 0)
-            )
-            text_rect = text.get_rect()
-            text_rect.center = (900, 450)
-            screen.blit(text, text_rect)
+        # Draw Map And All Cars That Are Alive
+        screen.blit(game_map, (0, 0))
+        for car in cars:
+            if car.is_alive():
+                car.draw(screen)
 
-            text = alive_font.render(
-                "Still Alive: " + str(still_alive), True, (0, 0, 0)
-            )
-            text_rect = text.get_rect()
-            text_rect.center = (900, 490)
-            screen.blit(text, text_rect)
+        # Display Info
+        text = generation_font.render(
+            "Generation: " + str(current_generation), True, (0, 0, 0)
+        )
+        text_rect = text.get_rect()
+        text_rect.center = (900, 450)
+        screen.blit(text, text_rect)
 
-            pygame.display.flip()
-            clock.tick(60)  # 60 FPS
+        text = alive_font.render("Still Alive: " + str(still_alive), True, (0, 0, 0))
+        text_rect = text.get_rect()
+        text_rect.center = (900, 490)
+        screen.blit(text, text_rect)
+
+        pygame.display.flip()
+        clock.tick(60)  # 60 FPS
 
 
-def run_population(config_path, max_generations, number_of_trajectories):
+def run_population(config_path, max_generations, number_of_trajectories, runType):
     # Load Config
     config = neat.config.Config(
         neat.DefaultGenome,
@@ -405,6 +405,13 @@ def run_population(config_path, max_generations, number_of_trajectories):
         config_path,
     )
 
+    global run_type, saved_trajectory_count
+    run_type = runType
+
+    print(run_type)
+    if run_type == "collect":
+        max_generations = math.ceil(number_of_trajectories / config.pop_size)
+
     # Create Population And Add Reporters
     global population
     population = neat.Population(config)
@@ -412,22 +419,24 @@ def run_population(config_path, max_generations, number_of_trajectories):
     stats = neat.StatisticsReporter()
     population.add_reporter(stats)
 
-    if number_of_trajectories >= 0:
-        max_generations = math.ceil(number_of_trajectories / config.pop_size)
-        max_generations += 1
-
-    if max_generations < 0:
-        max_generations = 1000
-
     print(f"Running for a maximum of {max_generations} generations...")
-    # Run Simulation For A Maximum of 1000 Generations
+
     best_genome = population.run(
         run_simulation,
         max_generations,
     )
 
-    global current_generation, agent_distances
+    global saved_trajectory_count, current_generation, agent_distances
+    if saved_trajectory_count >= number_of_trajectories:
+        print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
+        generate_database(trajectory_path)
+        print("Removing old trajectories...")
+        old_trajectories = glob.glob(trajectory_path + "trajectory*")
+        for f in old_trajectories:
+            os.remove(f)
+
     current_generation = 0
+    saved_trajectory_count = 0
     ret = agent_distances.copy()
     agent_distances = []
     return ret
@@ -440,7 +449,7 @@ if __name__ == "__main__":
         "--trajectories",
         type=int,
         nargs=1,
-        default=[-1],
+        default=[0],
         help="Number of trajectories to save",
     )
     parse.add_argument(
@@ -463,19 +472,19 @@ if __name__ == "__main__":
         )
         weights = torch.load(args.reward)
         reward_network.load_state_dict(weights)
+        run_type = "trainedRF"
 
-    number_of_trajectories = [-1]
-    if args.trajectories is not None:
+    # number_of_trajectories = [-1]
+    if args.trajectories[0] > 0:
         number_of_trajectories = args.trajectories[0]
-        if number_of_trajectories > 0:
-            print("Removing old trajectories...")
-            old_trajectories = glob.glob(trajectory_path + "trajectory*")
-            for f in old_trajectories:
-                os.remove(f)
-            print(f"Saving {number_of_trajectories} trajectories...")
+        run_type = "collect"
 
-    run_population(
-        "config/data_collection_config.txt",
-        max_generations=number_of_trajectories,
-        number_of_trajectories=number_of_trajectories,
-    )
+    try:
+        run_population(
+            "config/data_collection_config.txt",
+            max_generations=DEFAULT_MAX_GENERATIONS,
+            number_of_trajectories=number_of_trajectories,
+            runType=run_type,
+        )
+    except KeyboardInterrupt:
+        generate_database(trajectory_path)
