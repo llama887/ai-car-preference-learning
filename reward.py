@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+
+from torch.utils.data import Dataset, DataLoader, random_split
+
 import pickle
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -436,7 +439,12 @@ def objective(trial):
         net.parameters(), lr=learning_rate, weight_decay=weight_decay
     )
 
-    best_loss = train_model(file_path, net=net, epochs=epochs, optimizer=optimizer)
+    best_loss = train_model(
+        file_path=study.user_attrs["file_path"],
+        net=net,
+        epochs=study.user_attrs["epochs"],
+        optimizer=optimizer,
+    )
 
     # Save the best model parameters
     if trial.should_prune():
@@ -464,9 +472,7 @@ if __name__ == "__main__":
     args = parse.parse_args()
     if args.database:
         data_path = args.database
-        data_path = args.database
     else:
-        data_path = "trajectories/database_350.pkl"
         data_path = "trajectories/database_350.pkl"
 
     if args.epochs:
