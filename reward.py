@@ -66,9 +66,9 @@ class TrajectoryDataset(Dataset):
         # Convert trajectories and preference to tensors
         traj1 = prepare_single_trajectory(traj1)
         traj2 = prepare_single_trajectory(traj2)
-        preference = torch.tensor(preference, dtype=torch.float32)
-        score1 = torch.tensor(score1, dtype=torch.float32)
-        score2 = torch.tensor(score2, dtype=torch.float32)
+        preference = torch.tensor(preference, dtype=torch.float32).to(device)
+        score1 = torch.tensor(score1, dtype=torch.float32).to(device)
+        score2 = torch.tensor(score2, dtype=torch.float32).to(device)
 
         # Return the trajectories, preference, and scores
         return traj1, traj2, preference, score1, score2
@@ -217,10 +217,10 @@ def train_model(
         total_accuracy = 0.0
         total_probability = 0.0
 
-        TP_rewards = []
-        TN_rewards = []
-        FP_rewards = []
-        FN_rewards = []
+        # TP_rewards = []
+        # TN_rewards = []
+        # FP_rewards = []
+        # FN_rewards = []
 
         for (
             batch_traj1,
@@ -251,16 +251,16 @@ def train_model(
 
             scheduler.step()
 
-            # Classify rewards
-            for idx, prob in enumerate(predicted_probabilities):
-                if prob > 0.5 and batch_true_pref[idx] == 1:
-                    TP_rewards.append(batch_score1[idx])
-                elif prob <= 0.5 and batch_true_pref[idx] == 0:
-                    TN_rewards.append(batch_score2[idx])
-                elif prob > 0.5 and batch_true_pref[idx] == 0:
-                    FP_rewards.append(batch_score2[idx])
-                elif prob <= 0.5 and batch_true_pref[idx] == 1:
-                    FN_rewards.append(batch_score1[idx])
+            # # Classify rewards
+            # for idx, prob in enumerate(predicted_probabilities):
+            #     if prob > 0.5 and batch_true_pref[idx] == 1:
+            #         TP_rewards.append(batch_score1[idx])
+            #     elif prob <= 0.5 and batch_true_pref[idx] == 0:
+            #         TN_rewards.append(batch_score2[idx])
+            #     elif prob > 0.5 and batch_true_pref[idx] == 0:
+            #         FP_rewards.append(batch_score2[idx])
+            #     elif prob <= 0.5 and batch_true_pref[idx] == 1:
+            #         FN_rewards.append(batch_score1[idx])
 
         average_training_loss = total_loss / (dataset_size // batch_size)
         training_losses.append(average_training_loss)
@@ -317,27 +317,27 @@ def train_model(
                 step=epoch,
             )
 
-        # Log reward distributions
-        if TP_rewards:
-            wandb.log(
-                {"TP Reward Distribution": wandb.Histogram(np.array(TP_rewards))},
-                step=epoch,
-            )
-        if TN_rewards:
-            wandb.log(
-                {"TN Reward Distribution": wandb.Histogram(np.array(TN_rewards))},
-                step=epoch,
-            )
-        if FP_rewards:
-            wandb.log(
-                {"FP Reward Distribution": wandb.Histogram(np.array(FP_rewards))},
-                step=epoch,
-            )
-        if FN_rewards:
-            wandb.log(
-                {"FN Reward Distribution": wandb.Histogram(np.array(FN_rewards))},
-                step=epoch,
-            )
+        # # Log reward distributions
+        # if TP_rewards:
+        #     wandb.log(
+        #         {"TP Reward Distribution": wandb.Histogram(np.array(TP_rewards))},
+        #         step=epoch,
+        #     )
+        # if TN_rewards:
+        #     wandb.log(
+        #         {"TN Reward Distribution": wandb.Histogram(np.array(TN_rewards))},
+        #         step=epoch,
+        #     )
+        # if FP_rewards:
+        #     wandb.log(
+        #         {"FP Reward Distribution": wandb.Histogram(np.array(FP_rewards))},
+        #         step=epoch,
+        #     )
+        # if FN_rewards:
+        #     wandb.log(
+        #         {"FN Reward Distribution": wandb.Histogram(np.array(FN_rewards))},
+        #         step=epoch,
+        #     )
 
         if epoch % 100 == 0:
             print(
@@ -371,7 +371,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
         study = optuna.create_study(direction="minimize")
         study.set_user_attr("file_path", trajectories_file_path)
         study.set_user_attr("epochs", epochs)
-        study.optimize(objective, n_trials=2)
+        study.optimize(objective, n_trials=5)
 
         # Load and print the best trial
         best_trial = study.best_trial
