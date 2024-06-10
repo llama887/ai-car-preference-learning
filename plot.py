@@ -10,6 +10,7 @@ import seaborn as sns
 import math
 import argparse
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class RewardNormalizer:
     def __init__(self, rewards):
@@ -57,7 +58,7 @@ def prepare_data(database_path, model_weights):
     bradley_terry_difference = []
 
     hidden_size = re.search(r"best_model_(\d+)\.pth", model_weights)
-    model = TrajectoryRewardNet(900, hidden_size=int(hidden_size.group(1)))
+    model = TrajectoryRewardNet(900, hidden_size=int(hidden_size.group(1))).to(device)
     model.load_state_dict(torch.load(model_weights))
     model.eval()
 
