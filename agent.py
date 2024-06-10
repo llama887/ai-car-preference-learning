@@ -20,6 +20,8 @@ import torch
 
 import re
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 # Constants
 
 WIDTH = 1920
@@ -42,7 +44,7 @@ number_of_trajectories = 0
 population = ""
 agent_distances = []
 run_type = "collect"
-
+headless = False
 
 # need to save heading, there are 3dof
 
@@ -397,7 +399,9 @@ def run_simulation(genomes, config):
         clock.tick(60)  # 60 FPS
 
 
-def run_population(config_path, max_generations, number_of_trajectories, runType):
+def run_population(
+    config_path, max_generations, number_of_trajectories, runType, noHead=False
+):
     # Load Config
     config = neat.config.Config(
         neat.DefaultGenome,
@@ -407,8 +411,9 @@ def run_population(config_path, max_generations, number_of_trajectories, runType
         config_path,
     )
 
-    global run_type, saved_trajectory_count
+    global run_type, saved_trajectory_count, headless
     run_type = runType
+    headless = noHead
 
     print(run_type)
     if run_type == "collect":
@@ -465,10 +470,8 @@ if __name__ == "__main__":
     )
     args = parse.parse_args()
 
-    headless = False
     if args.headless:
         os.environ["SDL_VIDEODRIVER"] = "dummy"
-        headless = True
 
     if args.reward and args.trajectories[0] > 0:
         print("Cannot save trajectories and train reward function at the same time")
@@ -479,13 +482,13 @@ if __name__ == "__main__":
         hidden_size = re.search(r"best_model_(\d+)\.pth", args.reward)
         reward_network = TrajectoryRewardNet(
             TRAJECTORY_LENGTH * 2, hidden_size=int(hidden_size.group(1))
-        )
+        ).to(device)
         weights = torch.load(args.reward)
         reward_network.load_state_dict(weights)
         run_type = "trainedRF"
 
     config_path = (
-        "config\data_collection_config.txt"
+        "config/data_collection_config.txt"
         if reward_network is None
         else "config/agent_config.txt"
     )
@@ -500,6 +503,7 @@ if __name__ == "__main__":
             max_generations=DEFAULT_MAX_GENERATIONS,
             number_of_trajectories=number_of_trajectories,
             runType=run_type,
+            noHead=args.headless,
         )
     except KeyboardInterrupt:
         generate_database(trajectory_path)

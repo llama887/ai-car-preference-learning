@@ -1,6 +1,6 @@
 import argparse
 
-from reward import TrajectoryRewardNet, run_study
+from reward import TrajectoryRewardNet, train_reward_function
 
 import agent
 from agent import run_population, TRAJECTORY_LENGTH
@@ -11,12 +11,16 @@ import glob
 import os
 import sys
 import re
+import torch
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 os.environ["WANDB_SILENT"] = "true"
 
 
-def start_simulation(config_path, max_generations, number_of_trajectories, run_type):
+def start_simulation(
+    config_path, max_generations, number_of_trajectories, run_type, noHead=True
+):
     # Set number of trajectories
     agent.number_of_trajectories = number_of_trajectories
 
@@ -25,6 +29,7 @@ def start_simulation(config_path, max_generations, number_of_trajectories, run_t
         max_generations=max_generations,
         number_of_trajectories=number_of_trajectories,
         runType=run_type,
+        noHead=noHead,
     )
 
 
@@ -165,23 +170,32 @@ if __name__ == "__main__":
         nargs=1,
         help="Number of generations to train the agent",
     )
+    parse.add_argument(
+        "-p", "--parameters", type=str, help="Directory to hyperparameter yaml file"
+    )
+    parse.add_argument(
+        "--headless", action="store_true", help="Run simulation without GUI"
+    )
+
     args = parse.parse_args()
     if args.trajectories[0] < 0 or args.generations[0] < 0 or args.epochs[0] < 0:
         print("Invalid input. All arguments must be positive integers.")
         sys.exit(1)
-
+    if args.headless:
+        os.environ["SDL_VIDEODRIVER"] = "dummy"
     # start the simulation in data collecting mode
     start_simulation(
         "./config/data_collection_config.txt",
         args.trajectories[0],
         args.trajectories[0],
         "collect",
+        args.headless,
     )
 
     database_path = f"trajectories/database_{args.trajectories[0]//2}.pkl"
 
     print("Starting training on trajectories...")
-    run_study(database_path, args.epochs[0])
+    train_reward_function(database_path, args.epochs[0], args.parameters)
     print("Finished training model...")
 
     print("Simulating on true reward function...")
@@ -191,14 +205,16 @@ if __name__ == "__main__":
         args.generations[0],
         0,
         "trueRF",
+        False,
     )
     print("Simulating on trained reward function...")
     # run the simulation with the trained reward function
-    agent.reward_network = TrajectoryRewardNet(TRAJECTORY_LENGTH * 2)
+    agent.reward_network = TrajectoryRewardNet(TRAJECTORY_LENGTH * 2).to(device)
     trained_agent_distances = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
         0,
         "trainedRF",
+        False,
     )
     handle_plotting(true_agent_distances, trained_agent_distances)
