@@ -33,7 +33,9 @@ def start_simulation(
     )
 
 
-def handle_plotting(true_agent_distances, trained_agent_distances):
+def handle_plotting(
+    true_agent_distances, trained_agent_distances, trained_agent_rewards
+):
     traj_per_generation = len(true_agent_distances[0])
     true_reward_averages = [
         (sum(generation) / traj_per_generation) for generation in true_agent_distances
@@ -44,13 +46,20 @@ def handle_plotting(true_agent_distances, trained_agent_distances):
         (sum(generation) / traj_per_generation)
         for generation in trained_agent_distances
     ]
+    trained_agent_reward_averages = [
+        (sum(generation) / traj_per_generation) for generation in trained_agent_rewards
+    ]
+    trained_agent_reward_maxes = [
+        max(generation) for generation in trained_agent_rewards
+    ]
     trained_reward_maxes = [max(generation) for generation in trained_agent_distances]
     graph_avg_max(
         (true_reward_averages, trained_reward_averages),
         (true_reward_maxes, trained_reward_maxes),
     )
-    graph_death_rates(true_agent_distances, "GT")
-    graph_death_rates(trained_agent_distances, "Trained")
+    graph_trained_rewards(trained_agent_reward_averages, trained_agent_reward_maxes)
+    # graph_death_rates(true_agent_distances, "GT")
+    # graph_death_rates(trained_agent_distances, "Trained")
 
 
 def graph_avg_max(averages, maxes):
@@ -96,6 +105,33 @@ def graph_avg_max(averages, maxes):
                 ys=[true_reward_maxes, trained_reward_maxes],
                 keys=["True Max", "Trained Max"],
                 title="Ground Truth vs Trained Reward: Max Distance",
+            )
+        }
+    )
+
+
+def graph_trained_rewards(averages, maxes):
+    os.makedirs("figures", exist_ok=True)
+
+    x_values = range(len(averages))
+
+    plt.figure()
+    plt.plot(x_values, averages, label="Average Rewards Per Gen")
+    plt.plot(x_values, maxes, label="Max Reward Per Gen")
+    plt.xlabel("Generation")
+    plt.ylabel("Reward")
+    plt.title("Reward Obtained by Trained Agents")
+    plt.legend()
+    plt.savefig("figures/agent_rewards.png")
+    plt.close()
+
+    wandb.log(
+        {
+            "Wandb Avg Plot": wandb.plot.line_series(
+                xs=x_values,
+                ys=[averages, maxes],
+                keys=["Average Reward", "Max Reward"],
+                title="Reward Obtained by Trained Agents",
             )
         }
     )
@@ -184,7 +220,7 @@ if __name__ == "__main__":
     if args.headless:
         os.environ["SDL_VIDEODRIVER"] = "dummy"
     # start the simulation in data collecting mode
-    start_simulation(
+    num_traj = start_simulation(
         "./config/data_collection_config.txt",
         args.trajectories[0],
         args.trajectories[0],
@@ -192,7 +228,7 @@ if __name__ == "__main__":
         args.headless,
     )
 
-    database_path = f"trajectories/database_{args.trajectories[0]//2}.pkl"
+    database_path = f"trajectories/database_{num_traj}.pkl"
 
     print("Starting training on trajectories...")
     train_reward_function(database_path, args.epochs[0], args.parameters)
@@ -200,7 +236,7 @@ if __name__ == "__main__":
 
     print("Simulating on true reward function...")
     # run the simulation with the true reward function
-    true_agent_distances = start_simulation(
+    true_agent_distances, agent_trajectories, true_agent_rewards = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
         0,
@@ -210,11 +246,20 @@ if __name__ == "__main__":
     print("Simulating on trained reward function...")
     # run the simulation with the trained reward function
     agent.reward_network = TrajectoryRewardNet(TRAJECTORY_LENGTH * 2).to(device)
-    trained_agent_distances = start_simulation(
+    trained_agent_distances, _, trained_agent_rewards = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
         0,
         "trainedRF",
         False,
     )
-    handle_plotting(true_agent_distances, trained_agent_distances)
+    handle_plotting(
+        true_agent_distances, trained_agent_distances, trained_agent_rewards
+    )
+
+    bt, bt_delta, ordered_trajectories = prepare_data(
+        f"trajectories/trainedRF_{agent_trajectories}.pkl", net=agent.reward_network
+    )
+    plot_bradley_terry(bt, "Agent False Bradley Terry")
+    plot_bradley_terry(bt_delta, "Agent Bradley Terry Difference")
+    plot_trajectory_order(ordered_trajectories, "Trajectory Order")

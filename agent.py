@@ -42,7 +42,7 @@ trajectory_path = "./trajectories/"
 reward_network = None
 number_of_trajectories = 0
 population = ""
-agent_distances = []
+agent_distances, agent_rewards = [], []
 run_type = "collect"
 headless = False
 
@@ -247,16 +247,34 @@ def generate_database(trajectory_path):
     if len(trajectories) % 2 != 0:
         trajectories.pop()
 
-    trajectory_pairs = [
-        (
-            pad_trajectory(trajectories[i][1], max_length),
-            pad_trajectory(trajectories[i + 1][1], max_length),
-            0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
-            trajectories[i][0],
-            trajectories[i + 1][0],
+    trajectories = sorted(trajectories, key=lambda trajectory: trajectory[0])
+    lo = 0
+    hi = len(trajectories) - 1
+    trajectory_pairs = []
+    while True:
+        trajectory_pairs.append(
+            (
+                pad_trajectory(trajectories[lo][1], max_length),
+                pad_trajectory(trajectories[hi][1], max_length),
+                1,
+                trajectories[lo][0],
+                trajectories[hi][0],
+            )
         )
-        for i in range(0, len(trajectories), 2)
-    ]
+        lo += 1
+        hi -= 1
+        if lo >= hi or abs(trajectories[lo][0] - trajectories[hi][0]) < 5:
+            break
+    # trajectory_pairs = [
+    #     (
+    #         pad_trajectory(trajectories[i][1], max_length),
+    #         pad_trajectory(trajectories[i + 1][1], max_length),
+    #         0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
+    #         trajectories[i][0],
+    #         trajectories[i + 1][0],
+    #     )
+    #     for i in range(0, len(trajectories), 2)
+    # ]
 
     print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
@@ -280,7 +298,8 @@ def generate_database(trajectory_path):
     with open(trajectory_path + f"{prefix}_{len(trajectory_pairs)}.pkl", "wb") as f:
         pickle.dump(trajectory_pairs, f)
 
-    print("Done saving to database...")
+    # print("Done saving to database...")
+    return len(trajectory_pairs)
 
 
 def run_simulation(genomes, config):
@@ -342,7 +361,7 @@ def run_simulation(genomes, config):
                 car.update(game_map)
                 genomes[i][1].fitness += car.get_reward()
 
-        global agent_distances
+        global agent_distances, agent_rewards
         counter += 1
 
         # If we're collecting data, we stop when we reach ~7 seconds
@@ -360,9 +379,12 @@ def run_simulation(genomes, config):
             if run_type != "collect":
                 global agent_distances
                 generation_distances = []
+                generation_rewards = []
                 for i, car in enumerate(cars):
                     generation_distances.append(car.distance)
+                    generation_rewards.append(car.get_reward())
                 agent_distances.append(generation_distances)
+                agent_rewards.append(generation_rewards)
 
             if (
                 run_type == "collect"
@@ -434,22 +456,23 @@ def run_population(
             max_generations,
         )
 
-        global saved_trajectory_count, current_generation, agent_distances
-        if saved_trajectory_count >= number_of_trajectories:
-            print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
-            generate_database(trajectory_path)
-            print("Removing old trajectories...")
-            old_trajectories = glob.glob(trajectory_path + "trajectory*")
-            for f in old_trajectories:
-                os.remove(f)
-
-        current_generation = 0
-        saved_trajectory_count = 0
-        ret = agent_distances.copy()
-        agent_distances = []
-        return ret
-    except KeyboardInterrupt:
-        generate_database(trajectory_path)
+    global saved_trajectory_count, current_generation, agent_distances, agent_rewards
+    if saved_trajectory_count >= number_of_trajectories:
+        print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
+        numTraj = generate_database(trajectory_path)
+        print("Removing old trajectories...")
+        old_trajectories = glob.glob(trajectory_path + "trajectory*")
+        for f in old_trajectories:
+            os.remove(f)
+    temp_trajectory_count = (saved_trajectory_count) // 2
+    current_generation = 0
+    saved_trajectory_count = 0
+    distances = agent_distances.copy()
+    rewards = agent_rewards.copy()
+    agent_distances, agent_rewards = [], []
+    if run_type == "collect":
+        return numTraj
+    return distances, temp_trajectory_count, rewards
 
 
 if __name__ == "__main__":
