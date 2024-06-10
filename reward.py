@@ -20,7 +20,6 @@ import yaml
 
 os.environ["WANDB_SILENT"] = "true"
 INPUT_SIZE = 450 * 2
-INPUT_SIZE = 450 * 2
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -180,9 +179,17 @@ def train_model(
     val_dataset_size = len(val_dataset)
 
     # Initialize Dataloaders
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        pin_memory=True,
+    )
     validation_dataloader = DataLoader(
-        val_dataset, batch_size=val_dataset_size, shuffle=False
+        val_dataset,
+        batch_size=val_dataset_size,
+        shuffle=False,
+        pin_memory=True,
     )
 
     # Log label balance
@@ -384,7 +391,9 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
             print("Best hyperparameters saved.")
 
         # Load the best model
-        best_model = TrajectoryRewardNet(input_size, best_trial.params["hidden_size"]).to(device)
+        best_model = TrajectoryRewardNet(
+            input_size, best_trial.params["hidden_size"]
+        ).to(device)
         best_model.load_state_dict(
             torch.load(f"best_model_trial_{best_trial.number}.pth")
         )

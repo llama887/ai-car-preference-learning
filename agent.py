@@ -402,51 +402,54 @@ def run_simulation(genomes, config):
 def run_population(
     config_path, max_generations, number_of_trajectories, runType, noHead=False
 ):
-    # Load Config
-    config = neat.config.Config(
-        neat.DefaultGenome,
-        neat.DefaultReproduction,
-        neat.DefaultSpeciesSet,
-        neat.DefaultStagnation,
-        config_path,
-    )
+    try:
+        # Load Config
+        config = neat.config.Config(
+            neat.DefaultGenome,
+            neat.DefaultReproduction,
+            neat.DefaultSpeciesSet,
+            neat.DefaultStagnation,
+            config_path,
+        )
 
-    global run_type, saved_trajectory_count, headless
-    run_type = runType
-    headless = noHead
+        global run_type, saved_trajectory_count, headless
+        run_type = runType
+        headless = noHead
 
-    print(run_type)
-    if run_type == "collect":
-        max_generations = math.ceil(number_of_trajectories / config.pop_size)
+        print(run_type)
+        if run_type == "collect":
+            max_generations = math.ceil(number_of_trajectories / config.pop_size)
 
-    # Create Population And Add Reporters
-    global population
-    population = neat.Population(config)
-    population.add_reporter(neat.StdOutReporter(True))
-    stats = neat.StatisticsReporter()
-    population.add_reporter(stats)
+        # Create Population And Add Reporters
+        global population
+        population = neat.Population(config)
+        population.add_reporter(neat.StdOutReporter(True))
+        stats = neat.StatisticsReporter()
+        population.add_reporter(stats)
 
-    print(f"Running for a maximum of {max_generations} generations...")
+        print(f"Running for a maximum of {max_generations} generations...")
 
-    best_genome = population.run(
-        run_simulation,
-        max_generations,
-    )
+        best_genome = population.run(
+            run_simulation,
+            max_generations,
+        )
 
-    global saved_trajectory_count, current_generation, agent_distances
-    if saved_trajectory_count >= number_of_trajectories:
-        print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
+        global saved_trajectory_count, current_generation, agent_distances
+        if saved_trajectory_count >= number_of_trajectories:
+            print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
+            generate_database(trajectory_path)
+            print("Removing old trajectories...")
+            old_trajectories = glob.glob(trajectory_path + "trajectory*")
+            for f in old_trajectories:
+                os.remove(f)
+
+        current_generation = 0
+        saved_trajectory_count = 0
+        ret = agent_distances.copy()
+        agent_distances = []
+        return ret
+    except KeyboardInterrupt:
         generate_database(trajectory_path)
-        print("Removing old trajectories...")
-        old_trajectories = glob.glob(trajectory_path + "trajectory*")
-        for f in old_trajectories:
-            os.remove(f)
-
-    current_generation = 0
-    saved_trajectory_count = 0
-    ret = agent_distances.copy()
-    agent_distances = []
-    return ret
 
 
 if __name__ == "__main__":
@@ -497,13 +500,10 @@ if __name__ == "__main__":
         number_of_trajectories = args.trajectories[0]
         run_type = "collect"
 
-    try:
-        run_population(
-            config_path=config_path,
-            max_generations=DEFAULT_MAX_GENERATIONS,
-            number_of_trajectories=number_of_trajectories,
-            runType=run_type,
-            noHead=args.headless,
-        )
-    except KeyboardInterrupt:
-        generate_database(trajectory_path)
+    run_population(
+        config_path=config_path,
+        max_generations=DEFAULT_MAX_GENERATIONS,
+        number_of_trajectories=number_of_trajectories,
+        runType=run_type,
+        noHead=args.headless,
+    )

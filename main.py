@@ -19,7 +19,7 @@ os.environ["WANDB_SILENT"] = "true"
 
 
 def start_simulation(
-    config_path, max_generations, number_of_trajectories, run_type, noHead=True
+    config_path, max_generations, number_of_trajectories, run_type, noHead
 ):
     # Set number of trajectories
     agent.number_of_trajectories = number_of_trajectories
