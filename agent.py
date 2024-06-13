@@ -14,6 +14,7 @@ import pygame
 import argparse
 
 import pickle
+import yaml
 
 from reward import TrajectoryRewardNet, prepare_single_trajectory
 import torch
@@ -247,35 +248,43 @@ def generate_database(trajectory_path):
     if len(trajectories) % 2 != 0:
         trajectories.pop()
 
-    trajectories = sorted(trajectories, key=lambda trajectory: trajectory[0])
-    lo = 0
-    hi = len(trajectories) - 1
     trajectory_pairs = []
-    while True:
+    global run_type
+    if run_type == "collect":
+        trajectories_sorted = sorted(trajectories, key=lambda trajectory: trajectory[0])
+        lo = 0
+        hi = len(trajectories_sorted) - 1
+        while True:
+            trajectory_pairs.append(
+                (
+                    pad_trajectory(trajectories_sorted[lo][1], max_length),
+                    pad_trajectory(trajectories_sorted[hi][1], max_length),
+                    1,
+                    trajectories_sorted[lo][0],
+                    trajectories_sorted[hi][0],
+                )
+            )
+            lo += 1
+            hi -= 1
+            if (
+                lo >= hi
+                or abs(trajectories_sorted[lo][0] - trajectories_sorted[hi][0]) < 5
+            ):
+                break
+
+    num_traj = len(trajectory_pairs) * 2 if run_type == "collect" else len(trajectories)
+    for i in range(0, num_traj, 2):
         trajectory_pairs.append(
             (
-                pad_trajectory(trajectories[lo][1], max_length),
-                pad_trajectory(trajectories[hi][1], max_length),
-                1,
-                trajectories[lo][0],
-                trajectories[hi][0],
+                pad_trajectory(trajectories[i][1], max_length),
+                pad_trajectory(trajectories[i + 1][1], max_length),
+                0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
+                trajectories[i][0],
+                trajectories[i + 1][0],
             )
         )
-        lo += 1
-        hi -= 1
-        if lo >= hi or abs(trajectories[lo][0] - trajectories[hi][0]) < 5:
-            break
-    # trajectory_pairs = [
-    #     (
-    #         pad_trajectory(trajectories[i][1], max_length),
-    #         pad_trajectory(trajectories[i + 1][1], max_length),
-    #         0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
-    #         trajectories[i][0],
-    #         trajectories[i + 1][0],
-    #     )
-    #     for i in range(0, len(trajectories), 2)
-    # ]
-
+    if run_type == "collect":
+        print(f"Saving {num_traj} opposite pairs and {num_traj} default pairs.")
     print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
     # Delete all trajectories
@@ -292,7 +301,6 @@ def generate_database(trajectory_path):
     for f in old_trajectories:
         os.remove(f)
 
-    global run_type
     prefix = "database" if run_type == "collect" else run_type
     # Save To Database
     with open(trajectory_path + f"{prefix}_{len(trajectory_pairs)}.pkl", "wb") as f:
@@ -326,7 +334,7 @@ def run_simulation(genomes, config):
     alive_font = pygame.font.SysFont("Arial", 20)
     game_map = pygame.image.load("maps/map.png").convert()  # Convert Speeds Up A Lot
 
-    global current_generation, saved_trajectory_count, run_type
+    global current_generation, saved_trajectory_count, run_type, headless
     current_generation += 1
 
     # Simple Counter To Roughly Limit Time (Not Good Practice)
@@ -437,6 +445,11 @@ def run_population(
         global run_type, saved_trajectory_count, headless
         run_type = runType
         headless = noHead
+        if headless:
+            os.environ["SDL_VIDEODRIVER"] = "dummy"
+        else:
+            if "SDL_VIDEODRIVER" in os.environ:
+                del os.environ["SDL_VIDEODRIVER"]
 
         print(run_type)
         if run_type == "collect":
@@ -456,23 +469,26 @@ def run_population(
             max_generations,
         )
 
-    global saved_trajectory_count, current_generation, agent_distances, agent_rewards
-    if saved_trajectory_count >= number_of_trajectories:
-        print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
-        numTraj = generate_database(trajectory_path)
-        print("Removing old trajectories...")
-        old_trajectories = glob.glob(trajectory_path + "trajectory*")
-        for f in old_trajectories:
-            os.remove(f)
-    temp_trajectory_count = (saved_trajectory_count) // 2
-    current_generation = 0
-    saved_trajectory_count = 0
-    distances = agent_distances.copy()
-    rewards = agent_rewards.copy()
-    agent_distances, agent_rewards = [], []
-    if run_type == "collect":
-        return numTraj
-    return distances, temp_trajectory_count, rewards
+        global saved_trajectory_count, current_generation, agent_distances, agent_rewards
+        if saved_trajectory_count >= number_of_trajectories:
+            print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
+            numTraj = generate_database(trajectory_path)
+            print("Removing old trajectories...")
+            old_trajectories = glob.glob(trajectory_path + "trajectory*")
+            for f in old_trajectories:
+                os.remove(f)
+        temp_trajectory_count = (saved_trajectory_count) // 2
+        current_generation = 0
+        saved_trajectory_count = 0
+        distances = agent_distances.copy()
+        rewards = agent_rewards.copy()
+        agent_distances, agent_rewards = [], []
+        if run_type == "collect":
+            return numTraj
+        else:
+            return distances, temp_trajectory_count, rewards
+    except KeyboardInterrupt:
+        generate_database(trajectory_path)
 
 
 if __name__ == "__main__":
@@ -496,22 +512,32 @@ if __name__ == "__main__":
     )
     args = parse.parse_args()
 
-    if args.headless:
-        os.environ["SDL_VIDEODRIVER"] = "dummy"
+    # if args.headless:
+    #     os.environ["SDL_VIDEODRIVER"] = "dummy"
 
     if args.reward and args.trajectories[0] > 0:
         print("Cannot save trajectories and train reward function at the same time")
         sys.exit(1)
 
+    hidden_size = None
+    parameters_path = "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/best_params.yaml"
+    with open(parameters_path, "r") as file:
+        data = yaml.safe_load(file)
+        hidden_size = data["hidden_size"]
+
+    print()
     if args.reward is not None:
         print("Loading reward network...")
-        hidden_size = re.search(r"best_model_(\d+)\.pth", args.reward)
+        # hidden_size = re.search(r"best_model_(\d+)\.pth", args.reward)
+
         reward_network = TrajectoryRewardNet(
-            TRAJECTORY_LENGTH * 2, hidden_size=int(hidden_size.group(1))
+            # TRAJECTORY_LENGTH * 2, hidden_size=int(hidden_size.group(1))
+            TRAJECTORY_LENGTH * 2,
+            hidden_size=hidden_size,
         ).to(device)
         weights = torch.load(args.reward)
         reward_network.load_state_dict(weights)
-        run_type = "trainedRF"
+        runType = "trainedRF"
 
     config_path = (
         "config/data_collection_config.txt"
@@ -521,12 +547,12 @@ if __name__ == "__main__":
     # number_of_trajectories = [-1]
     if args.trajectories[0] > 0:
         number_of_trajectories = args.trajectories[0]
-        run_type = "collect"
+        runType = "collect"
 
     run_population(
         config_path=config_path,
         max_generations=DEFAULT_MAX_GENERATIONS,
         number_of_trajectories=number_of_trajectories,
-        runType=run_type,
+        runType=runType,
         noHead=args.headless,
     )

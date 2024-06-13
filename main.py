@@ -13,6 +13,8 @@ import sys
 import re
 import torch
 
+# from plot import prepare_data, plot_bradley_terry, plot_trajectory_order
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 os.environ["WANDB_SILENT"] = "true"
@@ -58,8 +60,9 @@ def handle_plotting(
         (true_reward_maxes, trained_reward_maxes),
     )
     graph_trained_rewards(trained_agent_reward_averages, trained_agent_reward_maxes)
-    # graph_death_rates(true_agent_distances, "GT")
-    # graph_death_rates(trained_agent_distances, "Trained")
+    graph_death_rates(true_agent_distances, "GT")
+    graph_death_rates(trained_agent_distances, "Trained")
+    graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards)
 
 
 def graph_avg_max(averages, maxes):
@@ -185,6 +188,35 @@ def graph_death_rates(distances_per_generation, agent_type):
     )
 
 
+def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
+    os.makedirs("figures", exist_ok=True)
+    aggregate_trained_distance, aggregate_trained_reward = [], []
+    for i in range(len(trained_agent_distances)):
+        aggregate_trained_distance.extend(trained_agent_distances[i])
+        aggregate_trained_reward.extend(trained_agent_rewards[i])
+    plt.figure()
+    plt.scatter(
+        x=aggregate_trained_distance, y=aggregate_trained_reward, label="Trained Agent"
+    )
+    plt.xlabel("Distance")
+    plt.ylabel("Reward")
+    plt.title("Reward vs. Distance Travelled")
+    plt.legend()
+    plt.savefig("figures/agent_distance_vs_reward.png")
+    plt.close()
+
+    wandb.log(
+        {
+            "Wandb Avg Plot": wandb.plot.line_series(
+                xs=aggregate_trained_distance,
+                ys=[aggregate_trained_reward],
+                keys=["Trained Agent"],
+                title="Reward vs. Distance Travelled",
+            )
+        }
+    )
+
+
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(
         description="Training a Reward From Synthetic Preferences"
@@ -217,8 +249,8 @@ if __name__ == "__main__":
     if args.trajectories[0] < 0 or args.generations[0] < 0 or args.epochs[0] < 0:
         print("Invalid input. All arguments must be positive integers.")
         sys.exit(1)
-    if args.headless:
-        os.environ["SDL_VIDEODRIVER"] = "dummy"
+    # if args.headless:
+    #     os.environ["SDL_VIDEODRIVER"] = "dummy"
     # start the simulation in data collecting mode
     num_traj = start_simulation(
         "./config/data_collection_config.txt",
@@ -257,9 +289,9 @@ if __name__ == "__main__":
         true_agent_distances, trained_agent_distances, trained_agent_rewards
     )
 
-    bt, bt_delta, ordered_trajectories = prepare_data(
-        f"trajectories/trainedRF_{agent_trajectories}.pkl", net=agent.reward_network
-    )
-    plot_bradley_terry(bt, "Agent False Bradley Terry")
-    plot_bradley_terry(bt_delta, "Agent Bradley Terry Difference")
-    plot_trajectory_order(ordered_trajectories, "Trajectory Order")
+    # bt, bt_delta, ordered_trajectories = prepare_data(
+    #     f"trajectories/trainedRF_{agent_trajectories}.pkl", net=agent.reward_network
+    # )
+    # plot_bradley_terry(bt, "Agent False Bradley Terry")
+    # plot_bradley_terry(bt_delta, "Agent Bradley Terry Difference")
+    # plot_trajectory_order(ordered_trajectories, "Trajectory Order")

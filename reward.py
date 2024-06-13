@@ -21,6 +21,9 @@ import yaml
 os.environ["WANDB_SILENT"] = "true"
 INPUT_SIZE = 450 * 2
 
+figure_path = "figures/"
+os.makedirs(figure_path, exist_ok=True)
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
