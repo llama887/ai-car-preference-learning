@@ -3,7 +3,7 @@ import argparse
 from reward import TrajectoryRewardNet, train_reward_function
 
 import agent
-from agent import run_population, TRAJECTORY_LENGTH
+from agent import run_population, TRAIN_TRAJECTORY_LENGTH
 
 import matplotlib.pyplot as plt
 import wandb
@@ -277,7 +277,7 @@ if __name__ == "__main__":
     )
     print("Simulating on trained reward function...")
     # run the simulation with the trained reward function
-    agent.reward_network = TrajectoryRewardNet(TRAJECTORY_LENGTH * 2).to(device)
+    agent.reward_network = TrajectoryRewardNet(TRAIN_TRAJECTORY_LENGTH * 2).to(device)
     trained_agent_distances, _, trained_agent_rewards = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],

@@ -19,7 +19,7 @@ import os
 import yaml
 
 os.environ["WANDB_SILENT"] = "true"
-INPUT_SIZE = 450 * 2
+INPUT_SIZE = 2 * 2
 
 figure_path = "figures/"
 os.makedirs(figure_path, exist_ok=True)
@@ -62,6 +62,8 @@ class TrajectoryDataset(Dataset):
         self.data_path = file_path
         with open(file_path, "rb") as f:
             self.trajectory_pairs = pickle.load(f)
+            # for pair in self.trajectory_pairs:
+            #     print(pair)
 
     def __getitem__(self, idx):
         traj1, traj2, preference, score1, score2 = self.trajectory_pairs[idx]
@@ -135,18 +137,29 @@ def visualize_trajectories(batch_1, batch_2):
     plt.show()
 
 
-def prepare_single_trajectory(trajectory, max_length=450):
-    def pad_or_truncate(trajectory, length):
-        if len(trajectory) > length:
-            return trajectory[:length]
-        else:
-            padding = [trajectory[-1]] * (length - len(trajectory))
-            return trajectory + padding
+def prepare_single_trajectory(trajectory, max_length=2):
+    # def pad_or_truncate(trajectory, length):
+    #     if len(trajectory) > length:
+    #         return trajectory[:length]
+    #     else:
+    #         padding = [trajectory[-1]] * (length - len(trajectory))
+    #         return trajectory + padding
 
-    # Pad or truncate the trajectory
-    trajectory_padded = pad_or_truncate(trajectory, max_length)
+    # # Pad or truncate the trajectory
+    # trajectory_padded = pad_or_truncate(trajectory, max_length)
     # Flatten the list of tuples
-    trajectory_flat = [item for sublist in trajectory_padded for item in sublist]
+
+    def truncate(trajectory, max_length):
+        if len(trajectory) > max_length:
+            return trajectory[-max_length:]
+        return trajectory
+
+    trajectory_flat = [
+        item for sublist in truncate(trajectory, max_length) for item in sublist
+    ]
+    if len(trajectory_flat) != 4:
+        print("BING BONG")
+        print(trajectory_flat)
 
     # Convert to tensor and add an extra dimension
     trajectory_tensor = torch.tensor([trajectory_flat], dtype=torch.float32).to(device)
@@ -162,7 +175,7 @@ def calculate_accuracy(predicted_probabilities, true_preferences):
 
 
 def train_model(
-    file_path, net, epochs=1000, optimizer=None, batch_size=32, model_path="best.pth"
+    file_path, net, epochs=1000, optimizer=None, batch_size=128, model_path="best.pth"
 ):
     wandb.init(project="Micro Preference")
     wandb.watch(net, log="all")
@@ -195,19 +208,6 @@ def train_model(
         pin_memory=True,
     )
 
-    # Log label balance
-    # Alex: after adding dataloaders, logging this is kinda annoying
-    # wandb.log(
-    #     {
-    #         "True Preferences Training": wandb.Histogram(
-    #             true_preferences.detach().cpu().numpy()
-    #         ),
-    #         "True Preferences Validation": wandb.Histogram(
-    #             validation_true_preferences.detach().cpu().numpy()
-    #         ),
-    #     }
-    # )
-
     if batch_size > dataset_size:
         batch_size = dataset_size
 
@@ -239,6 +239,8 @@ def train_model(
             batch_score1,
             batch_score2,
         ) in train_dataloader:
+            # for item in list(zip(batch_traj1, batch_traj2, batch_true_pref)):
+            #     print(item)
             rewards1 = net(batch_traj1)
             rewards2 = net(batch_traj2)
 
@@ -381,7 +383,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
         study = optuna.create_study(direction="minimize")
         study.set_user_attr("file_path", trajectories_file_path)
         study.set_user_attr("epochs", epochs)
-        study.optimize(objective, n_trials=5)
+        study.optimize(objective, n_trials=1)
 
         # Load and print the best trial
         best_trial = study.best_trial
@@ -437,7 +439,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
 
 
 def objective(trial):
-    input_size = 450 * 2
+    input_size = INPUT_SIZE
     hidden_size = trial.suggest_int("hidden_size", 128, 1024)
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)

@@ -34,6 +34,7 @@ CAR_SIZE_Y = 60
 BORDER_COLOR = (255, 255, 255, 255)  # Color To Crash on Hit
 
 TRAJECTORY_LENGTH = 30 * 15
+TRAIN_TRAJECTORY_LENGTH = 2
 
 DEFAULT_MAX_GENERATIONS = 1000
 
@@ -76,7 +77,7 @@ class Car:
         self.distance = 0  # Distance Driven
         self.time = 0  # Time Passed
 
-        self.trajectory = []  # All Positions of the Car
+        self.trajectory = [[830, 920]]  # All Positions of the Car
 
     def draw(self, screen):
         screen.blit(self.rotated_sprite, self.position)  # Draw Sprite
@@ -225,6 +226,13 @@ class Car:
 
 
 def generate_database(trajectory_path):
+    def dist(traj_segment):
+        traj_segment_distance = math.sqrt(
+            (traj_segment[1][0] - traj_segment[0][0]) ** 2
+            + (traj_segment[1][1] - traj_segment[0][1]) ** 2
+        )
+        return traj_segment_distance
+
     # Load All Trajectories
     trajectories = []
     for file in glob.glob(f"{trajectory_path}/trajectory*.pkl"):
@@ -239,6 +247,7 @@ def generate_database(trajectory_path):
     if not trajectories:
         print("No trajectories saved.")
         return
+
     max_length, max_index = max(
         (len(trajectory), index)
         for index, (reward, trajectory) in enumerate(trajectories)
@@ -250,41 +259,53 @@ def generate_database(trajectory_path):
 
     trajectory_pairs = []
     global run_type
+
     if run_type == "collect":
-        trajectories_sorted = sorted(trajectories, key=lambda trajectory: trajectory[0])
-        lo = 0
-        hi = len(trajectories_sorted) - 1
-        while True:
+        trajectory_segments = []
+        for _, trajectory in trajectories:
+            prev = 0
+            curr = 1
+            while curr < len(trajectory):
+                trajectory_segments.append([trajectory[prev], trajectory[curr]])
+                prev += 1
+                curr += 1
+
+        random.shuffle(trajectory_segments)
+        if len(trajectory_segments) % 2 != 0:
+            trajectory_segments.pop()
+        hard_comparison_counter = 0
+        for i in range(0, len(trajectory_segments), 2):
+            distance_1 = dist(trajectory_segments[i])
+            distance_2 = dist(trajectory_segments[i + 1])
+            if abs(distance_1 - distance_2) < 1:
+                hard_comparison_counter += 1
+                continue
             trajectory_pairs.append(
                 (
-                    pad_trajectory(trajectories_sorted[lo][1], max_length),
-                    pad_trajectory(trajectories_sorted[hi][1], max_length),
-                    1,
-                    trajectories_sorted[lo][0],
-                    trajectories_sorted[hi][0],
+                    trajectory_segments[i],
+                    trajectory_segments[i + 1],
+                    0 if distance_1 > distance_2 else 1,
+                    distance_1,
+                    distance_2,
                 )
             )
-            lo += 1
-            hi -= 1
-            if (
-                lo >= hi
-                or abs(trajectories_sorted[lo][0] - trajectories_sorted[hi][0]) < 5
-            ):
-                break
-
-    num_traj = len(trajectory_pairs) * 2 if run_type == "collect" else len(trajectories)
-    for i in range(0, num_traj, 2):
-        trajectory_pairs.append(
-            (
-                pad_trajectory(trajectories[i][1], max_length),
-                pad_trajectory(trajectories[i + 1][1], max_length),
-                0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
-                trajectories[i][0],
-                trajectories[i + 1][0],
-            )
+    else:
+        num_traj = (
+            len(trajectory_pairs) * 2 if run_type == "collect" else len(trajectories)
         )
-    if run_type == "collect":
-        print(f"Saving {num_traj} opposite pairs and {num_traj} default pairs.")
+        for i in range(0, num_traj, 2):
+            trajectory_pairs.append(
+                (
+                    pad_trajectory(trajectories[i][1], max_length),
+                    pad_trajectory(trajectories[i + 1][1], max_length),
+                    0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
+                    trajectories[i][0],
+                    trajectories[i + 1][0],
+                )
+            )
+
+    # if run_type == "collect":
+    #     print(f"Saving {num_traj} opposite pairs and {num_traj} default pairs.")
     print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
     # Delete all trajectories
@@ -532,7 +553,7 @@ if __name__ == "__main__":
 
         reward_network = TrajectoryRewardNet(
             # TRAJECTORY_LENGTH * 2, hidden_size=int(hidden_size.group(1))
-            TRAJECTORY_LENGTH * 2,
+            TRAIN_TRAJECTORY_LENGTH * 2,
             hidden_size=hidden_size,
         ).to(device)
         weights = torch.load(args.reward)
