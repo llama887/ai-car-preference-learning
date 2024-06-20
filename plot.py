@@ -15,6 +15,7 @@ import math
 import argparse
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+NET_SIZE = 4
 
 
 class RewardNormalizer:
@@ -51,7 +52,7 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     with open(database_path, "rb") as f:
         trajectories = pickle.load(f)
     if model_weights is not None:
-        model = TrajectoryRewardNet(900, hidden_size=int(hidden_size)).to(device)
+        model = TrajectoryRewardNet(NET_SIZE, hidden_size=int(hidden_size)).to(device)
         model.load_state_dict(torch.load(model_weights))
     elif net is not None:
         model = net
@@ -184,7 +185,7 @@ if __name__ == "__main__":
         reward = args.reward
 
     bt, bt_, bt_delta, ordered_trajectories = prepare_data(
-        database, reward, hidden_size=938
+        database, reward, hidden_size=592
     )
     plot_bradley_terry(bt, "False Bradley Terry", bt_)
     plot_bradley_terry(bt_delta, "Bradley Terry Difference")

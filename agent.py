@@ -1,6 +1,6 @@
 # This Code is Heavily Inspired By The YouTuber: Cheesy AI
 # Code Changed, Optimized And Commented By: NeuralNine (Florian Dedov)
-# Code Adapted for preference learning for Emerge Lab research by Franklin Yiu
+# Code Adapted for preference learning for Emerge Lab research by Franklin Yiu, Alex Tang
 
 import math
 import random
@@ -225,13 +225,35 @@ class Car:
             # self.distance is used to calculate the true reward
 
 
-def generate_database(trajectory_path):
-    def dist(traj_segment):
-        traj_segment_distance = math.sqrt(
-            (traj_segment[1][0] - traj_segment[0][0]) ** 2
-            + (traj_segment[1][1] - traj_segment[0][1]) ** 2
+def dist(traj_segment):
+    traj_segment_distance = math.sqrt(
+        (traj_segment[1][0] - traj_segment[0][0]) ** 2
+        + (traj_segment[1][1] - traj_segment[0][1]) ** 2
+    )
+    return traj_segment_distance
+
+
+def sort_and_pair(trajectory_segments, clean=True):
+    sorted_trajectory_segments = sorted(trajectory_segments, key=lambda x: dist(x))
+    distDict = {}
+    cleaned_segments = []
+    for trajectory_segment in sorted_trajectory_segments:
+        trajectory_distance = round(dist(trajectory_segment))
+        # print(dist(trajectory_segment), trajectory_distance)
+        if trajectory_distance not in distDict:
+            cleaned_segments.append(trajectory_segment)
+            distDict[trajectory_distance] = 1
+    segments_to_return = cleaned_segments if clean else sorted_trajectory_segments
+    for i in range(len(segments_to_return)):
+        print(
+            segments_to_return[i],
+            "; DIST:",
+            dist(segments_to_return[i]),
         )
-        return traj_segment_distance
+    return segments_to_return
+
+
+def generate_database(trajectory_path):
 
     # Load All Trajectories
     trajectories = []
@@ -270,25 +292,74 @@ def generate_database(trajectory_path):
                 prev += 1
                 curr += 1
 
-        random.shuffle(trajectory_segments)
         if len(trajectory_segments) % 2 != 0:
             trajectory_segments.pop()
-        hard_comparison_counter = 0
-        for i in range(0, len(trajectory_segments), 2):
-            distance_1 = dist(trajectory_segments[i])
-            distance_2 = dist(trajectory_segments[i + 1])
-            if abs(distance_1 - distance_2) < 1:
-                hard_comparison_counter += 1
-                continue
-            trajectory_pairs.append(
-                (
-                    trajectory_segments[i],
-                    trajectory_segments[i + 1],
-                    0 if distance_1 > distance_2 else 1,
-                    distance_1,
-                    distance_2,
+
+        segment_generation_mode = "all_combinations"
+
+        if segment_generation_mode == "random":
+            random.shuffle(trajectory_segments)
+            for i in range(0, len(trajectory_segments), 2):
+                distance_1 = dist(trajectory_segments[i])
+                distance_2 = dist(trajectory_segments[i + 1])
+                if abs(distance_1 - distance_2) < 1:
+                    continue
+                trajectory_pairs.append(
+                    (
+                        trajectory_segments[i],
+                        trajectory_segments[i + 1],
+                        0 if distance_1 > distance_2 else 1,
+                        distance_1,
+                        distance_2,
+                    )
                 )
-            )
+        else:
+            trajectory_segments = sort_and_pair(trajectory_segments)
+            if segment_generation_mode == "sequential_pairing":
+                n = len(trajectory_segments)
+                for i in range(n // 2):
+                    j = n - i - 1
+                    distance_1 = dist(trajectory_segments[i])
+                    distance_2 = dist(trajectory_segments[j])
+                    if abs(distance_1 - distance_2) < 1:
+                        continue
+                    trajectory_pairs.append(
+                        (
+                            trajectory_segments[i],
+                            trajectory_segments[j],
+                            0 if distance_1 > distance_2 else 1,
+                            distance_1,
+                            distance_2,
+                        )
+                    )
+            elif segment_generation_mode == "all_combinations":
+                n = len(trajectory_segments)
+                for i in range(len(trajectory_segments)):
+                    for j in range(i + 1, len(trajectory_segments)):
+                        distance_1 = dist(trajectory_segments[i])
+                        distance_2 = dist(trajectory_segments[j])
+                        if abs(distance_1 - distance_2) < 1:
+                            continue
+                        trajectory_pairs.append(
+                            (
+                                trajectory_segments[i],
+                                trajectory_segments[j],
+                                0 if distance_1 > distance_2 else 1,
+                                distance_1,
+                                distance_2,
+                            )
+                        )
+            random.shuffle(trajectory_pairs)
+            for i in range(len(trajectory_pairs)):
+                swap = random.randint(0, 1)
+                if swap:
+                    trajectory_pairs[i] = (
+                        trajectory_pairs[i][1],
+                        trajectory_pairs[i][0],
+                        (trajectory_pairs[i][2] + 1) % 2,
+                        trajectory_pairs[i][4],
+                        trajectory_pairs[i][3],
+                    )
     else:
         num_traj = (
             len(trajectory_pairs) * 2 if run_type == "collect" else len(trajectories)
@@ -347,7 +418,7 @@ def run_simulation(genomes, config):
         g.fitness = 0
 
         cars.append(Car())
-    print("THIS GENERATION HAS", len(cars), "CARS.")
+    # print("THIS GENERATION HAS", len(cars), "CARS.")
     # Clock Settings
     # Font Settings & Loading Map
     clock = pygame.time.Clock()
@@ -414,6 +485,12 @@ def run_simulation(genomes, config):
                     generation_rewards.append(car.get_reward())
                 agent_distances.append(generation_distances)
                 agent_rewards.append(generation_rewards)
+                print(
+                    "Best agent in this generation - DISTANCE TRAVELLED:",
+                    max(generation_distances),
+                    "| REWARD OBTAINED:",
+                    max(generation_rewards),
+                )
 
             if (
                 run_type == "collect"
@@ -472,7 +549,6 @@ def run_population(
             if "SDL_VIDEODRIVER" in os.environ:
                 del os.environ["SDL_VIDEODRIVER"]
 
-        print(run_type)
         if run_type == "collect":
             max_generations = math.ceil(number_of_trajectories / config.pop_size)
 
@@ -491,13 +567,13 @@ def run_population(
         )
 
         global saved_trajectory_count, current_generation, agent_distances, agent_rewards
-        if saved_trajectory_count >= number_of_trajectories:
-            print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
-            numTraj = generate_database(trajectory_path)
-            print("Removing old trajectories...")
-            old_trajectories = glob.glob(trajectory_path + "trajectory*")
-            for f in old_trajectories:
-                os.remove(f)
+        # if saved_trajectory_count >= number_of_trajectories:
+        print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
+        numTraj = generate_database(trajectory_path)
+        print("Removing old trajectories...")
+        old_trajectories = glob.glob(trajectory_path + "trajectory*")
+        for f in old_trajectories:
+            os.remove(f)
         temp_trajectory_count = (saved_trajectory_count) // 2
         current_generation = 0
         saved_trajectory_count = 0

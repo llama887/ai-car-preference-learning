@@ -157,9 +157,6 @@ def prepare_single_trajectory(trajectory, max_length=2):
     trajectory_flat = [
         item for sublist in truncate(trajectory, max_length) for item in sublist
     ]
-    if len(trajectory_flat) != 4:
-        print("BING BONG")
-        print(trajectory_flat)
 
     # Convert to tensor and add an extra dimension
     trajectory_tensor = torch.tensor([trajectory_flat], dtype=torch.float32).to(device)
@@ -177,6 +174,7 @@ def calculate_accuracy(predicted_probabilities, true_preferences):
 def train_model(
     file_path, net, epochs=1000, optimizer=None, batch_size=128, model_path="best.pth"
 ):
+    print("BATCH_SIZE:", batch_size)
     wandb.init(project="Micro Preference")
     wandb.watch(net, log="all")
 
@@ -184,15 +182,17 @@ def train_model(
     full_dataset = TrajectoryDataset(file_path)
 
     # Define the split ratio
-    train_ratio = 0.8
-    train_size = int(train_ratio * len(full_dataset))
-    val_size = len(full_dataset) - train_size
+    train_ratio = 0.7
+    val_ratio = 0.2
+    dataset_size = len(full_dataset)
+    train_size = int(train_ratio * dataset_size)
+    val_size = int(val_ratio * dataset_size)
+    test_size = dataset_size - train_size - val_size
 
     # Split the dataset into training and validation sets
-    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
-
-    dataset_size = len(train_dataset)
-    val_dataset_size = len(val_dataset)
+    train_dataset, val_dataset, test_dataset = random_split(
+        full_dataset, [train_size, val_size, test_size]
+    )
 
     # Initialize Dataloaders
     train_dataloader = DataLoader(
@@ -203,25 +203,59 @@ def train_model(
     )
     validation_dataloader = DataLoader(
         val_dataset,
-        batch_size=val_dataset_size,
+        batch_size=val_size if val_size < batch_size else batch_size,
         shuffle=False,
         pin_memory=True,
     )
 
-    if batch_size > dataset_size:
-        batch_size = dataset_size
+    testing_dataloader = DataLoader(
+        test_dataset,
+        batch_size=test_size if test_size < batch_size else batch_size,
+        shuffle=False,
+        pin_memory=True,
+    )
+
+    if batch_size > train_size:
+        batch_size = train_size
 
     best_loss = np.inf
     training_losses = []
     validation_losses = []
+    testing_losses = []
     training_accuracies = []
     validation_accuracies = []
+    testing_accuracies = []
 
     scheduler = lr_scheduler.LinearLR(
         optimizer, start_factor=1.0, end_factor=0.01, total_iters=epochs
     )
 
     for epoch in range(epochs):
+        net.eval()
+
+        with torch.no_grad():
+            for (
+                validation_traj1,
+                validation_traj2,
+                validation_true_pref,
+                validation_score1,
+                validation_score2,
+            ) in validation_dataloader:
+                validation_rewards1 = net(validation_traj1)
+                validation_rewards2 = net(validation_traj2)
+                validation_predicted_probabilities = bradley_terry_model(
+                    validation_rewards1, validation_rewards2
+                )
+                validation_loss = preference_loss(
+                    validation_predicted_probabilities, validation_true_pref
+                )
+                validation_losses.append(validation_loss.item())
+
+                validation_accuracy = calculate_accuracy(
+                    validation_predicted_probabilities, validation_true_pref
+                )
+                validation_accuracies.append(validation_accuracy)
+
         net.train()
         total_loss = 0.0
         total_accuracy = 0.0
@@ -236,13 +270,14 @@ def train_model(
             batch_traj1,
             batch_traj2,
             batch_true_pref,
-            batch_score1,
-            batch_score2,
+            _,
+            _,
         ) in train_dataloader:
             # for item in list(zip(batch_traj1, batch_traj2, batch_true_pref)):
             #     print(item)
             rewards1 = net(batch_traj1)
             rewards2 = net(batch_traj2)
+            # print(rewards1, rewards2)
 
             predicted_probabilities = bradley_terry_model(rewards1, rewards2)
             total_probability += predicted_probabilities.sum().item()
@@ -274,36 +309,11 @@ def train_model(
             #     elif prob <= 0.5 and batch_true_pref[idx] == 1:
             #         FN_rewards.append(batch_score1[idx])
 
-        average_training_loss = total_loss / (dataset_size // batch_size)
+        average_training_loss = total_loss / (train_size // batch_size)
         training_losses.append(average_training_loss)
 
-        average_training_accuracy = total_accuracy / dataset_size
+        average_training_accuracy = total_accuracy / train_size
         training_accuracies.append(average_training_accuracy)
-
-        net.eval()
-
-        with torch.no_grad():
-            for (
-                validation_traj1,
-                validation_traj2,
-                validation_true_pref,
-                validation_score1,
-                validation_score2,
-            ) in validation_dataloader:
-                validation_rewards1 = net(validation_traj1)
-                validation_rewards2 = net(validation_traj2)
-                validation_predicted_probabilities = bradley_terry_model(
-                    validation_rewards1, validation_rewards2
-                )
-                validation_loss = preference_loss(
-                    validation_predicted_probabilities, validation_true_pref
-                )
-                validation_losses.append(validation_loss.item())
-
-                validation_accuracy = calculate_accuracy(
-                    validation_predicted_probabilities, validation_true_pref
-                )
-                validation_accuracies.append(validation_accuracy)
 
         wandb.log(
             {
@@ -356,6 +366,30 @@ def train_model(
                 f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {validation_loss.item()}, Train Acc: {average_training_accuracy}, Val Acc: {validation_accuracy}"
             )
 
+    for (
+        testing_traj1,
+        testing_traj2,
+        testing_true_pref,
+        _,
+        _,
+    ) in testing_dataloader:
+        testing_rewards1 = net(testing_traj1)
+        testing_rewards2 = net(testing_traj2)
+        testing_predicted_probabilities = bradley_terry_model(
+            testing_rewards1, testing_rewards2
+        )
+        testing_loss = preference_loss(
+            testing_predicted_probabilities, testing_true_pref
+        )
+        testing_losses.append(testing_loss.item())
+
+        testing_accuracy = calculate_accuracy(
+            testing_predicted_probabilities, testing_true_pref
+        )
+        testing_accuracies.append(testing_accuracy)
+    print("TESTING LOSSES:", testing_losses)
+    print("TESTING ACC:", testing_accuracies)
+
     plt.figure()
     plt.plot(training_losses, label="Train Loss")
     plt.plot(validation_losses, label="Validation Loss")
@@ -383,7 +417,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
         study = optuna.create_study(direction="minimize")
         study.set_user_attr("file_path", trajectories_file_path)
         study.set_user_attr("epochs", epochs)
-        study.optimize(objective, n_trials=1)
+        study.optimize(objective, n_trials=5)
 
         # Load and print the best trial
         best_trial = study.best_trial
@@ -444,6 +478,7 @@ def objective(trial):
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
     dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.5)
+    batch_size = trial.suggest_int("batch_size", 8, 256)
 
     net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(device)
     for param in net.parameters():
@@ -458,6 +493,7 @@ def objective(trial):
         net=net,
         epochs=study.user_attrs["epochs"],
         optimizer=optimizer,
+        batch_size=batch_size,
     )
 
     # Save the best model parameters
