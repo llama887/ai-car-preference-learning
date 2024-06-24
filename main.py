@@ -5,6 +5,14 @@ from reward import TrajectoryRewardNet, train_reward_function
 import agent
 from agent import run_population, TRAIN_TRAJECTORY_LENGTH
 
+from plot import (
+    graph_avg_max,
+    graph_death_rates,
+    graph_distance_vs_reward,
+    graph_segment_distance_vs_reward,
+    graph_trained_rewards,
+)
+
 import matplotlib.pyplot as plt
 import wandb
 import glob
@@ -12,6 +20,7 @@ import os
 import sys
 import re
 import torch
+import random
 
 # from plot import prepare_data, plot_bradley_terry, plot_trajectory_order
 
@@ -36,7 +45,11 @@ def start_simulation(
 
 
 def handle_plotting(
-    true_agent_distances, trained_agent_distances, trained_agent_rewards
+    true_agent_distances,
+    trained_agent_distances,
+    trained_agent_rewards,
+    trained_segment_distances,
+    trained_segment_rewards,
 ):
     traj_per_generation = len(true_agent_distances[0])
     true_reward_averages = [
@@ -62,159 +75,8 @@ def handle_plotting(
     graph_trained_rewards(trained_agent_reward_averages, trained_agent_reward_maxes)
     graph_death_rates(true_agent_distances, "GT")
     graph_death_rates(trained_agent_distances, "Trained")
-    graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards)
-
-
-def graph_avg_max(averages, maxes):
-    true_reward_averages, trained_reward_averages = averages
-    true_reward_maxes, trained_reward_maxes = maxes
-
-    os.makedirs("figures", exist_ok=True)
-
-    x_values = range(len(trained_reward_averages))
-
-    plt.figure()
-    plt.plot(x_values, true_reward_averages, label="Ground Truth")
-    plt.plot(x_values, trained_reward_averages, label="Trained Reward")
-    plt.xlabel("Generation")
-    plt.ylabel("Distance")
-    plt.title("Ground Truth vs Trained Reward: Average Distance")
-    plt.legend()
-    plt.savefig("figures/average.png")
-
-    plt.figure()
-    plt.plot(x_values, true_reward_maxes, label="Ground Truth")
-    plt.plot(x_values, trained_reward_maxes, label="Trained Reward")
-    plt.xlabel("Generation")
-    plt.ylabel("Distance")
-    plt.title("Ground Truth vs Trained Reward: Max Distance")
-    plt.legend()
-    plt.savefig("figures/max.png")
-
-    wandb.log(
-        {
-            "Wandb Avg Plot": wandb.plot.line_series(
-                xs=x_values,
-                ys=[true_reward_averages, trained_reward_averages],
-                keys=["True Average", "Trained Average"],
-                title="Ground Truth vs Trained Reward: Average Distance",
-            )
-        }
-    )
-    wandb.log(
-        {
-            "Wandb Max Plot": wandb.plot.line_series(
-                xs=x_values,
-                ys=[true_reward_maxes, trained_reward_maxes],
-                keys=["True Max", "Trained Max"],
-                title="Ground Truth vs Trained Reward: Max Distance",
-            )
-        }
-    )
-
-
-def graph_trained_rewards(averages, maxes):
-    os.makedirs("figures", exist_ok=True)
-
-    x_values = range(len(averages))
-
-    plt.figure()
-    plt.plot(x_values, averages, label="Average Rewards Per Gen")
-    plt.plot(x_values, maxes, label="Max Reward Per Gen")
-    plt.xlabel("Generation")
-    plt.ylabel("Reward")
-    plt.title("Reward Obtained by Trained Agents")
-    plt.legend()
-    plt.savefig("figures/agent_rewards.png")
-    plt.close()
-
-    wandb.log(
-        {
-            "Wandb Avg Plot": wandb.plot.line_series(
-                xs=x_values,
-                ys=[averages, maxes],
-                keys=["Average Reward", "Max Reward"],
-                title="Reward Obtained by Trained Agents",
-            )
-        }
-    )
-
-
-def graph_death_rates(distances_per_generation, agent_type):
-    fig = plt.figure()
-    generation_graph = fig.add_subplot(projection="3d")
-
-    traj_per_generation = len(distances_per_generation[0])
-    sorted_distances = [sorted(generation) for generation in distances_per_generation]
-
-    xs = []
-    ys = []
-    generations = []
-
-    for generation, distances_in_generation in enumerate(sorted_distances):
-        percent_alive = []
-        distance_travelled = []
-        for number_dead, traj_distance in enumerate(distances_in_generation):
-            percent_alive.append(
-                (traj_per_generation - number_dead - 1) / traj_per_generation * 100
-            )
-            distance_travelled.append(traj_distance)
-        xs.append(distance_travelled)
-        ys.append(percent_alive)
-        generations.append(generation + 1)
-        generation_graph.plot(
-            distance_travelled,
-            percent_alive,
-            zs=generation + 1,
-            zdir="y",
-        )
-
-    generation_graph.set_xlabel("Distance Travelled")
-    generation_graph.set_ylabel("Generation")
-    generation_graph.set_zlabel("Percent Alive")
-    generation_graph.set_yticks(generations)
-    plt.title(f"Survival Rate of {agent_type} Agents vs. Distance")
-    plt.savefig(f"figures/survival_{agent_type}.png")
-
-    wandb.log(
-        {
-            f"Survival Rate of {agent_type} Agents": wandb.plot.line_series(
-                xs,
-                ys,
-                keys=[f"Generation {gen}" for gen in generations],
-                title="Ground Truth vs Trained Reward: Average Distance",
-            )
-        }
-    )
-
-
-def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
-    os.makedirs("figures", exist_ok=True)
-    aggregate_trained_distance, aggregate_trained_reward = [], []
-    for i in range(len(trained_agent_distances)):
-        aggregate_trained_distance.extend(trained_agent_distances[i])
-        aggregate_trained_reward.extend(trained_agent_rewards[i])
-    plt.figure()
-    plt.scatter(
-        x=aggregate_trained_distance, y=aggregate_trained_reward, label="Trained Agent"
-    )
-    plt.xlabel("Distance")
-    plt.ylabel("Reward")
-    plt.title("Reward vs. Distance Travelled")
-    plt.legend()
-    plt.savefig("figures/agent_distance_vs_reward.png")
-    plt.close()
-
-    wandb.log(
-        {
-            "Wandb Avg Plot": wandb.plot.line_series(
-                xs=aggregate_trained_distance,
-                ys=[aggregate_trained_reward],
-                keys=["Trained Agent"],
-                title="Reward vs. Distance Travelled",
-            )
-        }
-    )
+    # graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards)
+    graph_segment_distance_vs_reward(trained_segment_distances, trained_segment_rewards)
 
 
 if __name__ == "__main__":
@@ -279,7 +141,13 @@ if __name__ == "__main__":
     # run the simulation with the trained reward function
     print("Simulating on trained reward function...")
     agent.reward_network = TrajectoryRewardNet(TRAIN_TRAJECTORY_LENGTH * 2).to(device)
-    trained_agent_distances, _, trained_agent_rewards = start_simulation(
+    (
+        trained_agent_distances,
+        _,
+        trained_agent_rewards,
+        trained_segment_distances,
+        trained_segment_rewards,
+    ) = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
         0,
@@ -293,7 +161,11 @@ if __name__ == "__main__":
         [[0] * len(trained_agent_rewards[0])] * len(trained_agent_rewards),
     )
     handle_plotting(
-        true_agent_distances, trained_agent_distances, trained_agent_rewards
+        true_agent_distances,
+        trained_agent_distances,
+        trained_agent_rewards,
+        trained_segment_distances,
+        trained_segment_rewards,
     )
 
     # bt, bt_delta, ordered_trajectories = prepare_data(

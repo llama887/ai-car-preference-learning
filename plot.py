@@ -7,12 +7,15 @@ import reward
 figure_path = reward.figure_path
 
 import pickle
+import os
+import wandb
 import re
 import torch
 import matplotlib.pyplot as plt
 import seaborn as sns
 import math
 import argparse
+import random
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 NET_SIZE = 4
@@ -159,6 +162,209 @@ def plot_trajectory_order(data, title):
     plt.title("Sorted Trajectories: Trained vs Ground Truth Reward")
     plt.savefig(f"{figure_path}/{title}.png")
     plt.close()
+
+
+def graph_avg_max(averages, maxes):
+    true_reward_averages, trained_reward_averages = averages
+    true_reward_maxes, trained_reward_maxes = maxes
+
+    os.makedirs("figures", exist_ok=True)
+
+    x_values = range(len(trained_reward_averages))
+
+    plt.figure()
+    plt.plot(x_values, true_reward_averages, label="Ground Truth")
+    plt.plot(x_values, trained_reward_averages, label="Trained Reward")
+    plt.xlabel("Generation")
+    plt.ylabel("Distance")
+    plt.title("Ground Truth vs Trained Reward: Average Distance")
+    plt.legend()
+    plt.savefig("figures/average.png")
+    plt.close()
+
+    plt.figure()
+    plt.plot(x_values, true_reward_maxes, label="Ground Truth")
+    plt.plot(x_values, trained_reward_maxes, label="Trained Reward")
+    plt.xlabel("Generation")
+    plt.ylabel("Distance")
+    plt.title("Ground Truth vs Trained Reward: Max Distance")
+    plt.legend()
+    plt.savefig("figures/max.png")
+    plt.close()
+
+    wandb.log(
+        {
+            "Wandb Avg Plot": wandb.plot.line_series(
+                xs=x_values,
+                ys=[true_reward_averages, trained_reward_averages],
+                keys=["True Average", "Trained Average"],
+                title="Ground Truth vs Trained Reward: Average Distance",
+            )
+        }
+    )
+    wandb.log(
+        {
+            "Wandb Max Plot": wandb.plot.line_series(
+                xs=x_values,
+                ys=[true_reward_maxes, trained_reward_maxes],
+                keys=["True Max", "Trained Max"],
+                title="Ground Truth vs Trained Reward: Max Distance",
+            )
+        }
+    )
+
+
+def graph_trained_rewards(averages, maxes):
+    os.makedirs("figures", exist_ok=True)
+
+    x_values = range(len(averages))
+
+    plt.figure()
+    plt.plot(x_values, averages, label="Average Rewards Per Gen")
+    plt.plot(x_values, maxes, label="Max Reward Per Gen")
+    plt.xlabel("Generation")
+    plt.ylabel("Reward")
+    plt.title("Reward Obtained by Trained Agents")
+    plt.legend()
+    plt.savefig("figures/agent_rewards.png")
+    plt.close()
+
+    wandb.log(
+        {
+            "Wandb Avg Plot": wandb.plot.line_series(
+                xs=x_values,
+                ys=[averages, maxes],
+                keys=["Average Reward", "Max Reward"],
+                title="Reward Obtained by Trained Agents",
+            )
+        }
+    )
+
+
+def graph_death_rates(distances_per_generation, agent_type):
+    fig = plt.figure()
+    generation_graph = fig.add_subplot(projection="3d")
+
+    traj_per_generation = len(distances_per_generation[0])
+    sorted_distances = [sorted(generation) for generation in distances_per_generation]
+
+    xs = []
+    ys = []
+    generations = []
+
+    for generation, distances_in_generation in enumerate(sorted_distances):
+        percent_alive = []
+        distance_travelled = []
+        for number_dead, traj_distance in enumerate(distances_in_generation):
+            percent_alive.append(
+                (traj_per_generation - number_dead - 1) / traj_per_generation * 100
+            )
+            distance_travelled.append(traj_distance)
+        xs.append(distance_travelled)
+        ys.append(percent_alive)
+        generations.append(generation + 1)
+        generation_graph.plot(
+            distance_travelled,
+            percent_alive,
+            zs=generation + 1,
+            zdir="y",
+        )
+
+    generation_graph.set_xlabel("Distance Travelled")
+    generation_graph.set_ylabel("Generation")
+    generation_graph.set_zlabel("Percent Alive")
+    generation_graph.set_yticks(generations)
+    plt.title(f"Survival Rate of {agent_type} Agents vs. Distance")
+    plt.savefig(f"figures/survival_{agent_type}.png")
+    plt.close()
+
+    wandb.log(
+        {
+            f"Survival Rate of {agent_type} Agents": wandb.plot.line_series(
+                xs,
+                ys,
+                keys=[f"Generation {gen}" for gen in generations],
+                title="Ground Truth vs Trained Reward: Average Distance",
+            )
+        }
+    )
+
+
+def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
+    os.makedirs("figures", exist_ok=True)
+    aggregate_trained_distance, aggregate_trained_reward = [], []
+    for i in range(len(trained_agent_distances)):
+        aggregate_trained_distance.extend(trained_agent_distances[i])
+        aggregate_trained_reward.extend(trained_agent_rewards[i])
+    plt.figure()
+    plt.scatter(
+        x=aggregate_trained_distance, y=aggregate_trained_reward, label="Trained Agent"
+    )
+    plt.xlabel("Distance")
+    plt.ylabel("Reward")
+    plt.title("Reward vs. Distance Travelled")
+    plt.legend()
+    plt.savefig("figures/agent_distance_vs_reward.png")
+    plt.close()
+
+    wandb.log(
+        {
+            "Wandb Avg Plot": wandb.plot.line_series(
+                xs=aggregate_trained_distance,
+                ys=[aggregate_trained_reward],
+                keys=["Trained Agent"],
+                title="Reward vs. Distance Travelled",
+            )
+        }
+    )
+
+
+def graph_segment_distance_vs_reward(
+    trained_segment_distances, trained_segment_rewards
+):
+    os.makedirs("figures", exist_ok=True)
+    plt.figure()
+    plt.scatter(
+        x=trained_segment_distances,
+        y=trained_segment_rewards,
+        label="Trained Agent",
+        alpha=0.2,
+    )
+    plt.xlabel("Distance of Trajectory Segment")
+    plt.ylabel("Reward of Trajectory Segment")
+    plt.title("Reward vs. Distance Travelled")
+    plt.legend()
+    plt.savefig("figures/agent_segment_distance_vs_reward.png")
+    plt.close()
+
+    zipped_distance_reward = list(
+        zip(trained_segment_distances, trained_segment_rewards)
+    )
+    random.shuffle(zipped_distance_reward)
+    if len(zipped_distance_reward) % 2 != 0:
+        zipped_distance_reward.pop()
+    pairs_of_zips = [
+        (
+            zipped_distance_reward[i],
+            zipped_distance_reward[i + 1],
+            zipped_distance_reward[i][0] < zipped_distance_reward[i + 1][0],
+        )
+        for i in range(0, len(zipped_distance_reward), 2)
+        if abs(
+            round(zipped_distance_reward[i][0])
+            - round(zipped_distance_reward[i + 1][0])
+        )
+        > 0.5
+    ]
+
+    acc = 0
+    for pair in pairs_of_zips:
+        if (pair[0][1] < pair[1][1] and pair[2]) or (
+            pair[0][1] > pair[1][1] and not pair[2]
+        ):
+            acc += 1
+    acc /= len(pairs_of_zips)
+    print("ACCURACY", acc)
 
 
 if __name__ == "__main__":

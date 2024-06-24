@@ -325,19 +325,19 @@ def train_model(
             step=epoch,
         )
 
-        # Log weights histogram
-        for name, param in net.named_parameters():
-            wandb.log(
-                {f"weights/{name}": wandb.Histogram(param.detach().cpu().numpy())},
-                step=epoch,
-            )
+        # # Log weights histogram
+        # for name, param in net.named_parameters():
+        #     wandb.log(
+        #         {f"weights/{name}": wandb.Histogram(param.detach().cpu().numpy())},
+        #         step=epoch,
+        #     )
 
-        # Log weights histogram
-        for name, param in net.named_parameters():
-            wandb.log(
-                {f"weights/{name}": wandb.Histogram(param.detach().cpu().numpy())},
-                step=epoch,
-            )
+        # # Log weights histogram
+        # for name, param in net.named_parameters():
+        #     wandb.log(
+        #         {f"weights/{name}": wandb.Histogram(param.detach().cpu().numpy())},
+        #         step=epoch,
+        #     )
 
         # # Log reward distributions
         # if TP_rewards:
@@ -397,6 +397,7 @@ def train_model(
     plt.ylabel("Loss")
     plt.legend()
     plt.savefig("figures/loss.png")
+    plt.close()
 
     plt.figure()
     plt.plot(training_accuracies, label="Train Accuracy")
@@ -405,6 +406,7 @@ def train_model(
     plt.ylabel("Accuracy")
     plt.legend()
     plt.savefig("figures/accuracy.png")
+    plt.close()
 
     return best_loss
 
@@ -417,7 +419,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
         study = optuna.create_study(direction="minimize")
         study.set_user_attr("file_path", trajectories_file_path)
         study.set_user_attr("epochs", epochs)
-        study.optimize(objective, n_trials=5)
+        study.optimize(objective, n_trials=1)
 
         # Load and print the best trial
         best_trial = study.best_trial
@@ -478,7 +480,8 @@ def objective(trial):
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
     dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.5)
-    batch_size = trial.suggest_int("batch_size", 8, 256)
+    # batch_size = trial.suggest_int("batch_size", 8, 256)
+    batch_size = 256
 
     net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(device)
     for param in net.parameters():

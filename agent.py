@@ -45,6 +45,7 @@ reward_network = None
 number_of_trajectories = 0
 population = ""
 agent_distances, agent_rewards = [], []
+agent_segment_distances, agent_segment_rewards = [], []
 run_type = "collect"
 headless = False
 
@@ -208,7 +209,8 @@ class Car:
             trajectory_tensor = prepare_single_trajectory(self.trajectory)
             reward = reward_network(trajectory_tensor)
             return reward.item()
-        return self.distance / (CAR_SIZE_X / 2)
+        # return self.distance / (CAR_SIZE_X / 2)
+        return self.speed
 
     def rotate_center(self, image, angle):
         # Rotate The Rectangle
@@ -237,12 +239,16 @@ def sort_and_pair(trajectory_segments, clean=True):
     sorted_trajectory_segments = sorted(trajectory_segments, key=lambda x: dist(x))
     distDict = {}
     cleaned_segments = []
+    num_limit = 2
     for trajectory_segment in sorted_trajectory_segments:
         trajectory_distance = round(dist(trajectory_segment))
         # print(dist(trajectory_segment), trajectory_distance)
-        if trajectory_distance not in distDict:
+        if (
+            trajectory_distance not in distDict
+            or distDict[trajectory_distance] < num_limit
+        ):
             cleaned_segments.append(trajectory_segment)
-            distDict[trajectory_distance] = 1
+        distDict[trajectory_distance] = 1 + distDict.get(trajectory_distance, 0)
     segments_to_return = cleaned_segments if clean else sorted_trajectory_segments
     for i in range(len(segments_to_return)):
         print(
@@ -314,7 +320,6 @@ def generate_database(trajectory_path):
                     )
                 )
         else:
-            trajectory_segments = sort_and_pair(trajectory_segments)
             if segment_generation_mode == "sequential_pairing":
                 n = len(trajectory_segments)
                 for i in range(n // 2):
@@ -333,6 +338,7 @@ def generate_database(trajectory_path):
                         )
                     )
             elif segment_generation_mode == "all_combinations":
+                trajectory_segments = sort_and_pair(trajectory_segments, True)
                 n = len(trajectory_segments)
                 for i in range(len(trajectory_segments)):
                     for j in range(i + 1, len(trajectory_segments)):
@@ -349,6 +355,18 @@ def generate_database(trajectory_path):
                                 distance_2,
                             )
                         )
+            elif segment_generation_mode == "big_mode":
+                trajectory_segments = sort_and_pair(trajectory_segments, False)
+                n = len(trajectory_segments)
+
+                def equal(seg1, seg2):
+                    return abs(dist(seg1) - dist(seg2)) < 0.5
+
+                counts = {}
+                for trajectory_segment in trajectory_segments:
+                    trajectory_distance = round(dist(trajectory_segment))
+                    counts[trajectory_distance] = 1 + counts.get(trajectory_distance, 0)
+
             random.shuffle(trajectory_pairs)
             for i in range(len(trajectory_pairs)):
                 swap = random.randint(0, 1)
@@ -426,12 +444,13 @@ def run_simulation(genomes, config):
     alive_font = pygame.font.SysFont("Arial", 20)
     game_map = pygame.image.load("maps/map.png").convert()  # Convert Speeds Up A Lot
 
-    global current_generation, saved_trajectory_count, run_type, headless
+    global current_generation, saved_trajectory_count, run_type, headless, agent_segment_distances, agent_segment_rewards
     current_generation += 1
 
     # Simple Counter To Roughly Limit Time (Not Good Practice)
     counter = 0
-
+    segment_distances = []
+    segment_rewards = []
     while True:
         # Exit On Quit Event
         for event in pygame.event.get():
@@ -459,7 +478,10 @@ def run_simulation(genomes, config):
             if car.is_alive():
                 still_alive += 1
                 car.update(game_map)
-                genomes[i][1].fitness += car.get_reward()
+                car_reward = car.get_reward()
+                genomes[i][1].fitness += car_reward
+                segment_rewards.append(car_reward)
+                segment_distances.append(dist(car.trajectory[-2:]))
 
         global agent_distances, agent_rewards
         counter += 1
@@ -485,12 +507,12 @@ def run_simulation(genomes, config):
                     generation_rewards.append(car.get_reward())
                 agent_distances.append(generation_distances)
                 agent_rewards.append(generation_rewards)
-                print(
-                    "Best agent in this generation - DISTANCE TRAVELLED:",
-                    max(generation_distances),
-                    "| REWARD OBTAINED:",
-                    max(generation_rewards),
-                )
+                # print(
+                #     "Best agent in this generation - DISTANCE TRAVELLED:",
+                #     max(generation_distances),
+                #     "| REWARD OBTAINED:",
+                #     max(generation_rewards),
+                # )
 
             if (
                 run_type == "collect"
@@ -525,6 +547,8 @@ def run_simulation(genomes, config):
             screen.blit(text, text_rect)
             pygame.display.flip()
         clock.tick(60)  # 60 FPS
+    agent_segment_distances.extend(segment_distances)
+    agent_segment_rewards.extend(segment_rewards)
 
 
 def run_population(
@@ -551,6 +575,8 @@ def run_population(
 
         if run_type == "collect":
             max_generations = math.ceil(number_of_trajectories / config.pop_size)
+        if run_type == "trainedRF":
+            pass
 
         # Create Population And Add Reporters
         global population
@@ -566,7 +592,7 @@ def run_population(
             max_generations,
         )
 
-        global saved_trajectory_count, current_generation, agent_distances, agent_rewards
+        global saved_trajectory_count, current_generation, agent_distances, agent_rewards, agent_segment_distances, agent_segment_rewards
         # if saved_trajectory_count >= number_of_trajectories:
         print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
         numTraj = generate_database(trajectory_path)
@@ -579,11 +605,25 @@ def run_population(
         saved_trajectory_count = 0
         distances = agent_distances.copy()
         rewards = agent_rewards.copy()
-        agent_distances, agent_rewards = [], []
+        segment_distances = agent_segment_distances.copy()
+        segment_rewards = agent_segment_rewards.copy()
+        print(segment_distances, segment_rewards)
+        (
+            agent_distances,
+            agent_rewards,
+            agent_segment_distances,
+            agent_segment_rewards,
+        ) = ([], [], [], [])
         if run_type == "collect":
             return numTraj
         else:
-            return distances, temp_trajectory_count, rewards
+            return (
+                distances,
+                temp_trajectory_count,
+                rewards,
+                segment_distances,
+                segment_rewards,
+            )
     except KeyboardInterrupt:
         generate_database(trajectory_path)
 
