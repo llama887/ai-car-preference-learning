@@ -17,6 +17,7 @@ import optuna
 import glob
 import os
 import yaml
+import ipdb
 
 os.environ["WANDB_SILENT"] = "true"
 INPUT_SIZE = 2 * 2
@@ -28,7 +29,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class TrajectoryRewardNet(nn.Module):
-    def __init__(self, input_size, hidden_size=128, dropout_prob=0.5):
+    def __init__(self, input_size, hidden_size=128, dropout_prob=0.0):
         super(TrajectoryRewardNet, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
         self.ln1 = nn.LayerNorm(hidden_size)
@@ -284,6 +285,7 @@ def train_model(
 
             loss = preference_loss(predicted_probabilities, batch_true_pref)
             total_loss += loss.item()
+            # ipdb.set_trace()
 
             if loss.item() < best_loss:
                 best_loss = loss.item()

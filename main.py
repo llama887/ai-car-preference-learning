@@ -5,13 +5,7 @@ from reward import TrajectoryRewardNet, train_reward_function
 import agent
 from agent import run_population, TRAIN_TRAJECTORY_LENGTH
 
-from plot import (
-    graph_avg_max,
-    graph_death_rates,
-    graph_distance_vs_reward,
-    graph_segment_distance_vs_reward,
-    graph_trained_rewards,
-)
+from plot import handle_plotting
 
 import matplotlib.pyplot as plt
 import wandb
@@ -42,41 +36,6 @@ def start_simulation(
         runType=run_type,
         noHead=noHead,
     )
-
-
-def handle_plotting(
-    true_agent_distances,
-    trained_agent_distances,
-    trained_agent_rewards,
-    trained_segment_distances,
-    trained_segment_rewards,
-):
-    traj_per_generation = len(true_agent_distances[0])
-    true_reward_averages = [
-        (sum(generation) / traj_per_generation) for generation in true_agent_distances
-    ]
-    true_reward_maxes = [max(generation) for generation in true_agent_distances]
-
-    trained_reward_averages = [
-        (sum(generation) / traj_per_generation)
-        for generation in trained_agent_distances
-    ]
-    trained_agent_reward_averages = [
-        (sum(generation) / traj_per_generation) for generation in trained_agent_rewards
-    ]
-    trained_agent_reward_maxes = [
-        max(generation) for generation in trained_agent_rewards
-    ]
-    trained_reward_maxes = [max(generation) for generation in trained_agent_distances]
-    graph_avg_max(
-        (true_reward_averages, trained_reward_averages),
-        (true_reward_maxes, trained_reward_maxes),
-    )
-    graph_trained_rewards(trained_agent_reward_averages, trained_agent_reward_maxes)
-    graph_death_rates(true_agent_distances, "GT")
-    graph_death_rates(trained_agent_distances, "Trained")
-    # graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards)
-    graph_segment_distance_vs_reward(trained_segment_distances, trained_segment_rewards)
 
 
 if __name__ == "__main__":

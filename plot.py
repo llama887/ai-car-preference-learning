@@ -118,6 +118,21 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     )
 
 
+def populate_lists(
+    true_database,
+    trained_database,
+    true_agent_distances,
+    trained_agent_distances,
+    trained_agent_rewards,
+    trained_segment_distances,
+    trained_segment_rewards,
+):
+    with open(true_database, "rb") as f:
+        true_trajectories = pickle.load(f)
+    with open(trained_database, "rb") as f:
+        trained_trajectories = pickle.load(f)
+
+
 # Define a function to plot trajectories
 def plot_trajectories(trajectories, title):
     plt.figure(figsize=(10, 6))
@@ -162,6 +177,49 @@ def plot_trajectory_order(data, title):
     plt.title("Sorted Trajectories: Trained vs Ground Truth Reward")
     plt.savefig(f"{figure_path}/{title}.png")
     plt.close()
+
+
+def dist(traj_segment):
+    traj_segment_distance = math.sqrt(
+        (traj_segment[1][0] - traj_segment[0][0]) ** 2
+        + (traj_segment[1][1] - traj_segment[0][1]) ** 2
+    )
+    return traj_segment_distance
+
+
+def handle_plotting(
+    true_agent_distances,
+    trained_agent_distances,
+    trained_agent_rewards,
+    trained_segment_distances,
+    trained_segment_rewards,
+):
+    traj_per_generation = len(true_agent_distances[0])
+    true_reward_averages = [
+        (sum(generation) / traj_per_generation) for generation in true_agent_distances
+    ]
+    true_reward_maxes = [max(generation) for generation in true_agent_distances]
+
+    trained_reward_averages = [
+        (sum(generation) / traj_per_generation)
+        for generation in trained_agent_distances
+    ]
+    trained_agent_reward_averages = [
+        (sum(generation) / traj_per_generation) for generation in trained_agent_rewards
+    ]
+    trained_agent_reward_maxes = [
+        max(generation) for generation in trained_agent_rewards
+    ]
+    trained_reward_maxes = [max(generation) for generation in trained_agent_distances]
+    graph_avg_max(
+        (true_reward_averages, trained_reward_averages),
+        (true_reward_maxes, trained_reward_maxes),
+    )
+    graph_trained_rewards(trained_agent_reward_averages, trained_agent_reward_maxes)
+    graph_death_rates(true_agent_distances, "GT")
+    graph_death_rates(trained_agent_distances, "Trained")
+    # graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards)
+    graph_segment_distance_vs_reward(trained_segment_distances, trained_segment_rewards)
 
 
 def graph_avg_max(averages, maxes):
@@ -370,7 +428,11 @@ def graph_segment_distance_vs_reward(
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(description="Generatig Plots for trained model")
     parse.add_argument(
-        "-d", "--database", type=str, help="Directory to trajectory database file"
+        "-d",
+        "--database",
+        type=str,
+        action="append",
+        help="Directory to trajectory database file",
     )
     parse.add_argument(
         "-r",
@@ -387,12 +449,32 @@ if __name__ == "__main__":
     args = parse.parse_args()
     if args.database:
         database = args.database
+        true_database = args.database[0]
+        trained_database = args.database[1]
     if args.reward:
         reward = args.reward
 
     bt, bt_, bt_delta, ordered_trajectories = prepare_data(
-        database, reward, hidden_size=592
+        trained_database, reward, hidden_size=592
     )
     plot_bradley_terry(bt, "False Bradley Terry", bt_)
     plot_bradley_terry(bt_delta, "Bradley Terry Difference")
     plot_trajectory_order(ordered_trajectories, "Trajectory Order")
+
+    (
+        true_agent_distances,
+        trained_agent_distances,
+        trained_agent_rewards,
+        trained_segment_distances,
+        trained_segment_rewards,
+    ) = ([], [], [], [], [])
+
+    populate_lists(
+        true_database,
+        trained_database,
+        true_agent_distances,
+        trained_agent_distances,
+        trained_agent_rewards,
+        trained_segment_distances,
+        trained_segment_rewards,
+    )
