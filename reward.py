@@ -183,17 +183,14 @@ def train_model(
     full_dataset = TrajectoryDataset(file_path)
 
     # Define the split ratio
-    train_ratio = 0.7
+    train_ratio = 0.8
     val_ratio = 0.2
     dataset_size = len(full_dataset)
     train_size = int(train_ratio * dataset_size)
-    val_size = int(val_ratio * dataset_size)
-    test_size = dataset_size - train_size - val_size
+    val_size = dataset_size - train_size
 
     # Split the dataset into training and validation sets
-    train_dataset, val_dataset, test_dataset = random_split(
-        full_dataset, [train_size, val_size, test_size]
-    )
+    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
 
     # Initialize Dataloaders
     train_dataloader = DataLoader(
@@ -209,23 +206,14 @@ def train_model(
         pin_memory=True,
     )
 
-    testing_dataloader = DataLoader(
-        test_dataset,
-        batch_size=test_size if test_size < batch_size else batch_size,
-        shuffle=False,
-        pin_memory=True,
-    )
-
     if batch_size > train_size:
         batch_size = train_size
 
     best_loss = np.inf
     training_losses = []
     validation_losses = []
-    testing_losses = []
     training_accuracies = []
     validation_accuracies = []
-    testing_accuracies = []
 
     scheduler = lr_scheduler.LinearLR(
         optimizer, start_factor=1.0, end_factor=0.01, total_iters=epochs
@@ -233,29 +221,34 @@ def train_model(
 
     for epoch in range(epochs):
         net.eval()
-
+        total_validation_loss = 0
+        total_validation_accuracy = 0
         with torch.no_grad():
             for (
                 validation_traj1,
                 validation_traj2,
                 validation_true_pref,
-                validation_score1,
-                validation_score2,
+                _,
+                _,
             ) in validation_dataloader:
                 validation_rewards1 = net(validation_traj1)
                 validation_rewards2 = net(validation_traj2)
                 validation_predicted_probabilities = bradley_terry_model(
                     validation_rewards1, validation_rewards2
                 )
-                validation_loss = preference_loss(
+                total_validation_loss += preference_loss(
                     validation_predicted_probabilities, validation_true_pref
                 )
-                validation_losses.append(validation_loss.item())
+                total_validation_accuracy += calculate_accuracy(
+                    validation_predicted_probabilities, validation_true_pref
+                )
 
-                validation_accuracy = calculate_accuracy(
-                    validation_predicted_probabilities, validation_true_pref
-                )
-                validation_accuracies.append(validation_accuracy)
+        average_validation_loss = total_validation_loss / (val_size // batch_size)
+        average_validation_accuracy = total_validation_accuracy / (
+            val_size // batch_size
+        )
+        validation_losses.append(average_validation_loss.item())
+        validation_accuracies.append(average_validation_accuracy)
 
         net.train()
         total_loss = 0.0
@@ -320,9 +313,9 @@ def train_model(
         wandb.log(
             {
                 "Train Loss": average_training_loss,
-                "Validation Loss": validation_loss.item(),
+                "Validation Loss": average_validation_loss.item(),
                 "Train Accuracy": average_training_accuracy,
-                "Validation Accuracy": validation_accuracy,
+                "Validation Accuracy": average_validation_accuracy,
             },
             step=epoch,
         )
@@ -365,32 +358,8 @@ def train_model(
 
         if epoch % 100 == 0:
             print(
-                f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {validation_loss.item()}, Train Acc: {average_training_accuracy}, Val Acc: {validation_accuracy}"
+                f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {average_validation_loss.item()}, Train Acc: {average_training_accuracy}, Val Acc: {average_validation_accuracy}"
             )
-
-    for (
-        testing_traj1,
-        testing_traj2,
-        testing_true_pref,
-        _,
-        _,
-    ) in testing_dataloader:
-        testing_rewards1 = net(testing_traj1)
-        testing_rewards2 = net(testing_traj2)
-        testing_predicted_probabilities = bradley_terry_model(
-            testing_rewards1, testing_rewards2
-        )
-        testing_loss = preference_loss(
-            testing_predicted_probabilities, testing_true_pref
-        )
-        testing_losses.append(testing_loss.item())
-
-        testing_accuracy = calculate_accuracy(
-            testing_predicted_probabilities, testing_true_pref
-        )
-        testing_accuracies.append(testing_accuracy)
-    print("TESTING LOSSES:", testing_losses)
-    print("TESTING ACC:", testing_accuracies)
 
     plt.figure()
     plt.plot(training_losses, label="Train Loss")

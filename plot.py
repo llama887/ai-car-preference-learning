@@ -118,6 +118,24 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     )
 
 
+def break_into_segments(trajectories):
+    trajectory_segments = []
+    for _, trajectory in trajectories:
+        prev = 0
+        curr = 1
+        while curr < len(trajectory):
+            trajectory_segments.append([trajectory[prev], trajectory[curr]])
+            prev += 1
+            curr += 1
+    return trajectory_segments
+
+def dist(traj_segment):
+    traj_segment_distance = math.sqrt(
+        (traj_segment[1][0] - traj_segment[0][0]) ** 2
+        + (traj_segment[1][1] - traj_segment[0][1]) ** 2
+    )
+    return traj_segment_distance
+
 def populate_lists(
     true_database,
     trained_database,
@@ -131,6 +149,7 @@ def populate_lists(
         true_trajectories = pickle.load(f)
     with open(trained_database, "rb") as f:
         trained_trajectories = pickle.load(f)
+    true_trajectory_segments = break_into_segments(true_trajectories)
 
 
 # Define a function to plot trajectories
