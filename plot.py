@@ -64,70 +64,79 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
             "prepare_data expects either a path to model weights or the reward network"
         )
     model.eval()
-    reward1 = [t[-2] for t in trajectories]
-    reward2 = [t[-1] for t in trajectories]
-    rewards = reward1 + reward2
-    true_reward_normalizer = RewardNormalizer(rewards)
-    normalized_true_reward1 = true_reward_normalizer.get_normalized_rewards()[
-        : len(reward1)
+    trajectory_segments = [
+        segment
+        for t in trajectories  # [[(x1, y1), (x2, y2)], [(x2, y2), (x3, y3)]]
+        for segment in break_into_segments(t[0]) + break_into_segments(t[1])
     ]
-    normalized_true_reward2 = true_reward_normalizer.get_normalized_rewards()[
-        len(reward1) :
-    ]
-    trained_reward1 = [model(prepare_single_trajectory(t[0])) for t in trajectories]
-    trained_reward2 = [model(prepare_single_trajectory(t[1])) for t in trajectories]
-    trained_reward_normalizer = RewardNormalizer(trained_reward1 + trained_reward2)
-    normalized_trained_reward1 = trained_reward_normalizer.get_normalized_rewards()[
-        : len(trained_reward1)
-    ]
-    normalized_trained_reward2 = trained_reward_normalizer.get_normalized_rewards()[
-        len(trained_reward1) :
-    ]
+    # import ipdb
 
+    # ipdb.set_trace()
+    true_reward = [dist(segement) for segement in trajectory_segments]
+    true_reward_normalizer = RewardNormalizer(true_reward)
+    # normalized_true_reward = true_reward_normalizer.get_normalized_rewards()
+    trained_reward = [model(prepare_single_trajectory(t)) for t in trajectory_segments]
+    trained_reward_normalizer = RewardNormalizer(trained_reward)
+    # normalized_trained_reward = trained_reward_normalizer.get_normalized_rewards()
+
+    random.shuffle(trajectory_segments)
+    if len(trajectory_segments) % 2 != 0:
+        trajectory_segments.pop()
+    trajectory_pairs = []
+    for i in range(0, len(trajectory_segments), 2):
+        distance_1 = dist(trajectory_segments[i])
+        distance_2 = dist(trajectory_segments[i + 1])
+        if abs(distance_1 - distance_2) < 1:
+            continue
+        trajectory_pairs.append(
+            (
+                trajectory_segments[i],
+                trajectory_segments[i + 1],
+                0 if distance_1 > distance_2 else 1,
+                distance_1,
+                distance_2,
+            )
+        )
     false_true_bradley_terry = []
     false_trained_bradley_terry = []
     true_bradley_terry = []
     bradley_terry_difference = []
-    ordered_trajectories = []
-
-    for _, t in enumerate(
-        zip(
-            normalized_true_reward1,
-            normalized_true_reward2,
-            normalized_trained_reward1,
-            normalized_trained_reward2,
+    ordered_segements = []
+    for pair in trajectory_pairs:
+        true_r1, true_r2 = true_reward_normalizer.normalize(
+            dist(pair[0])
+        ), true_reward_normalizer.normalize(dist(pair[1]))
+        trained_r1, trained_r2 = model(prepare_single_trajectory(pair[0])), model(
+            prepare_single_trajectory(pair[1])
         )
-    ):
-        (true_r1, true_r2, trained_r1, trained_r2) = t
         true_preference = true_r1 > true_r2
         trained_preference = trained_r1 > trained_r2
         predicted_bradley_terry = bradley_terry(trained_r1, trained_r2)
         true_bradley_terry = bradley_terry(true_r1, true_r2)
         bradley_terry_difference.append(true_bradley_terry - predicted_bradley_terry)
-        ordered_trajectories.extend([[trained_r1, true_r1], [trained_r2, true_r2]])
+        ordered_segements.extend([[trained_r1, true_r1], [trained_r2, true_r2]])
         if trained_preference != true_preference:
             false_true_bradley_terry.append(true_bradley_terry)
             false_trained_bradley_terry.append(predicted_bradley_terry)
-
-    ordered_trajectories = sorted(ordered_trajectories, key=lambda x: x[0])
+    ordered_segements = sorted(ordered_segements, key=lambda x: x[0])
     return (
         false_true_bradley_terry,
         false_trained_bradley_terry,
         bradley_terry_difference,
-        ordered_trajectories,
+        ordered_segements,
     )
 
 
-def break_into_segments(trajectories):
+def break_into_segments(trajectory):
     trajectory_segments = []
-    for _, trajectory in trajectories:
-        prev = 0
-        curr = 1
-        while curr < len(trajectory):
-            trajectory_segments.append([trajectory[prev], trajectory[curr]])
-            prev += 1
-            curr += 1
+    prev = 0
+    curr = 1
+    while curr < len(trajectory):
+        trajectory_segments.append([trajectory[prev], trajectory[curr]])
+        prev += 1
+        curr += 1
     return trajectory_segments
+
 
 def dist(traj_segment):
     traj_segment_distance = math.sqrt(
@@ -135,6 +144,7 @@ def dist(traj_segment):
         + (traj_segment[1][1] - traj_segment[0][1]) ** 2
     )
     return traj_segment_distance
+
 
 def populate_lists(
     true_database,
@@ -468,32 +478,35 @@ if __name__ == "__main__":
     args = parse.parse_args()
     if args.database:
         database = args.database
-        true_database = args.database[0]
-        trained_database = args.database[1]
+        try:
+            true_database = args.database[0]
+            trained_database = args.database[1]
+        except Exception as e:
+            pass
     if args.reward:
         reward = args.reward
 
     bt, bt_, bt_delta, ordered_trajectories = prepare_data(
-        trained_database, reward, hidden_size=592
+        database[0], reward, hidden_size=1012
     )
     plot_bradley_terry(bt, "False Bradley Terry", bt_)
     plot_bradley_terry(bt_delta, "Bradley Terry Difference")
     plot_trajectory_order(ordered_trajectories, "Trajectory Order")
 
-    (
-        true_agent_distances,
-        trained_agent_distances,
-        trained_agent_rewards,
-        trained_segment_distances,
-        trained_segment_rewards,
-    ) = ([], [], [], [], [])
+    # (
+    #     true_agent_distances,
+    #     trained_agent_distances,
+    #     trained_agent_rewards,
+    #     trained_segment_distances,
+    #     trained_segment_rewards,
+    # ) = ([], [], [], [], [])
 
-    populate_lists(
-        true_database,
-        trained_database,
-        true_agent_distances,
-        trained_agent_distances,
-        trained_agent_rewards,
-        trained_segment_distances,
-        trained_segment_rewards,
-    )
+    # populate_lists(
+    #     true_database,
+    #     trained_database,
+    #     true_agent_distances,
+    #     trained_agent_distances,
+    #     trained_agent_rewards,
+    #     trained_segment_distances,
+    #     trained_segment_rewards,
+    # )
