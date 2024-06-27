@@ -68,7 +68,6 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
             "prepare_data expects either a path to model weights or the reward network"
         )
     model.eval()
-    print("generating segments")
     true_min, true_max = float("inf"), float("-inf")
     trained_min, trained_max = float("inf"), float("-inf")
 
@@ -85,10 +84,6 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
             trained_reward = model(prepare_single_trajectory(segment))
             trained_min = min(trained_min, trained_reward)
             trained_max = max(trained_max, trained_reward)
-    print(
-        "segments generated and normalizer constructed",
-        len(trajectory_segments),
-    )
     # Construct the RewardNormalizer objects using min and max values
     true_reward_normalizer = RewardNormalizer.from_min_max(true_min, true_max)
     trained_reward_normalizer = RewardNormalizer.from_min_max(
@@ -97,14 +92,15 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     random.shuffle(trajectory_segments)
     if len(trajectory_segments) % 2 != 0:
         trajectory_segments.pop()
-    print("shuffled", len(trajectory_segments))
     false_true_bradley_terry = []
     false_trained_bradley_terry = []
     true_bradley_terry = []
     bradley_terry_difference = []
     ordered_segements = []
-    print("populating lists")
-    for i in range(0, len(trajectory_segments), 2):
+    output_size = (
+        10000 if len(trajectory_segments) > 10000 else len(trajectory_segments)
+    )
+    for i in range(0, output_size, 2):
         distance_1 = dist(trajectory_segments[i])
         distance_2 = dist(trajectory_segments[i + 1])
         if abs(distance_1 - distance_2) < 1:
@@ -216,6 +212,7 @@ def plot_trajectory_order(data, title):
         label="Trained Reward",
     )
     plt.title("Sorted Trajectories: Trained vs Ground Truth Reward")
+    plt.legend()
     plt.savefig(f"{figure_path}/{title}.png")
     plt.close()
 
@@ -513,6 +510,7 @@ if __name__ == "__main__":
             pass
     if args.reward:
         reward = args.reward
+    import time
 
     bt, bt_, bt_delta, ordered_trajectories = prepare_data(
         database[0], reward, hidden_size=1012
