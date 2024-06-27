@@ -1,21 +1,19 @@
-from reward import (
-    TrajectoryRewardNet,
-    prepare_single_trajectory,
-)
 import reward
+from reward import TrajectoryRewardNet, prepare_single_trajectory
 
 figure_path = reward.figure_path
 
-import pickle
+import argparse
+import math
 import os
-import wandb
+import pickle
+import random
 import re
-import torch
+
 import matplotlib.pyplot as plt
 import seaborn as sns
-import math
-import argparse
-import random
+import torch
+import wandb
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 NET_SIZE = 4
@@ -36,6 +34,10 @@ class RewardNormalizer:
             for reward in rewards
         ]
 
+    @classmethod
+    def from_min_max(cls, min_val, max_val):
+        return cls([min_val, max_val])
+
     def normalize(self, value):
         # Normalize a new value using the stored min and max values
         if self.min_val == self.max_val:
@@ -55,7 +57,9 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     with open(database_path, "rb") as f:
         trajectories = pickle.load(f)
     if model_weights is not None:
-        model = TrajectoryRewardNet(NET_SIZE, hidden_size=int(hidden_size)).to(device)
+        model = TrajectoryRewardNet(NET_SIZE, hidden_size=int(hidden_size)).to(
+            device
+        )
         model.load_state_dict(torch.load(model_weights))
     elif net is not None:
         model = net
@@ -64,56 +68,62 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
             "prepare_data expects either a path to model weights or the reward network"
         )
     model.eval()
-    trajectory_segments = [
-        segment
-        for t in trajectories  # [[(x1, y1), (x2, y2)], [(x2, y2), (x3, y3)]]
-        for segment in break_into_segments(t[0]) + break_into_segments(t[1])
-    ]
-    # import ipdb
+    print("generating segments")
+    true_min, true_max = float("inf"), float("-inf")
+    trained_min, trained_max = float("inf"), float("-inf")
 
-    # ipdb.set_trace()
-    true_reward = [dist(segement) for segement in trajectory_segments]
-    true_reward_normalizer = RewardNormalizer(true_reward)
-    # normalized_true_reward = true_reward_normalizer.get_normalized_rewards()
-    trained_reward = [model(prepare_single_trajectory(t)) for t in trajectory_segments]
-    trained_reward_normalizer = RewardNormalizer(trained_reward)
-    # normalized_trained_reward = trained_reward_normalizer.get_normalized_rewards()
+    trajectory_segments = []
 
+    for t in trajectories:
+        for segment in break_into_segments(t[0]) + break_into_segments(t[1]):
+            trajectory_segments.append(segment)
+
+            true_reward = dist(segment)
+            true_min = min(true_min, true_reward)
+            true_max = max(true_max, true_reward)
+
+            trained_reward = model(prepare_single_trajectory(segment))
+            trained_min = min(trained_min, trained_reward)
+            trained_max = max(trained_max, trained_reward)
+    print(
+        "segments generated and normalizer constructed",
+        len(trajectory_segments),
+    )
+    # Construct the RewardNormalizer objects using min and max values
+    true_reward_normalizer = RewardNormalizer.from_min_max(true_min, true_max)
+    trained_reward_normalizer = RewardNormalizer.from_min_max(
+        trained_min, trained_max
+    )
     random.shuffle(trajectory_segments)
     if len(trajectory_segments) % 2 != 0:
         trajectory_segments.pop()
-    trajectory_pairs = []
-    for i in range(0, len(trajectory_segments), 2):
-        distance_1 = dist(trajectory_segments[i])
-        distance_2 = dist(trajectory_segments[i + 1])
-        if abs(distance_1 - distance_2) < 1:
-            continue
-        trajectory_pairs.append(
-            (
-                trajectory_segments[i],
-                trajectory_segments[i + 1],
-                0 if distance_1 > distance_2 else 1,
-                distance_1,
-                distance_2,
-            )
-        )
+    print("shuffled", len(trajectory_segments))
     false_true_bradley_terry = []
     false_trained_bradley_terry = []
     true_bradley_terry = []
     bradley_terry_difference = []
     ordered_segements = []
-    for pair in trajectory_pairs:
-        true_r1, true_r2 = true_reward_normalizer.normalize(
-            dist(pair[0])
-        ), true_reward_normalizer.normalize(dist(pair[1]))
-        trained_r1, trained_r2 = model(prepare_single_trajectory(pair[0])), model(
-            prepare_single_trajectory(pair[1])
+    print("populating lists")
+    for i in range(0, len(trajectory_segments), 2):
+        distance_1 = dist(trajectory_segments[i])
+        distance_2 = dist(trajectory_segments[i + 1])
+        if abs(distance_1 - distance_2) < 1:
+            continue
+        true_r1 = true_reward_normalizer.normalize(distance_1)
+        true_r2 = true_reward_normalizer.normalize(distance_2)
+        trained_r1 = trained_reward_normalizer.normalize(
+            model(prepare_single_trajectory(trajectory_segments[i]))
+        )
+        trained_r2 = trained_reward_normalizer.normalize(
+            model(prepare_single_trajectory(trajectory_segments[i + 1]))
         )
         true_preference = true_r1 > true_r2
         trained_preference = trained_r1 > trained_r2
         predicted_bradley_terry = bradley_terry(trained_r1, trained_r2)
         true_bradley_terry = bradley_terry(true_r1, true_r2)
-        bradley_terry_difference.append(true_bradley_terry - predicted_bradley_terry)
+        bradley_terry_difference.append(
+            true_bradley_terry - predicted_bradley_terry
+        )
         ordered_segements.extend([[trained_r1, true_r1], [trained_r2, true_r2]])
         if trained_preference != true_preference:
             false_true_bradley_terry.append(true_bradley_terry)
@@ -189,7 +199,9 @@ def plot_bradley_terry(data1, title, data2=None):
 
 
 def plot_trajectory_order(data, title):
-    bar_heights = [x[1].cpu().item() if torch.is_tensor(x[1]) else x[1] for x in data]
+    bar_heights = [
+        x[1].cpu().item() if torch.is_tensor(x[1]) else x[1] for x in data
+    ]
     trained_reward = [
         x[0].cpu().item() if torch.is_tensor(x[0]) else x[0] for x in data
     ]
@@ -225,7 +237,8 @@ def handle_plotting(
 ):
     traj_per_generation = len(true_agent_distances[0])
     true_reward_averages = [
-        (sum(generation) / traj_per_generation) for generation in true_agent_distances
+        (sum(generation) / traj_per_generation)
+        for generation in true_agent_distances
     ]
     true_reward_maxes = [max(generation) for generation in true_agent_distances]
 
@@ -234,21 +247,28 @@ def handle_plotting(
         for generation in trained_agent_distances
     ]
     trained_agent_reward_averages = [
-        (sum(generation) / traj_per_generation) for generation in trained_agent_rewards
+        (sum(generation) / traj_per_generation)
+        for generation in trained_agent_rewards
     ]
     trained_agent_reward_maxes = [
         max(generation) for generation in trained_agent_rewards
     ]
-    trained_reward_maxes = [max(generation) for generation in trained_agent_distances]
+    trained_reward_maxes = [
+        max(generation) for generation in trained_agent_distances
+    ]
     graph_avg_max(
         (true_reward_averages, trained_reward_averages),
         (true_reward_maxes, trained_reward_maxes),
     )
-    graph_trained_rewards(trained_agent_reward_averages, trained_agent_reward_maxes)
+    graph_trained_rewards(
+        trained_agent_reward_averages, trained_agent_reward_maxes
+    )
     graph_death_rates(true_agent_distances, "GT")
     graph_death_rates(trained_agent_distances, "Trained")
     # graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards)
-    graph_segment_distance_vs_reward(trained_segment_distances, trained_segment_rewards)
+    graph_segment_distance_vs_reward(
+        trained_segment_distances, trained_segment_rewards
+    )
 
 
 def graph_avg_max(averages, maxes):
@@ -333,7 +353,9 @@ def graph_death_rates(distances_per_generation, agent_type):
     generation_graph = fig.add_subplot(projection="3d")
 
     traj_per_generation = len(distances_per_generation[0])
-    sorted_distances = [sorted(generation) for generation in distances_per_generation]
+    sorted_distances = [
+        sorted(generation) for generation in distances_per_generation
+    ]
 
     xs = []
     ys = []
@@ -344,7 +366,9 @@ def graph_death_rates(distances_per_generation, agent_type):
         distance_travelled = []
         for number_dead, traj_distance in enumerate(distances_in_generation):
             percent_alive.append(
-                (traj_per_generation - number_dead - 1) / traj_per_generation * 100
+                (traj_per_generation - number_dead - 1)
+                / traj_per_generation
+                * 100
             )
             distance_travelled.append(traj_distance)
         xs.append(distance_travelled)
@@ -385,7 +409,9 @@ def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
         aggregate_trained_reward.extend(trained_agent_rewards[i])
     plt.figure()
     plt.scatter(
-        x=aggregate_trained_distance, y=aggregate_trained_reward, label="Trained Agent"
+        x=aggregate_trained_distance,
+        y=aggregate_trained_reward,
+        label="Trained Agent",
     )
     plt.xlabel("Distance")
     plt.ylabel("Reward")
@@ -455,7 +481,9 @@ def graph_segment_distance_vs_reward(
 
 
 if __name__ == "__main__":
-    parse = argparse.ArgumentParser(description="Generatig Plots for trained model")
+    parse = argparse.ArgumentParser(
+        description="Generatig Plots for trained model"
+    )
     parse.add_argument(
         "-d",
         "--database",
