@@ -184,7 +184,7 @@ def train_model(
 
     # Define the split ratio
     train_ratio = 0.8
-    val_ratio = 0.2
+    # val_ratio = 0.2
     dataset_size = len(full_dataset)
     train_size = int(train_ratio * dataset_size)
     val_size = dataset_size - train_size
@@ -195,7 +195,7 @@ def train_model(
     # Initialize Dataloaders
     train_dataloader = DataLoader(
         train_dataset,
-        batch_size=batch_size,
+        batch_size=train_size if train_size < batch_size else batch_size,
         shuffle=True,
         pin_memory=True,
     )
@@ -221,8 +221,8 @@ def train_model(
 
     for epoch in range(epochs):
         net.eval()
-        total_validation_loss = 0
-        total_validation_accuracy = 0
+        total_validation_loss = 0.0
+        total_validation_accuracy = 0.0
         with torch.no_grad():
             for (
                 validation_traj1,
@@ -241,12 +241,10 @@ def train_model(
                 )
                 total_validation_accuracy += calculate_accuracy(
                     validation_predicted_probabilities, validation_true_pref
-                )
+                ) * validation_true_pref.size(0)
 
-        average_validation_loss = total_validation_loss / (val_size // batch_size)
-        average_validation_accuracy = total_validation_accuracy / (
-            val_size // batch_size
-        )
+        average_validation_loss = total_validation_loss / val_size
+        average_validation_accuracy = total_validation_accuracy / val_size
         validation_losses.append(average_validation_loss.item())
         validation_accuracies.append(average_validation_accuracy)
 
@@ -254,11 +252,6 @@ def train_model(
         total_loss = 0.0
         total_accuracy = 0.0
         total_probability = 0.0
-
-        # TP_rewards = []
-        # TN_rewards = []
-        # FP_rewards = []
-        # FN_rewards = []
 
         for (
             batch_traj1,
@@ -293,18 +286,7 @@ def train_model(
 
             scheduler.step()
 
-            # # Classify rewards
-            # for idx, prob in enumerate(predicted_probabilities):
-            #     if prob > 0.5 and batch_true_pref[idx] == 1:
-            #         TP_rewards.append(batch_score1[idx])
-            #     elif prob <= 0.5 and batch_true_pref[idx] == 0:
-            #         TN_rewards.append(batch_score2[idx])
-            #     elif prob > 0.5 and batch_true_pref[idx] == 0:
-            #         FP_rewards.append(batch_score2[idx])
-            #     elif prob <= 0.5 and batch_true_pref[idx] == 1:
-            #         FN_rewards.append(batch_score1[idx])
-
-        average_training_loss = total_loss / (train_size // batch_size)
+        average_training_loss = total_loss / train_size
         training_losses.append(average_training_loss)
 
         average_training_accuracy = total_accuracy / train_size
@@ -319,42 +301,6 @@ def train_model(
             },
             step=epoch,
         )
-
-        # # Log weights histogram
-        # for name, param in net.named_parameters():
-        #     wandb.log(
-        #         {f"weights/{name}": wandb.Histogram(param.detach().cpu().numpy())},
-        #         step=epoch,
-        #     )
-
-        # # Log weights histogram
-        # for name, param in net.named_parameters():
-        #     wandb.log(
-        #         {f"weights/{name}": wandb.Histogram(param.detach().cpu().numpy())},
-        #         step=epoch,
-        #     )
-
-        # # Log reward distributions
-        # if TP_rewards:
-        #     wandb.log(
-        #         {"TP Reward Distribution": wandb.Histogram(np.array(TP_rewards))},
-        #         step=epoch,
-        #     )
-        # if TN_rewards:
-        #     wandb.log(
-        #         {"TN Reward Distribution": wandb.Histogram(np.array(TN_rewards))},
-        #         step=epoch,
-        #     )
-        # if FP_rewards:
-        #     wandb.log(
-        #         {"FP Reward Distribution": wandb.Histogram(np.array(FP_rewards))},
-        #         step=epoch,
-        #     )
-        # if FN_rewards:
-        #     wandb.log(
-        #         {"FN Reward Distribution": wandb.Histogram(np.array(FN_rewards))},
-        #         step=epoch,
-        #     )
 
         if epoch % 100 == 0:
             print(
@@ -450,7 +396,7 @@ def objective(trial):
     hidden_size = trial.suggest_int("hidden_size", 128, 1024)
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
-    dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.5)
+    # dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.5)
     # batch_size = trial.suggest_int("batch_size", 8, 256)
     batch_size = 256
 

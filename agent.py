@@ -315,14 +315,14 @@ def generate_database(trajectory_path):
         trajectory_segments.pop()
 
     if run_type == "collect":
-        segment_generation_mode = "all_combinations"
+        segment_generation_mode = "random"
 
-        if segment_generation_mode == "random":
+        if segment_generation_mode == "random" or segment_generation_mode == "big_mode":
             random.shuffle(trajectory_segments)
             for i in range(0, len(trajectory_segments), 2):
                 distance_1 = dist(trajectory_segments[i])
                 distance_2 = dist(trajectory_segments[i + 1])
-                if abs(distance_1 - distance_2) < 1:
+                if abs(distance_1 - distance_2) < 0.5:
                     continue
                 trajectory_pairs.append(
                     (
@@ -334,6 +334,7 @@ def generate_database(trajectory_path):
                     )
                 )
         elif segment_generation_mode == "sequential_pairing":
+            trajectory_segments = sort_and_pair(trajectory_segments, False)
             n = len(trajectory_segments)
             for i in range(n // 2):
                 j = n - i - 1
@@ -368,20 +369,6 @@ def generate_database(trajectory_path):
                             distance_2,
                         )
                     )
-
-        # todo
-        elif segment_generation_mode == "big_mode":
-            trajectory_segments = sort_and_pair(trajectory_segments, False)
-            n = len(trajectory_segments)
-
-            def equal(seg1, seg2):
-                return abs(dist(seg1) - dist(seg2)) < 0.5
-
-            counts = {}
-            for trajectory_segment in trajectory_segments:
-                trajectory_distance = round(dist(trajectory_segment))
-                counts[trajectory_distance] = 1 + counts.get(trajectory_distance, 0)
-
         shuffle(trajectory_pairs)
 
     else:
