@@ -88,14 +88,16 @@ if __name__ == "__main__":
     print("Finished training model...")
 
     # run the simulation with the true reward function
-    # print("Simulating on true reward function...")
-    # true_agent_distances, agent_trajectories, true_agent_rewards = start_simulation(
-    #     "./config/agent_config.txt",
-    #     args.generations[0],
-    #     0,
-    #     "trueRF",
-    #     False,
-    # )
+    print("Simulating on true reward function...")
+    true_agent_distances, agent_trajectories, true_agent_rewards, _, _ = (
+        start_simulation(
+            "./config/agent_config.txt",
+            args.generations[0],
+            0,
+            "trueRF",
+            False,
+        )
+    )
 
     # run the simulation with the trained reward function
     print("Simulating on trained reward function...")
@@ -114,11 +116,11 @@ if __name__ == "__main__":
         False,
     )
 
-    true_agent_distances, agent_trajectories, true_agent_rewards = (
-        [[0] * len(trained_agent_distances[0])] * len(trained_agent_distances),
-        [0],
-        [[0] * len(trained_agent_rewards[0])] * len(trained_agent_rewards),
-    )
+    # true_agent_distances, agent_trajectories, true_agent_rewards = (
+    #     [[0] * len(trained_agent_distances[0])] * len(trained_agent_distances),
+    #     [0],
+    #     [[0] * len(trained_agent_rewards[0])] * len(trained_agent_rewards),
+    # )
     handle_plotting(
         true_agent_distances,
         trained_agent_distances,

@@ -76,6 +76,7 @@ class Car:
         self.alive = True  # Boolean To Check If Car is Crashed
 
         self.distance = 0  # Distance Driven
+        self.reward = 0
         self.time = 0  # Time Passed
 
         self.trajectory = [[830, 920]]  # All Positions of the Car
@@ -145,6 +146,7 @@ class Car:
 
         # Increase Distance and Time
         self.distance += self.speed
+        self.reward += self.get_reward()
         self.time += 1
 
         # Same For Y-Position
@@ -205,6 +207,8 @@ class Car:
     def get_reward(self):
         # Calculate Reward (Maybe Change?)
         # return self.distance / 50.0
+        if len(self.trajectory) < 2:
+            return 0
         if reward_network is not None:
             trajectory_tensor = prepare_single_trajectory(self.trajectory)
             reward = reward_network(trajectory_tensor)
@@ -223,7 +227,7 @@ class Car:
 
     def save_trajectory(self, filename):
         with open(filename, "wb") as f:
-            pickle.dump((self.get_reward(), self.trajectory), f)
+            pickle.dump((self.distance, self.trajectory, self.reward), f)
             # self.distance is used to calculate the true reward
 
 
@@ -242,7 +246,6 @@ def sort_and_pair(trajectory_segments, clean=True):
     num_limit = 4
     for trajectory_segment in sorted_trajectory_segments:
         trajectory_distance = round(dist(trajectory_segment))
-        # print(dist(trajectory_segment), trajectory_distance)
         if (
             trajectory_distance not in distDict
             or distDict[trajectory_distance] < num_limit
@@ -265,8 +268,8 @@ def generate_database(trajectory_path):
     trajectories = []
     for file in glob.glob(f"{trajectory_path}/trajectory*.pkl"):
         with open(file, "rb") as f:
-            reward, trajectory = pickle.load(f)
-            trajectories.append((reward, trajectory))
+            distance, trajectory, reward = pickle.load(f)
+            trajectories.append((distance, trajectory, reward))
 
     # Pads shorter tajectoires so there is a consistent input size
     def pad_trajectory(trajectory, max_length):
@@ -278,7 +281,7 @@ def generate_database(trajectory_path):
 
     max_length, max_index = max(
         (len(trajectory), index)
-        for index, (reward, trajectory) in enumerate(trajectories)
+        for index, (distance, trajectory, reward) in enumerate(trajectories)
     )
 
     random.shuffle(trajectories)
@@ -303,7 +306,7 @@ def generate_database(trajectory_path):
 
     # Break trajectories into trajectory segments
     trajectory_segments = []
-    for _, trajectory in trajectories:
+    for _, trajectory, _ in trajectories:
         prev = 0
         curr = 1
         while curr < len(trajectory):
@@ -318,6 +321,7 @@ def generate_database(trajectory_path):
         segment_generation_mode = "random"
 
         if segment_generation_mode == "random" or segment_generation_mode == "big_mode":
+            print("HERE")
             random.shuffle(trajectory_segments)
             for i in range(0, len(trajectory_segments), 2):
                 distance_1 = dist(trajectory_segments[i])
@@ -383,6 +387,8 @@ def generate_database(trajectory_path):
                     0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
                     trajectories[i][0],
                     trajectories[i + 1][0],
+                    trajectories[i][2],
+                    trajectories[i + 1][2],
                 )
             )
 

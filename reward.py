@@ -336,7 +336,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
         study = optuna.create_study(direction="minimize")
         study.set_user_attr("file_path", trajectories_file_path)
         study.set_user_attr("epochs", epochs)
-        study.optimize(objective, n_trials=1)
+        study.optimize(objective, n_trials=4)
 
         # Load and print the best trial
         best_trial = study.best_trial
@@ -396,11 +396,11 @@ def objective(trial):
     hidden_size = trial.suggest_int("hidden_size", 128, 1024)
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
-    # dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.5)
+    dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.5)
     # batch_size = trial.suggest_int("batch_size", 8, 256)
     batch_size = 256
 
-    net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(device)
+    net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob=0).to(device)
     for param in net.parameters():
         if len(param.shape) > 1:
             nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
