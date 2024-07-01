@@ -284,10 +284,6 @@ def generate_database(trajectory_path):
         for index, (distance, trajectory, reward) in enumerate(trajectories)
     )
 
-    random.shuffle(trajectories)
-    if len(trajectories) % 2 != 0:
-        trajectories.pop()
-
     trajectory_pairs = []
     global run_type
 
@@ -318,15 +314,17 @@ def generate_database(trajectory_path):
         trajectory_segments.pop()
 
     if run_type == "collect":
-        segment_generation_mode = "random"
+        # probably unnecessary...
+        if len(trajectories) % 2 != 0:
+            trajectories.pop()
 
+        segment_generation_mode = "random"
         if segment_generation_mode == "random" or segment_generation_mode == "big_mode":
-            print("HERE")
             random.shuffle(trajectory_segments)
             for i in range(0, len(trajectory_segments), 2):
                 distance_1 = dist(trajectory_segments[i])
                 distance_2 = dist(trajectory_segments[i + 1])
-                if abs(distance_1 - distance_2) < 0.5:
+                if abs(distance_1 - distance_2) < 0.01:
                     continue
                 trajectory_pairs.append(
                     (

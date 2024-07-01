@@ -17,6 +17,7 @@ import wandb
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 NET_SIZE = 4
+run_wandb = True
 
 
 class RewardNormalizer:
@@ -132,23 +133,14 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     )
 
 
-def break_into_segments(trajectories, single=False):
+def break_into_segments(trajectory, single=False):
     trajectory_segments = []
-    if single:
-        prev = 0
-        curr = 1
-        while curr < len(trajectories):
-            trajectory_segments.append([trajectories[prev], trajectories[curr]])
-            prev += 1
-            curr += 1
-        return trajectory_segments
-    for _, trajectory in trajectories:
-        prev = 0
-        curr = 1
-        while curr < len(trajectory):
-            trajectory_segments.append([trajectory[prev], trajectory[curr]])
-            prev += 1
-            curr += 1
+    prev = 0
+    curr = 1
+    while curr < len(trajectory):
+        trajectory_segments.append([trajectory[prev], trajectory[curr]])
+        prev += 1
+        curr += 1
     return trajectory_segments
 
 
@@ -197,7 +189,8 @@ def populate_lists(
             trajectory = true_trajectories[count]
             gen_true_distances.extend([trajectory[3], trajectory[4]])
             count += 1
-        true_agent_distances.extend(gen_true_distances)
+        if gen_true_distances:
+            true_agent_distances.append(gen_true_distances)
 
     num_trained_trajectories = len(trained_trajectories)
     count = 0
@@ -213,9 +206,13 @@ def populate_lists(
             ):
                 trained_segment_distances.append(dist(segment))
                 trained_segment_rewards.append(
-                    model(prepare_single_trajectory(segment))
+                    model(prepare_single_trajectory(segment)).item()
                 )
             count += 1
+        if gen_trained_distances:
+            trained_agent_distances.append(gen_trained_distances)
+        if gen_trained_rewards:
+            trained_agent_rewards.append(gen_trained_rewards)
 
     return (
         true_agent_distances,
@@ -344,26 +341,27 @@ def graph_avg_max(averages, maxes):
     plt.savefig("figures/max.png")
     plt.close()
 
-    wandb.log(
-        {
-            "Wandb Avg Plot": wandb.plot.line_series(
-                xs=x_values,
-                ys=[true_reward_averages, trained_reward_averages],
-                keys=["True Average", "Trained Average"],
-                title="Ground Truth vs Trained Reward: Average Distance",
-            )
-        }
-    )
-    wandb.log(
-        {
-            "Wandb Max Plot": wandb.plot.line_series(
-                xs=x_values,
-                ys=[true_reward_maxes, trained_reward_maxes],
-                keys=["True Max", "Trained Max"],
-                title="Ground Truth vs Trained Reward: Max Distance",
-            )
-        }
-    )
+    if run_wandb:
+        wandb.log(
+            {
+                "Wandb Avg Plot": wandb.plot.line_series(
+                    xs=x_values,
+                    ys=[true_reward_averages, trained_reward_averages],
+                    keys=["True Average", "Trained Average"],
+                    title="Ground Truth vs Trained Reward: Average Distance",
+                )
+            }
+        )
+        wandb.log(
+            {
+                "Wandb Max Plot": wandb.plot.line_series(
+                    xs=x_values,
+                    ys=[true_reward_maxes, trained_reward_maxes],
+                    keys=["True Max", "Trained Max"],
+                    title="Ground Truth vs Trained Reward: Max Distance",
+                )
+            }
+        )
 
 
 def graph_trained_rewards(averages, maxes):
@@ -381,16 +379,17 @@ def graph_trained_rewards(averages, maxes):
     plt.savefig("figures/agent_rewards.png")
     plt.close()
 
-    wandb.log(
-        {
-            "Wandb Avg Plot": wandb.plot.line_series(
-                xs=x_values,
-                ys=[averages, maxes],
-                keys=["Average Reward", "Max Reward"],
-                title="Reward Obtained by Trained Agents",
-            )
-        }
-    )
+    if run_wandb:
+        wandb.log(
+            {
+                "Wandb Avg Plot": wandb.plot.line_series(
+                    xs=x_values,
+                    ys=[averages, maxes],
+                    keys=["Average Reward", "Max Reward"],
+                    title="Reward Obtained by Trained Agents",
+                )
+            }
+        )
 
 
 def graph_death_rates(distances_per_generation, agent_type):
@@ -430,16 +429,17 @@ def graph_death_rates(distances_per_generation, agent_type):
     plt.savefig(f"figures/survival_{agent_type}.png")
     plt.close()
 
-    wandb.log(
-        {
-            f"Survival Rate of {agent_type} Agents": wandb.plot.line_series(
-                xs,
-                ys,
-                keys=[f"Generation {gen}" for gen in generations],
-                title="Ground Truth vs Trained Reward: Average Distance",
-            )
-        }
-    )
+    if run_wandb:
+        wandb.log(
+            {
+                f"Survival Rate of {agent_type} Agents": wandb.plot.line_series(
+                    xs,
+                    ys,
+                    keys=[f"Generation {gen}" for gen in generations],
+                    title="Ground Truth vs Trained Reward: Average Distance",
+                )
+            }
+        )
 
 
 def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
@@ -461,16 +461,17 @@ def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
     plt.savefig("figures/agent_distance_vs_reward.png")
     plt.close()
 
-    wandb.log(
-        {
-            "Wandb Avg Plot": wandb.plot.line_series(
-                xs=aggregate_trained_distance,
-                ys=[aggregate_trained_reward],
-                keys=["Trained Agent"],
-                title="Reward vs. Distance Travelled",
-            )
-        }
-    )
+    if run_wandb:
+        wandb.log(
+            {
+                "Wandb Avg Plot": wandb.plot.line_series(
+                    xs=aggregate_trained_distance,
+                    ys=[aggregate_trained_reward],
+                    keys=["Trained Agent"],
+                    title="Reward vs. Distance Travelled",
+                )
+            }
+        )
 
 
 def graph_segment_distance_vs_reward(
@@ -522,6 +523,7 @@ def graph_segment_distance_vs_reward(
 
 
 if __name__ == "__main__":
+    run_wandb = False
     parse = argparse.ArgumentParser(description="Generatig Plots for trained model")
     parse.add_argument(
         "-d",
@@ -545,42 +547,43 @@ if __name__ == "__main__":
     args = parse.parse_args()
     if args.database:
         database = args.database
-        print("DATABASE:", database)
         try:
-            true_database = args.database[0]
-            trained_database = args.database[1]
+
+            trained_database = args.database[0]
+            if len(database) > 1:
+                true_database = args.database[1]
         except Exception as e:
             pass
     if args.reward:
         reward = args.reward
     import time
 
-    bt, bt_, bt_delta, ordered_trajectories = prepare_data(
-        database[0], reward, hidden_size=311
+    # bt, bt_, bt_delta, ordered_trajectories = prepare_data(
+    #     trained_database, reward, hidden_size=311
+    # )
+
+    # plot_bradley_terry(bt, "False Bradley Terry", bt_)
+    # plot_bradley_terry(bt_delta, "Bradley Terry Difference")
+    # plot_trajectory_order(ordered_trajectories, "Trajectory Order")
+
+    (
+        true_agent_distances,
+        trained_agent_distances,
+        trained_agent_rewards,
+        trained_segment_distances,
+        trained_segment_rewards,
+    ) = populate_lists(
+        true_database,
+        trained_database,
+        agents_per_generation=20,
+        model_weights=reward,
+        hidden_size=311,
     )
 
-    plot_bradley_terry(bt, "False Bradley Terry", bt_)
-    plot_bradley_terry(bt_delta, "Bradley Terry Difference")
-    plot_trajectory_order(ordered_trajectories, "Trajectory Order")
-
-    # (
-    #     true_agent_distances,
-    #     trained_agent_distances,
-    #     trained_agent_rewards,
-    #     trained_segment_distances,
-    #     trained_segment_rewards,
-    # ) = populate_lists(
-    #     true_database,
-    #     trained_database,
-    #     agents_per_generation=20,
-    #     model_weights=reward,
-    #     hidden_size=311,
-    # )
-
-    # handle_plotting(
-    #     true_agent_distances,
-    #     trained_agent_distances,
-    #     trained_agent_rewards,
-    #     trained_segment_distances,
-    #     trained_segment_rewards,
-    # )
+    handle_plotting(
+        true_agent_distances,
+        trained_agent_distances,
+        trained_agent_rewards,
+        trained_segment_distances,
+        trained_segment_rewards,
+    )
