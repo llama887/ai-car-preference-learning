@@ -77,9 +77,9 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     for i, t in enumerate(trajectories):
         if i > trajectory_threshold:
             break
-        for segment in break_into_segments(
-            t[0], single=True
-        ) + break_into_segments(t[1], single=True):
+        for segment in break_into_segments(t[0], single=True) + break_into_segments(
+            t[1], single=True
+        ):
             trajectory_segments.append(segment)
             true_reward = dist(segment)
             true_min = min(true_min, true_reward)
