@@ -55,7 +55,9 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     with open(database_path, "rb") as f:
         trajectories = pickle.load(f)
     if model_weights is not None:
-        model = TrajectoryRewardNet(NET_SIZE, hidden_size=int(hidden_size)).to(device)
+        model = TrajectoryRewardNet(NET_SIZE, hidden_size=int(hidden_size)).to(
+            device
+        )
         model.load_state_dict(torch.load(model_weights))
     elif net is not None:
         model = net
@@ -88,7 +90,7 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     false_trained_bradley_terry = []
     true_bradley_terry = []
     bradley_terry_difference = []
-    ordered_trajectories = []
+    ordered_segements = []
 
     for _, t in enumerate(
         zip(
@@ -103,18 +105,20 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
         trained_preference = trained_r1 > trained_r2
         predicted_bradley_terry = bradley_terry(trained_r1, trained_r2)
         true_bradley_terry = bradley_terry(true_r1, true_r2)
-        bradley_terry_difference.append(true_bradley_terry - predicted_bradley_terry)
-        ordered_trajectories.extend([[trained_r1, true_r1], [trained_r2, true_r2]])
+        bradley_terry_difference.append(
+            true_bradley_terry - predicted_bradley_terry
+        )
+        ordered_segements.extend([[trained_r1, true_r1], [trained_r2, true_r2]])
         if trained_preference != true_preference:
             false_true_bradley_terry.append(true_bradley_terry)
             false_trained_bradley_terry.append(predicted_bradley_terry)
 
-    ordered_trajectories = sorted(ordered_trajectories, key=lambda x: x[0])
+    ordered_segements = sorted(ordered_segements, key=lambda x: x[0])
     return (
         false_true_bradley_terry,
         false_trained_bradley_terry,
         bradley_terry_difference,
-        ordered_trajectories,
+        ordered_segements,
     )
 
 
@@ -179,7 +183,9 @@ def plot_bradley_terry(data1, title, data2=None):
 
 
 def plot_trajectory_order(data, title):
-    bar_heights = [x[1].cpu().item() if torch.is_tensor(x[1]) else x[1] for x in data]
+    bar_heights = [
+        x[1].cpu().item() if torch.is_tensor(x[1]) else x[1] for x in data
+    ]
     trained_reward = [
         x[0].cpu().item() if torch.is_tensor(x[0]) else x[0] for x in data
     ]
@@ -215,7 +221,8 @@ def handle_plotting(
 ):
     traj_per_generation = len(true_agent_distances[0])
     true_reward_averages = [
-        (sum(generation) / traj_per_generation) for generation in true_agent_distances
+        (sum(generation) / traj_per_generation)
+        for generation in true_agent_distances
     ]
     true_reward_maxes = [max(generation) for generation in true_agent_distances]
 
@@ -224,21 +231,28 @@ def handle_plotting(
         for generation in trained_agent_distances
     ]
     trained_agent_reward_averages = [
-        (sum(generation) / traj_per_generation) for generation in trained_agent_rewards
+        (sum(generation) / traj_per_generation)
+        for generation in trained_agent_rewards
     ]
     trained_agent_reward_maxes = [
         max(generation) for generation in trained_agent_rewards
     ]
-    trained_reward_maxes = [max(generation) for generation in trained_agent_distances]
+    trained_reward_maxes = [
+        max(generation) for generation in trained_agent_distances
+    ]
     graph_avg_max(
         (true_reward_averages, trained_reward_averages),
         (true_reward_maxes, trained_reward_maxes),
     )
-    graph_trained_rewards(trained_agent_reward_averages, trained_agent_reward_maxes)
+    graph_trained_rewards(
+        trained_agent_reward_averages, trained_agent_reward_maxes
+    )
     graph_death_rates(true_agent_distances, "GT")
     graph_death_rates(trained_agent_distances, "Trained")
     # graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards)
-    graph_segment_distance_vs_reward(trained_segment_distances, trained_segment_rewards)
+    graph_segment_distance_vs_reward(
+        trained_segment_distances, trained_segment_rewards
+    )
 
 
 def graph_avg_max(averages, maxes):
@@ -323,7 +337,9 @@ def graph_death_rates(distances_per_generation, agent_type):
     generation_graph = fig.add_subplot(projection="3d")
 
     traj_per_generation = len(distances_per_generation[0])
-    sorted_distances = [sorted(generation) for generation in distances_per_generation]
+    sorted_distances = [
+        sorted(generation) for generation in distances_per_generation
+    ]
 
     xs = []
     ys = []
@@ -334,7 +350,9 @@ def graph_death_rates(distances_per_generation, agent_type):
         distance_travelled = []
         for number_dead, traj_distance in enumerate(distances_in_generation):
             percent_alive.append(
-                (traj_per_generation - number_dead - 1) / traj_per_generation * 100
+                (traj_per_generation - number_dead - 1)
+                / traj_per_generation
+                * 100
             )
             distance_travelled.append(traj_distance)
         xs.append(distance_travelled)
@@ -445,7 +463,9 @@ def graph_segment_distance_vs_reward(
 
 
 if __name__ == "__main__":
-    parse = argparse.ArgumentParser(description="Generatig Plots for trained model")
+    parse = argparse.ArgumentParser(
+        description="Generatig Plots for trained model"
+    )
     parse.add_argument(
         "-d",
         "--database",
@@ -468,18 +488,31 @@ if __name__ == "__main__":
     args = parse.parse_args()
     if args.database:
         database = args.database
+<<<<<<< HEAD
         true_database = args.database[0]
         trained_database = args.database[1]
+=======
+        try:
+            true_database = args.database[0]
+            trained_database = args.database[1]
+        except Exception as e:
+            pass
+>>>>>>> parent of 1ca32c8 (plot.py refactoring done (hopefully))
     if args.reward:
         reward = args.reward
 
     bt, bt_, bt_delta, ordered_trajectories = prepare_data(
+<<<<<<< HEAD
         trained_database, reward, hidden_size=592
+=======
+        database[0], reward, hidden_size=1012
+>>>>>>> parent of 1ca32c8 (plot.py refactoring done (hopefully))
     )
     plot_bradley_terry(bt, "False Bradley Terry", bt_)
     plot_bradley_terry(bt_delta, "Bradley Terry Difference")
     plot_trajectory_order(ordered_trajectories, "Trajectory Order")
 
+<<<<<<< HEAD
     (
         true_agent_distances,
         trained_agent_distances,
@@ -497,3 +530,22 @@ if __name__ == "__main__":
         trained_segment_distances,
         trained_segment_rewards,
     )
+=======
+    # (
+    #     true_agent_distances,
+    #     trained_agent_distances,
+    #     trained_agent_rewards,
+    #     trained_segment_distances,
+    #     trained_segment_rewards,
+    # ) = ([], [], [], [], [])
+
+    # populate_lists(
+    #     true_database,
+    #     trained_database,
+    #     true_agent_distances,
+    #     trained_agent_distances,
+    #     trained_agent_rewards,
+    #     trained_segment_distances,
+    #     trained_segment_rewards,
+    # )
+>>>>>>> parent of 1ca32c8 (plot.py refactoring done (hopefully))
