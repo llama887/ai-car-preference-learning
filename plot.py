@@ -1,21 +1,19 @@
-from reward import (
-    TrajectoryRewardNet,
-    prepare_single_trajectory,
-)
 import reward
+from reward import TrajectoryRewardNet, prepare_single_trajectory
 
 figure_path = reward.figure_path
 
-import pickle
+import argparse
+import math
 import os
-import wandb
+import pickle
+import random
 import re
-import torch
+
 import matplotlib.pyplot as plt
 import seaborn as sns
-import math
-import argparse
-import random
+import torch
+import wandb
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 NET_SIZE = 4
@@ -36,6 +34,10 @@ class RewardNormalizer:
             for reward in rewards
         ]
 
+    @classmethod
+    def from_min_max(cls, min_val, max_val):
+        return cls([min_val, max_val])
+
     def normalize(self, value):
         # Normalize a new value using the stored min and max values
         if self.min_val == self.max_val:
@@ -45,6 +47,10 @@ class RewardNormalizer:
 
     def get_normalized_rewards(self):
         return self.normalized_rewards
+
+
+def bradley_terry(r1, r2):
+    return math.exp(r1) / (math.exp(r1) + math.exp(r2))
 
 
 def bradley_terry(r1, r2):
@@ -66,41 +72,52 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
             "prepare_data expects either a path to model weights or the reward network"
         )
     model.eval()
-    reward1 = [t[-2] for t in trajectories]
-    reward2 = [t[-1] for t in trajectories]
-    rewards = reward1 + reward2
-    true_reward_normalizer = RewardNormalizer(rewards)
-    normalized_true_reward1 = true_reward_normalizer.get_normalized_rewards()[
-        : len(reward1)
-    ]
-    normalized_true_reward2 = true_reward_normalizer.get_normalized_rewards()[
-        len(reward1) :
-    ]
-    trained_reward1 = [model(prepare_single_trajectory(t[0])) for t in trajectories]
-    trained_reward2 = [model(prepare_single_trajectory(t[1])) for t in trajectories]
-    trained_reward_normalizer = RewardNormalizer(trained_reward1 + trained_reward2)
-    normalized_trained_reward1 = trained_reward_normalizer.get_normalized_rewards()[
-        : len(trained_reward1)
-    ]
-    normalized_trained_reward2 = trained_reward_normalizer.get_normalized_rewards()[
-        len(trained_reward1) :
-    ]
-
+    true_min, true_max = float("inf"), float("-inf")
+    trained_min, trained_max = float("inf"), float("-inf")
+    trajectory_segments = []
+    trajectory_threshold = 150
+    for i, t in enumerate(trajectories):
+        if i > trajectory_threshold:
+            break
+        for segment in break_into_segments(
+            t[0], single=True
+        ) + break_into_segments(t[1], single=True):
+            trajectory_segments.append(segment)
+            true_reward = dist(segment)
+            true_min = min(true_min, true_reward)
+            true_max = max(true_max, true_reward)
+            trained_reward = model(prepare_single_trajectory(segment))
+            trained_min = min(trained_min, trained_reward)
+            trained_max = max(trained_max, trained_reward)
+    true_reward_normalizer = RewardNormalizer.from_min_max(true_min, true_max)
+    trained_reward_normalizer = RewardNormalizer.from_min_max(
+        trained_min, trained_max
+    )
+    random.shuffle(trajectory_segments)
+    if len(trajectory_segments) % 2 != 0:
+        trajectory_segments.pop()
     false_true_bradley_terry = []
     false_trained_bradley_terry = []
     true_bradley_terry = []
     bradley_terry_difference = []
     ordered_segements = []
-
-    for _, t in enumerate(
-        zip(
-            normalized_true_reward1,
-            normalized_true_reward2,
-            normalized_trained_reward1,
-            normalized_trained_reward2,
+    segment_threshold = 12000
+    output_size = (
+        segment_threshold
+        if len(trajectory_segments) > segment_threshold
+        else len(trajectory_segments)
+    )
+    for i in range(0, output_size, 2):
+        distance_1 = dist(trajectory_segments[i])
+        distance_2 = dist(trajectory_segments[i + 1])
+        true_r1 = true_reward_normalizer.normalize(distance_1)
+        true_r2 = true_reward_normalizer.normalize(distance_2)
+        trained_r1 = trained_reward_normalizer.normalize(
+            model(prepare_single_trajectory(trajectory_segments[i]))
         )
-    ):
-        (true_r1, true_r2, trained_r1, trained_r2) = t
+        trained_r2 = trained_reward_normalizer.normalize(
+            model(prepare_single_trajectory(trajectory_segments[i + 1]))
+        )
         true_preference = true_r1 > true_r2
         trained_preference = trained_r1 > trained_r2
         predicted_bradley_terry = bradley_terry(trained_r1, trained_r2)
@@ -112,7 +129,6 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
         if trained_preference != true_preference:
             false_true_bradley_terry.append(true_bradley_terry)
             false_trained_bradley_terry.append(predicted_bradley_terry)
-
     ordered_segements = sorted(ordered_segements, key=lambda x: x[0])
     return (
         false_true_bradley_terry,
@@ -122,8 +138,16 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     )
 
 
-def break_into_segments(trajectories):
+def break_into_segments(trajectories, single=False):
     trajectory_segments = []
+    if single:
+        prev = 0
+        curr = 1
+        while curr < len(trajectories):
+            trajectory_segments.append([trajectories[prev], trajectories[curr]])
+            prev += 1
+            curr += 1
+        return trajectory_segments
     for _, trajectory in trajectories:
         prev = 0
         curr = 1
@@ -133,12 +157,14 @@ def break_into_segments(trajectories):
             curr += 1
     return trajectory_segments
 
+
 def dist(traj_segment):
     traj_segment_distance = math.sqrt(
         (traj_segment[1][0] - traj_segment[0][0]) ** 2
         + (traj_segment[1][1] - traj_segment[0][1]) ** 2
     )
     return traj_segment_distance
+
 
 def populate_lists(
     true_database,
@@ -393,7 +419,9 @@ def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
         aggregate_trained_reward.extend(trained_agent_rewards[i])
     plt.figure()
     plt.scatter(
-        x=aggregate_trained_distance, y=aggregate_trained_reward, label="Trained Agent"
+        x=aggregate_trained_distance,
+        y=aggregate_trained_reward,
+        label="Trained Agent",
     )
     plt.xlabel("Distance")
     plt.ylabel("Reward")
@@ -488,49 +516,21 @@ if __name__ == "__main__":
     args = parse.parse_args()
     if args.database:
         database = args.database
-<<<<<<< HEAD
-        true_database = args.database[0]
-        trained_database = args.database[1]
-=======
         try:
             true_database = args.database[0]
             trained_database = args.database[1]
         except Exception as e:
             pass
->>>>>>> parent of 1ca32c8 (plot.py refactoring done (hopefully))
     if args.reward:
         reward = args.reward
 
     bt, bt_, bt_delta, ordered_trajectories = prepare_data(
-<<<<<<< HEAD
-        trained_database, reward, hidden_size=592
-=======
         database[0], reward, hidden_size=1012
->>>>>>> parent of 1ca32c8 (plot.py refactoring done (hopefully))
     )
     plot_bradley_terry(bt, "False Bradley Terry", bt_)
     plot_bradley_terry(bt_delta, "Bradley Terry Difference")
     plot_trajectory_order(ordered_trajectories, "Trajectory Order")
 
-<<<<<<< HEAD
-    (
-        true_agent_distances,
-        trained_agent_distances,
-        trained_agent_rewards,
-        trained_segment_distances,
-        trained_segment_rewards,
-    ) = ([], [], [], [], [])
-
-    populate_lists(
-        true_database,
-        trained_database,
-        true_agent_distances,
-        trained_agent_distances,
-        trained_agent_rewards,
-        trained_segment_distances,
-        trained_segment_rewards,
-    )
-=======
     # (
     #     true_agent_distances,
     #     trained_agent_distances,
@@ -548,4 +548,3 @@ if __name__ == "__main__":
     #     trained_segment_distances,
     #     trained_segment_rewards,
     # )
->>>>>>> parent of 1ca32c8 (plot.py refactoring done (hopefully))
