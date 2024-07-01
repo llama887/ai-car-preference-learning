@@ -53,6 +53,10 @@ def bradley_terry(r1, r2):
     return math.exp(r1) / (math.exp(r1) + math.exp(r2))
 
 
+def bradley_terry(r1, r2):
+    return math.exp(r1) / (math.exp(r1) + math.exp(r2))
+
+
 def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     with open(database_path, "rb") as f:
         trajectories = pickle.load(f)
@@ -70,21 +74,21 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     model.eval()
     true_min, true_max = float("inf"), float("-inf")
     trained_min, trained_max = float("inf"), float("-inf")
-
     trajectory_segments = []
-
-    for t in trajectories:
-        for segment in break_into_segments(t[0]) + break_into_segments(t[1]):
+    trajectory_threshold = 150
+    for i, t in enumerate(trajectories):
+        if i > trajectory_threshold:
+            break
+        for segment in break_into_segments(
+            t[0], single=True
+        ) + break_into_segments(t[1], single=True):
             trajectory_segments.append(segment)
-
             true_reward = dist(segment)
             true_min = min(true_min, true_reward)
             true_max = max(true_max, true_reward)
-
             trained_reward = model(prepare_single_trajectory(segment))
             trained_min = min(trained_min, trained_reward)
             trained_max = max(trained_max, trained_reward)
-    # Construct the RewardNormalizer objects using min and max values
     true_reward_normalizer = RewardNormalizer.from_min_max(true_min, true_max)
     trained_reward_normalizer = RewardNormalizer.from_min_max(
         trained_min, trained_max
@@ -97,14 +101,15 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     true_bradley_terry = []
     bradley_terry_difference = []
     ordered_segements = []
+    segment_threshold = 12000
     output_size = (
-        10000 if len(trajectory_segments) > 10000 else len(trajectory_segments)
+        segment_threshold
+        if len(trajectory_segments) > segment_threshold
+        else len(trajectory_segments)
     )
     for i in range(0, output_size, 2):
         distance_1 = dist(trajectory_segments[i])
         distance_2 = dist(trajectory_segments[i + 1])
-        if abs(distance_1 - distance_2) < 1:
-            continue
         true_r1 = true_reward_normalizer.normalize(distance_1)
         true_r2 = true_reward_normalizer.normalize(distance_2)
         trained_r1 = trained_reward_normalizer.normalize(
@@ -133,14 +138,23 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
     )
 
 
-def break_into_segments(trajectory):
+def break_into_segments(trajectories, single=False):
     trajectory_segments = []
-    prev = 0
-    curr = 1
-    while curr < len(trajectory):
-        trajectory_segments.append([trajectory[prev], trajectory[curr]])
-        prev += 1
-        curr += 1
+    if single:
+        prev = 0
+        curr = 1
+        while curr < len(trajectories):
+            trajectory_segments.append([trajectories[prev], trajectories[curr]])
+            prev += 1
+            curr += 1
+        return trajectory_segments
+    for _, trajectory in trajectories:
+        prev = 0
+        curr = 1
+        while curr < len(trajectory):
+            trajectory_segments.append([trajectory[prev], trajectory[curr]])
+            prev += 1
+            curr += 1
     return trajectory_segments
 
 
