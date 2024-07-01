@@ -104,6 +104,7 @@ def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
         if len(trajectory_segments) > segment_threshold
         else len(trajectory_segments)
     )
+    # print("OUTPUT", output_size)
     for i in range(0, output_size, 2):
         distance_1 = dist(trajectory_segments[i])
         distance_2 = dist(trajectory_segments[i + 1])
@@ -477,13 +478,38 @@ def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
 def graph_segment_distance_vs_reward(
     trained_segment_distances, trained_segment_rewards
 ):
+
+    zipped_distance_reward = list(
+        zip(trained_segment_distances, trained_segment_rewards)
+    )
+    distTotal = {}
+    distCount = {}
+    for distance, reward in zipped_distance_reward:
+        rounded_distance = round(distance, 1)
+        distCount[rounded_distance] = 1 + distCount.get(rounded_distance, 0)
+        distTotal[rounded_distance] = reward + distTotal.get(rounded_distance, 0)
+    rounded_distances = list(distCount.keys())
+    avg_reward_for_distances = []
+    for rounded_distance in rounded_distances:
+        avg_reward_for_distances.append(
+            distTotal[rounded_distance] / distCount[rounded_distance]
+        )
+
     os.makedirs("figures", exist_ok=True)
-    plt.figure()
-    plt.scatter(
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    ax1.scatter(
         x=trained_segment_distances,
         y=trained_segment_rewards,
-        label="Trained Agent",
+        label="All Traj Segments",
+        c="b",
         alpha=0.2,
+    )
+    ax1.scatter(
+        x=rounded_distances,
+        y=avg_reward_for_distances,
+        label="Avg Reward per Traj Segment Dist.",
+        c="r",
     )
     plt.xlabel("Distance of Trajectory Segment")
     plt.ylabel("Reward of Trajectory Segment")

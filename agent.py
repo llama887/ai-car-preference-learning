@@ -266,7 +266,7 @@ def generate_database(trajectory_path):
 
     # Load All Trajectories
     trajectories = []
-    for file in glob.glob(f"{trajectory_path}/trajectory*.pkl"):
+    for file in sorted(glob.glob(f"{trajectory_path}/trajectory*.pkl")):
         with open(file, "rb") as f:
             distance, trajectory, reward = pickle.load(f)
             trajectories.append((distance, trajectory, reward))
@@ -372,7 +372,6 @@ def generate_database(trajectory_path):
                         )
                     )
         shuffle(trajectory_pairs)
-
     else:
         num_traj = (
             len(trajectory_pairs) * 2 if run_type == "collect" else len(trajectories)
@@ -583,34 +582,39 @@ def run_population(
         global saved_trajectory_count, current_generation, agent_distances, agent_rewards, agent_segment_distances, agent_segment_rewards
         # if saved_trajectory_count >= number_of_trajectories:
         print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
-        numTraj = generate_database(trajectory_path)
+        numTrajPairs = generate_database(trajectory_path)
         print("Removing old trajectories...")
         old_trajectories = glob.glob(trajectory_path + "trajectory*")
         for f in old_trajectories:
             os.remove(f)
-        temp_trajectory_count = (saved_trajectory_count) // 2
+
+        # temp_trajectory_count = (saved_trajectory_count) // 2
         current_generation = 0
         saved_trajectory_count = 0
-        distances = agent_distances.copy()
-        rewards = agent_rewards.copy()
-        segment_distances = agent_segment_distances.copy()
-        segment_rewards = agent_segment_rewards.copy()
-        (
-            agent_distances,
-            agent_rewards,
-            agent_segment_distances,
-            agent_segment_rewards,
-        ) = ([], [], [], [])
-        if run_type == "collect":
-            return numTraj
-        else:
-            return (
-                distances,
-                temp_trajectory_count,
-                rewards,
-                segment_distances,
-                segment_rewards,
-            )
+        # distances = agent_distances.copy()
+        # rewards = agent_rewards.copy()
+        # segment_distances = agent_segment_distances.copy()
+        # segment_rewards = agent_segment_rewards.copy()
+        # print(f"{run_type} DISTANCES LEN:", len(distances))
+        # print(distances)
+        # (
+        #     agent_distances,
+        #     agent_rewards,
+        #     agent_segment_distances,
+        #     agent_segment_rewards,
+        # ) = ([], [], [], [])
+
+        return numTrajPairs
+        # if run_type == "collect":
+        #     return numTraj
+        # else:
+        #     return (
+        #         distances,
+        #         temp_trajectory_count,
+        #         rewards,
+        #         segment_distances,
+        #         segment_rewards,
+        #     )
     except KeyboardInterrupt:
         generate_database(trajectory_path)
 

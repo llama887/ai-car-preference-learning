@@ -3,9 +3,9 @@ import argparse
 from reward import TrajectoryRewardNet, train_reward_function
 
 import agent
-from agent import run_population, TRAIN_TRAJECTORY_LENGTH
+from agent import run_population, TRAIN_TRAJECTORY_LENGTH, trajectory_path
 
-from plot import handle_plotting
+from plot import handle_plotting, populate_lists
 
 import matplotlib.pyplot as plt
 import wandb
@@ -89,26 +89,18 @@ if __name__ == "__main__":
 
     # run the simulation with the true reward function
     print("Simulating on true reward function...")
-    true_agent_distances, agent_trajectories, true_agent_rewards, _, _ = (
-        start_simulation(
-            "./config/agent_config.txt",
-            args.generations[0],
-            0,
-            "trueRF",
-            False,
-        )
+    truePairs = start_simulation(
+        "./config/agent_config.txt",
+        args.generations[0],
+        0,
+        "trueRF",
+        False,
     )
 
     # run the simulation with the trained reward function
     print("Simulating on trained reward function...")
     agent.reward_network = TrajectoryRewardNet(TRAIN_TRAJECTORY_LENGTH * 2).to(device)
-    (
-        trained_agent_distances,
-        _,
-        trained_agent_rewards,
-        trained_segment_distances,
-        trained_segment_rewards,
-    ) = start_simulation(
+    trainedPairs = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
         0,
@@ -121,6 +113,25 @@ if __name__ == "__main__":
     #     [0],
     #     [[0] * len(trained_agent_rewards[0])] * len(trained_agent_rewards),
     # )
+
+    true_database = trajectory_path + f"trueRF_{truePairs}.pkl"
+    trained_database = trajectory_path + f"trainedRF_{trainedPairs}.pkl"
+    model_weights = f"model_{args.epochs[0]}.pth"
+    (
+        true_agent_distances,
+        trained_agent_distances,
+        trained_agent_rewards,
+        trained_segment_distances,
+        trained_segment_rewards,
+    ) = populate_lists(
+        true_database,
+        trained_database,
+        agents_per_generation=20,
+        model_weights=model_weights,
+        hidden_size=311,
+    )
+
+    print("PLOTTING...")
     handle_plotting(
         true_agent_distances,
         trained_agent_distances,
