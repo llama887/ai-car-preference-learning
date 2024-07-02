@@ -414,7 +414,7 @@ def objective(trial):
     hidden_size = trial.suggest_int("hidden_size", 128, 1024)
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
-    # dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.5)
+    dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.0)
     batch_size = trial.suggest_int("batch_size", 128, 2048)
 
     net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob=0).to(
