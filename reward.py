@@ -255,7 +255,6 @@ def train_model(
                 total_validation_accuracy += calculate_accuracy(
                     validation_predicted_probabilities, validation_true_pref
                 ) * validation_true_pref.size(0)
-
         average_validation_loss = total_validation_loss / val_size
         average_validation_accuracy = total_validation_accuracy / val_size
         validation_losses.append(average_validation_loss.item())
