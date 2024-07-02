@@ -215,6 +215,12 @@ def populate_lists(
         if gen_trained_rewards:
             trained_agent_rewards.append(gen_trained_rewards)
 
+    print("SANITY CHECK...")
+    lengths = [i * 10 for i in range(101)]
+    for l in lengths:
+        segment = prepare_single_trajectory([[830, 920], [830, 920 + l]])
+        print(f"Segment of length {l} reward:", model(segment).item())
+
     return (
         true_agent_distances,
         trained_agent_distances,
@@ -531,11 +537,11 @@ def graph_segment_distance_vs_reward(
             zipped_distance_reward[i][0] < zipped_distance_reward[i + 1][0],
         )
         for i in range(0, len(zipped_distance_reward), 2)
-        if abs(
-            round(zipped_distance_reward[i][0])
-            - round(zipped_distance_reward[i + 1][0])
-        )
-        > 0.5
+        # if abs(
+        #     round(zipped_distance_reward[i][0])
+        #     - round(zipped_distance_reward[i + 1][0])
+        # )
+        # > 0.5
     ]
 
     acc = 0
@@ -603,7 +609,7 @@ if __name__ == "__main__":
         trained_database,
         agents_per_generation=20,
         model_weights=reward,
-        hidden_size=311,
+        hidden_size=372,
     )
 
     handle_plotting(
