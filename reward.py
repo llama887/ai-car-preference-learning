@@ -1,23 +1,23 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-
-from torch.utils.data import Dataset, DataLoader, random_split
-
-import pickle
-import numpy as np
-from sklearn.model_selection import train_test_split
-import matplotlib.pyplot as plt
 import argparse
-import wandb
-from torch.optim.lr_scheduler import StepLR
-import torch.optim.lr_scheduler as lr_scheduler
-import optuna
 import glob
 import os
-import yaml
+import pickle
+
 import ipdb
+import matplotlib.pyplot as plt
+import numpy as np
+import optuna
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+import torch.optim.lr_scheduler as lr_scheduler
+import yaml
+from sklearn.model_selection import train_test_split
+from torch.optim.lr_scheduler import StepLR
+from torch.utils.data import DataLoader, Dataset, random_split
+
+import wandb
 
 os.environ["WANDB_SILENT"] = "true"
 INPUT_SIZE = 2 * 2
@@ -122,7 +122,9 @@ def prepare_data(data, max_length=450):
         true_preferences.append(preference)
     trajectories1 = torch.tensor(trajectories1, dtype=torch.float32).to(device)
     trajectories2 = torch.tensor(trajectories2, dtype=torch.float32).to(device)
-    true_preferences = torch.tensor(true_preferences, dtype=torch.float32).to(device)
+    true_preferences = torch.tensor(true_preferences, dtype=torch.float32).to(
+        device
+    )
     return trajectories1, trajectories2, true_preferences
 
 
@@ -160,20 +162,29 @@ def prepare_single_trajectory(trajectory, max_length=2):
     ]
 
     # Convert to tensor and add an extra dimension
-    trajectory_tensor = torch.tensor([trajectory_flat], dtype=torch.float32).to(device)
+    trajectory_tensor = torch.tensor([trajectory_flat], dtype=torch.float32).to(
+        device
+    )
 
     return trajectory_tensor
 
 
 def calculate_accuracy(predicted_probabilities, true_preferences):
     predicted_preferences = (predicted_probabilities > 0.5).float()
-    correct_predictions = (predicted_preferences == true_preferences).float().sum()
+    correct_predictions = (
+        (predicted_preferences == true_preferences).float().sum()
+    )
     accuracy = correct_predictions / true_preferences.size(0)
     return accuracy.item()
 
 
 def train_model(
-    file_path, net, epochs=1000, optimizer=None, batch_size=128, model_path="best.pth"
+    file_path,
+    net,
+    epochs=1000,
+    optimizer=None,
+    batch_size=128,
+    model_path="best.pth",
 ):
     print("BATCH_SIZE:", batch_size)
     wandb.init(project="Micro Preference")
@@ -190,7 +201,9 @@ def train_model(
     val_size = dataset_size - train_size
 
     # Split the dataset into training and validation sets
-    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+    train_dataset, val_dataset = random_split(
+        full_dataset, [train_size, val_size]
+    )
 
     # Initialize Dataloaders
     train_dataloader = DataLoader(
@@ -277,7 +290,9 @@ def train_model(
                 best_loss = loss.item()
                 torch.save(net.state_dict(), model_path)
 
-            accuracy = calculate_accuracy(predicted_probabilities, batch_true_pref)
+            accuracy = calculate_accuracy(
+                predicted_probabilities, batch_true_pref
+            )
             total_accuracy += accuracy * batch_true_pref.size(0)
 
             loss.backward()
@@ -336,7 +351,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
         study = optuna.create_study(direction="minimize")
         study.set_user_attr("file_path", trajectories_file_path)
         study.set_user_attr("epochs", epochs)
-        study.optimize(objective, n_trials=4)
+        study.optimize(objective, n_trials=5)
 
         # Load and print the best trial
         best_trial = study.best_trial
@@ -373,10 +388,14 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
             weight_decay = data["weight_decay"]
             dropout_prob = data["dropout_prob"]
 
-            net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(device)
+            net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(
+                device
+            )
             for param in net.parameters():
                 if len(param.shape) > 1:
-                    nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
+                    nn.init.xavier_uniform_(
+                        param, gain=nn.init.calculate_gain("relu")
+                    )
             optimizer = torch.optim.Adam(
                 net.parameters(), lr=learning_rate, weight_decay=weight_decay
             )
@@ -396,11 +415,12 @@ def objective(trial):
     hidden_size = trial.suggest_int("hidden_size", 128, 1024)
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
-    dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.5)
-    # batch_size = trial.suggest_int("batch_size", 8, 256)
-    batch_size = 256
+    # dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.5)
+    batch_size = trial.suggest_int("batch_size", 128, 2048)
 
-    net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob=0).to(device)
+    net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob=0).to(
+        device
+    )
     for param in net.parameters():
         if len(param.shape) > 1:
             nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
@@ -431,13 +451,19 @@ if __name__ == "__main__":
         description="Training a Reward From Synthetic Preferences"
     )
     parse.add_argument(
-        "-d", "--database", type=str, help="Directory to trajectory database file"
+        "-d",
+        "--database",
+        type=str,
+        help="Directory to trajectory database file",
     )
     parse.add_argument(
         "-e", "--epochs", type=int, help="Number of epochs to train the model"
     )
     parse.add_argument(
-        "-p", "--parameters", type=str, help="Directory to hyperparameter yaml file"
+        "-p",
+        "--parameters",
+        type=str,
+        help="Directory to hyperparameter yaml file",
     )
     args = parse.parse_args()
     if args.database:

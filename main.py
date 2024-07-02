@@ -1,20 +1,18 @@
 import argparse
-
-from reward import TrajectoryRewardNet, train_reward_function
-
-import agent
-from agent import run_population, TRAIN_TRAJECTORY_LENGTH
-
-from plot import handle_plotting
-
-import matplotlib.pyplot as plt
-import wandb
 import glob
 import os
-import sys
-import re
-import torch
 import random
+import re
+import sys
+
+import matplotlib.pyplot as plt
+import torch
+import wandb
+
+import agent
+from agent import TRAIN_TRAJECTORY_LENGTH, run_population
+from plot import handle_plotting
+from reward import TrajectoryRewardNet, train_reward_function
 
 # from plot import prepare_data, plot_bradley_terry, plot_trajectory_order
 
@@ -43,7 +41,11 @@ if __name__ == "__main__":
         description="Training a Reward From Synthetic Preferences"
     )
     parse.add_argument(
-        "-e", "--epochs", type=int, nargs=1, help="Number of epochs to train the model"
+        "-e",
+        "--epochs",
+        type=int,
+        nargs=1,
+        help="Number of epochs to train the model",
     )
     parse.add_argument(
         "-t",
@@ -60,14 +62,21 @@ if __name__ == "__main__":
         help="Number of generations to train the agent",
     )
     parse.add_argument(
-        "-p", "--parameters", type=str, help="Directory to hyperparameter yaml file"
+        "-p",
+        "--parameters",
+        type=str,
+        help="Directory to hyperparameter yaml file",
     )
     parse.add_argument(
         "--headless", action="store_true", help="Run simulation without GUI"
     )
 
     args = parse.parse_args()
-    if args.trajectories[0] < 0 or args.generations[0] < 0 or args.epochs[0] < 0:
+    if (
+        args.trajectories[0] < 0
+        or args.generations[0] < 0
+        or args.epochs[0] < 0
+    ):
         print("Invalid input. All arguments must be positive integers.")
         sys.exit(1)
     # if args.headless:
@@ -101,7 +110,9 @@ if __name__ == "__main__":
 
     # run the simulation with the trained reward function
     print("Simulating on trained reward function...")
-    agent.reward_network = TrajectoryRewardNet(TRAIN_TRAJECTORY_LENGTH * 2).to(device)
+    agent.reward_network = TrajectoryRewardNet(TRAIN_TRAJECTORY_LENGTH * 2).to(
+        device
+    )
     (
         trained_agent_distances,
         _,
