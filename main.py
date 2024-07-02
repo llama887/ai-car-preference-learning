@@ -1,17 +1,4 @@
 import argparse
-<<<<<<< HEAD
-=======
-
-from reward import TrajectoryRewardNet, train_reward_function
-
-import agent
-from agent import run_population, TRAIN_TRAJECTORY_LENGTH, trajectory_path
-
-from plot import handle_plotting, populate_lists
-
-import matplotlib.pyplot as plt
-import wandb
->>>>>>> 96f0838bde1347180eba78253da0e6698d2e234e
 import glob
 import os
 import random
@@ -23,8 +10,8 @@ import torch
 import wandb
 
 import agent
-from agent import TRAIN_TRAJECTORY_LENGTH, run_population
-from plot import handle_plotting
+from agent import TRAIN_TRAJECTORY_LENGTH, run_population, trajectory_path
+from plot import handle_plotting, populate_lists
 from reward import TrajectoryRewardNet, train_reward_function
 
 # from plot import prepare_data, plot_bradley_terry, plot_trajectory_order
@@ -121,7 +108,9 @@ if __name__ == "__main__":
 
     # run the simulation with the trained reward function
     print("Simulating on trained reward function...")
-    agent.reward_network = TrajectoryRewardNet(TRAIN_TRAJECTORY_LENGTH * 2).to(device)
+    agent.reward_network = TrajectoryRewardNet(TRAIN_TRAJECTORY_LENGTH * 2).to(
+        device
+    )
     trainedPairs = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
