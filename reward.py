@@ -345,6 +345,8 @@ def train_model(
 def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
     input_size = INPUT_SIZE
     if not parameters_path:
+        for f in glob.glob("best_model_*.pth"):
+            os.remove(f)
         print("RUNNING WITH OPTUNA:")
         global study
         study = optuna.create_study(direction="minimize")

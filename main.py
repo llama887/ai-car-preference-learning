@@ -7,6 +7,7 @@ import sys
 
 import matplotlib.pyplot as plt
 import torch
+import yaml
 
 import agent
 import wandb
@@ -131,9 +132,13 @@ if __name__ == "__main__":
 
     true_database = trajectory_path + f"trueRF_{truePairs}.pkl"
     trained_database = trajectory_path + f"trainedRF_{trainedPairs}.pkl"
+    optimized_weights = [f for f in glob.glob("best_model_*.pth")][0]
     model_weights = (
-        f"model_{args.epochs[0]}.pth" if args.parameters is None else "best.pth"
+        f"model_{args.epochs[0]}.pth" if args.parameters else optimized_weights
     )
+    with open("best_params.yaml", "r") as file:
+        data = yaml.safe_load(file)
+        hidden_size = data["hidden_size"]
     (
         true_agent_distances,
         trained_agent_distances,
@@ -145,7 +150,7 @@ if __name__ == "__main__":
         trained_database,
         agents_per_generation=20,
         model_weights=model_weights,
-        hidden_size=311,
+        hidden_size=hidden_size,
     )
 
     print("PLOTTING...")
@@ -157,9 +162,10 @@ if __name__ == "__main__":
         trained_segment_rewards,
     )
 
-    bt, bt_delta, ordered_trajectories = prepare_data(
+    bt, bt_, bt_delta, ordered_trajectories = prepare_data(
         f"trajectories/trainedRF_{trainedPairs}.pkl", net=agent.reward_network
     )
-    plot_bradley_terry(bt, "Agent False Bradley Terry")
-    plot_bradley_terry(bt_delta, "Agent Bradley Terry Difference")
+
+    plot_bradley_terry(bt, "False Bradley Terry", bt_)
+    plot_bradley_terry(bt_delta, "Bradley Terry Difference")
     plot_trajectory_order(ordered_trajectories, "Trajectory Order")
