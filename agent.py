@@ -615,15 +615,10 @@ def run_population(
 
         global saved_trajectory_count, current_generation, agent_distances, agent_rewards, agent_segment_distances, agent_segment_rewards
         # if saved_trajectory_count >= number_of_trajectories:
-<<<<<<< HEAD
         print(
             f"Saved {saved_trajectory_count} trajectories to {trajectory_path}."
         )
-        numTraj = generate_database(trajectory_path)
-=======
-        print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
         numTrajPairs = generate_database(trajectory_path)
->>>>>>> 96f0838bde1347180eba78253da0e6698d2e234e
         print("Removing old trajectories...")
         old_trajectories = glob.glob(trajectory_path + "trajectory*")
         for f in old_trajectories:

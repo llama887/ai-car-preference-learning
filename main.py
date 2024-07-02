@@ -7,14 +7,18 @@ import sys
 
 import matplotlib.pyplot as plt
 import torch
-import wandb
 
 import agent
+import wandb
 from agent import TRAIN_TRAJECTORY_LENGTH, run_population, trajectory_path
-from plot import handle_plotting, populate_lists
+from plot import (
+    handle_plotting,
+    plot_bradley_terry,
+    plot_trajectory_order,
+    populate_lists,
+    prepare_data,
+)
 from reward import TrajectoryRewardNet, train_reward_function
-
-# from plot import prepare_data, plot_bradley_terry, plot_trajectory_order
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -127,7 +131,9 @@ if __name__ == "__main__":
 
     true_database = trajectory_path + f"trueRF_{truePairs}.pkl"
     trained_database = trajectory_path + f"trainedRF_{trainedPairs}.pkl"
-    model_weights = f"model_{args.epochs[0]}.pth"
+    model_weights = (
+        f"model_{args.epochs[0]}.pth" if args.parameters is None else "best.pth"
+    )
     (
         true_agent_distances,
         trained_agent_distances,
@@ -151,9 +157,9 @@ if __name__ == "__main__":
         trained_segment_rewards,
     )
 
-    # bt, bt_delta, ordered_trajectories = prepare_data(
-    #     f"trajectories/trainedRF_{agent_trajectories}.pkl", net=agent.reward_network
-    # )
-    # plot_bradley_terry(bt, "Agent False Bradley Terry")
-    # plot_bradley_terry(bt_delta, "Agent Bradley Terry Difference")
-    # plot_trajectory_order(ordered_trajectories, "Trajectory Order")
+    bt, bt_delta, ordered_trajectories = prepare_data(
+        f"trajectories/trainedRF_{trainedPairs}.pkl", net=agent.reward_network
+    )
+    plot_bradley_terry(bt, "Agent False Bradley Terry")
+    plot_bradley_terry(bt_delta, "Agent Bradley Terry Difference")
+    plot_trajectory_order(ordered_trajectories, "Trajectory Order")
