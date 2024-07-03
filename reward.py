@@ -55,6 +55,7 @@ class TrajectoryRewardNet(nn.Module):
         x = F.relu(self.ln4(self.fc4(x)))
         x = self.dropout4(x)
         x = self.fc5(x)
+        x += 13
         return x
 
 
@@ -290,7 +291,7 @@ def train_model(
 
             scheduler.step()
 
-        average_training_loss = total_loss / train_size
+        average_training_loss = total_loss  # / train_size
         training_losses.append(average_training_loss)
 
         average_training_accuracy = total_accuracy / train_size
@@ -342,7 +343,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
         study = optuna.create_study(direction="minimize")
         study.set_user_attr("file_path", trajectories_file_path)
         study.set_user_attr("epochs", epochs)
-        study.optimize(objective, n_trials=5)
+        study.optimize(objective, n_trials=25)
 
         # Load and print the best trial
         best_trial = study.best_trial
