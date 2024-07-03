@@ -84,8 +84,8 @@ if __name__ == "__main__":
     ):
         print("Invalid input. All arguments must be positive integers.")
         sys.exit(1)
-    # if args.headless:
-    #     os.environ["SDL_VIDEODRIVER"] = "dummy"
+    if args.headless:
+        os.environ["SDL_VIDEODRIVER"] = "dummy"
     # start the simulation in data collecting mode
     num_traj = start_simulation(
         "./config/data_collection_config.txt",
@@ -124,15 +124,12 @@ if __name__ == "__main__":
         False,
     )
 
-    # true_agent_distances, agent_trajectories, true_agent_rewards = (
-    #     [[0] * len(trained_agent_distances[0])] * len(trained_agent_distances),
-    #     [0],
-    #     [[0] * len(trained_agent_rewards[0])] * len(trained_agent_rewards),
-    # )
-
     true_database = trajectory_path + f"trueRF_{truePairs}.pkl"
     trained_database = trajectory_path + f"trainedRF_{trainedPairs}.pkl"
-    optimized_weights = [f for f in glob.glob("best_model_*.pth")][0]
+    try:
+        optimized_weights = [f for f in glob.glob("best_model_*.pth")][0]
+    except IndexError:
+        optimized_weights = None
     model_weights = (
         f"model_{args.epochs[0]}.pth" if args.parameters else optimized_weights
     )

@@ -55,6 +55,7 @@ class TrajectoryRewardNet(nn.Module):
         x = F.relu(self.ln4(self.fc4(x)))
         x = self.dropout4(x)
         x = self.fc5(x)
+        x = F.softplus(x)
         return x
 
 
@@ -122,7 +123,9 @@ def prepare_data(data, max_length=450):
         true_preferences.append(preference)
     trajectories1 = torch.tensor(trajectories1, dtype=torch.float32).to(device)
     trajectories2 = torch.tensor(trajectories2, dtype=torch.float32).to(device)
-    true_preferences = torch.tensor(true_preferences, dtype=torch.float32).to(device)
+    true_preferences = torch.tensor(true_preferences, dtype=torch.float32).to(
+        device
+    )
     return trajectories1, trajectories2, true_preferences
 
 
@@ -160,14 +163,18 @@ def prepare_single_trajectory(trajectory, max_length=2):
     ]
 
     # Convert to tensor and add an extra dimension
-    trajectory_tensor = torch.tensor([trajectory_flat], dtype=torch.float32).to(device)
+    trajectory_tensor = torch.tensor([trajectory_flat], dtype=torch.float32).to(
+        device
+    )
 
     return trajectory_tensor
 
 
 def calculate_accuracy(predicted_probabilities, true_preferences):
     predicted_preferences = (predicted_probabilities > 0.5).float()
-    correct_predictions = (predicted_preferences == true_preferences).float().sum()
+    correct_predictions = (
+        (predicted_preferences == true_preferences).float().sum()
+    )
     accuracy = correct_predictions / true_preferences.size(0)
     return accuracy.item()
 
@@ -195,20 +202,22 @@ def train_model(
     val_size = dataset_size - train_size
 
     # Split the dataset into training and validation sets
-    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+    train_dataset, val_dataset = random_split(
+        full_dataset, [train_size, val_size]
+    )
 
     # Initialize Dataloaders
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=train_size if train_size < batch_size else batch_size,
         shuffle=True,
-        pin_memory=True,
+        pin_memory=False,
     )
     validation_dataloader = DataLoader(
         val_dataset,
         batch_size=val_size if val_size < batch_size else batch_size,
         shuffle=False,
-        pin_memory=True,
+        pin_memory=False,
     )
 
     if batch_size > train_size:
@@ -281,7 +290,9 @@ def train_model(
                 best_loss = loss.item()
                 torch.save(net.state_dict(), model_path)
 
-            accuracy = calculate_accuracy(predicted_probabilities, batch_true_pref)
+            accuracy = calculate_accuracy(
+                predicted_probabilities, batch_true_pref
+            )
             total_accuracy += accuracy * batch_true_pref.size(0)
 
             loss.backward()
@@ -379,10 +390,14 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
             weight_decay = data["weight_decay"]
             dropout_prob = data["dropout_prob"]
 
-            net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(device)
+            net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(
+                device
+            )
             for param in net.parameters():
                 if len(param.shape) > 1:
-                    nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
+                    nn.init.xavier_uniform_(
+                        param, gain=nn.init.calculate_gain("relu")
+                    )
             optimizer = torch.optim.Adam(
                 net.parameters(), lr=learning_rate, weight_decay=weight_decay
             )
@@ -405,7 +420,9 @@ def objective(trial):
     dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.0)
     batch_size = trial.suggest_int("batch_size", 128, 2048)
 
-    net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob=0).to(device)
+    net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob=0).to(
+        device
+    )
     for param in net.parameters():
         if len(param.shape) > 1:
             nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
