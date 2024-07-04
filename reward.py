@@ -56,7 +56,7 @@ class TrajectoryRewardNet(nn.Module):
         x = F.relu(self.ln4(self.fc4(x)))
         x = self.dropout4(x)
         x = self.fc5(x)
-        x = F.softplus(x)
+        x = F.softplus(x) + 1e-6
         return x
 
 
