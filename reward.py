@@ -14,6 +14,7 @@ import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 import yaml
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader, Dataset, random_split
 
@@ -129,30 +130,36 @@ def prepare_data(data, max_length=450):
     return trajectories1, trajectories2, true_preferences
 
 
-def visualize_trajectories(batch_1, batch_2):
-    for trajectory in batch_1:
-        x = trajectory[::2]
-        y = trajectory[1::2]
-        plt.plot(x, y, color="red", alpha=0.1)
-    for trajectory in batch_2:
-        x = trajectory[::2]
-        y = trajectory[1::2]
-        plt.plot(x, y, color="blue", alpha=0.1)
-    plt.show()
+def whiten_data(dataloader):
+    all_data = []
+    for batch in dataloader:
+        traj1, traj2, true_pref, _, _ = batch
+        all_data.append(traj1)
+        all_data.append(traj2)
+
+    all_data = torch.cat(all_data)
+    scaler = StandardScaler()
+    all_data_np = all_data.numpy().reshape(
+        -1, all_data.shape[-1]
+    )  # Reshape for sklearn
+    scaler.fit(all_data_np)
+
+    for batch in dataloader:
+        traj1, traj2, true_pref, _, _ = batch
+        traj1_np = traj1.numpy().reshape(-1, traj1.shape[-1])
+        traj2_np = traj2.numpy().reshape(-1, traj2.shape[-1])
+
+        traj1_whitened = torch.tensor(
+            scaler.transform(traj1_np).reshape(traj1.shape)
+        ).float()
+        traj2_whitened = torch.tensor(
+            scaler.transform(traj2_np).reshape(traj2.shape)
+        ).float()
+
+        yield traj1_whitened, traj2_whitened, true_pref, _, _
 
 
 def prepare_single_trajectory(trajectory, max_length=2):
-    # def pad_or_truncate(trajectory, length):
-    #     if len(trajectory) > length:
-    #         return trajectory[:length]
-    #     else:
-    #         padding = [trajectory[-1]] * (length - len(trajectory))
-    #         return trajectory + padding
-
-    # # Pad or truncate the trajectory
-    # trajectory_padded = pad_or_truncate(trajectory, max_length)
-    # Flatten the list of tuples
-
     def truncate(trajectory, max_length):
         if len(trajectory) > max_length:
             return trajectory[-max_length:]
@@ -244,7 +251,7 @@ def train_model(
                 validation_true_pref,
                 _,
                 _,
-            ) in validation_dataloader:
+            ) in whiten_data(validation_dataloader):
                 validation_rewards1 = net(validation_traj1)
                 validation_rewards2 = net(validation_traj2)
                 validation_predicted_probabilities = bradley_terry_model(
@@ -272,7 +279,7 @@ def train_model(
             batch_true_pref,
             _,
             _,
-        ) in train_dataloader:
+        ) in whiten_data(train_dataloader):
             # for item in list(zip(batch_traj1, batch_traj2, batch_true_pref)):
             #     print(item)
             rewards1 = net(batch_traj1)
