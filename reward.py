@@ -421,7 +421,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
 
 def objective(trial):
     input_size = INPUT_SIZE
-    hidden_size = trial.suggest_int("hidden_size", 128, 1024)
+    hidden_size = trial.suggest_int("hidden_size", 64, 1024)
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
     dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.0)
