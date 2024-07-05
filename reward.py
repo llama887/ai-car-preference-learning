@@ -12,12 +12,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
-import wandb
 import yaml
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader, Dataset, random_split
+
+import wandb
 
 os.environ["WANDB_SILENT"] = "true"
 INPUT_SIZE = 2 * 2
@@ -26,6 +27,8 @@ figure_path = "figures/"
 os.makedirs(figure_path, exist_ok=True)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+scaler = StandardScaler()
 
 
 class TrajectoryRewardNet(nn.Module):
@@ -64,8 +67,15 @@ class TrajectoryDataset(Dataset):
         self.data_path = file_path
         with open(file_path, "rb") as f:
             self.trajectory_pairs = pickle.load(f)
-            # for pair in self.trajectory_pairs:
-            #     print(pair)
+        trajectories = [
+            traj1 + traj2 for traj1, traj2, _, _, _ in self.trajectory_pairs
+        ]
+        flattened = [item for sublist in trajectories for item in sublist]
+        pairs = [
+            flattened[i] + flattened[i + 1] for i in range(0, len(flattened), 2)
+        ]
+        global scaler
+        scaler.fit(pairs)
 
     def __getitem__(self, idx):
         traj1, traj2, preference, score1, score2 = self.trajectory_pairs[idx]
@@ -94,71 +104,7 @@ def preference_loss(predicted_probabilities, true_preferences):
     return F.binary_cross_entropy(predicted_probabilities, true_preferences)
 
 
-def load_data(file_path):
-    with open(file_path, "rb") as f:
-        data = pickle.load(f)
-    triples = [element[:3] for element in data]
-    true_rewards = [element[-2:] for element in data]
-    return triples, true_rewards
-
-
-def prepare_data(data, max_length=450):
-    def pad_or_truncate(trajectory, length):
-        if len(trajectory) > length:
-            return trajectory[:length]
-        else:
-            padding = [trajectory[-1]] * (length - len(trajectory))
-            return trajectory + padding
-
-    trajectories1 = []
-    trajectories2 = []
-    true_preferences = []
-    for t1, t2, preference in data:
-        t1_padded = pad_or_truncate(t1, max_length)
-        t2_padded = pad_or_truncate(t2, max_length)
-        t1_flat = [item for sublist in t1_padded for item in sublist]
-        t2_flat = [item for sublist in t2_padded for item in sublist]
-        trajectories1.append(t1_flat)
-        trajectories2.append(t2_flat)
-        true_preferences.append(preference)
-    trajectories1 = torch.tensor(trajectories1, dtype=torch.float32).to(device)
-    trajectories2 = torch.tensor(trajectories2, dtype=torch.float32).to(device)
-    true_preferences = torch.tensor(true_preferences, dtype=torch.float32).to(
-        device
-    )
-    return trajectories1, trajectories2, true_preferences
-
-
-def whiten_data(dataloader):
-    all_data = []
-    for batch in dataloader:
-        traj1, traj2, true_pref, _, _ = batch
-        all_data.append(traj1)
-        all_data.append(traj2)
-
-    all_data = torch.cat(all_data)
-    scaler = StandardScaler()
-    all_data_np = all_data.numpy().reshape(
-        -1, all_data.shape[-1]
-    )  # Reshape for sklearn
-    scaler.fit(all_data_np)
-
-    for batch in dataloader:
-        traj1, traj2, true_pref, _, _ = batch
-        traj1_np = traj1.numpy().reshape(-1, traj1.shape[-1])
-        traj2_np = traj2.numpy().reshape(-1, traj2.shape[-1])
-
-        traj1_whitened = torch.tensor(
-            scaler.transform(traj1_np).reshape(traj1.shape)
-        ).float()
-        traj2_whitened = torch.tensor(
-            scaler.transform(traj2_np).reshape(traj2.shape)
-        ).float()
-
-        yield traj1_whitened, traj2_whitened, true_pref, _, _
-
-
-def prepare_single_trajectory(trajectory, scaler, max_length=2, device="cpu"):
+def prepare_single_trajectory(trajectory, max_length=2):
     def truncate(trajectory, max_length):
         if len(trajectory) > max_length:
             return trajectory[-max_length:]
@@ -168,20 +114,13 @@ def prepare_single_trajectory(trajectory, scaler, max_length=2, device="cpu"):
         item for sublist in truncate(trajectory, max_length) for item in sublist
     ]
 
-    # Convert to numpy array and reshape for the scaler
-    trajectory_np = np.array([trajectory_flat]).reshape(
-        -1, len(trajectory_flat)
-    )
+    # Apply the fitted scaler to the flattened trajectory
+    trajectory_flat_whitened = scaler.transform([trajectory_flat])
 
-    # Apply the scaler to whiten the data
-    trajectory_whitened_np = scaler.transform(trajectory_np)
-
-    # Convert back to tensor and reshape to original form
-    trajectory_tensor = (
-        torch.tensor(trajectory_whitened_np, dtype=torch.float32)
-        .to(device)
-        .reshape(1, -1)
-    )  # Assuming the trajectory should be reshaped back to (1, -1)
+    # Convert to tensor and add an extra dimension
+    trajectory_tensor = torch.tensor(
+        trajectory_flat_whitened, dtype=torch.float32
+    ).to(device)
 
     return trajectory_tensor
 
@@ -260,8 +199,7 @@ def train_model(
                 validation_true_pref,
                 _,
                 _,
-            ) in whiten_data(validation_dataloader):
-                # ) in validation_dataloader:
+            ) in validation_dataloader:
                 validation_rewards1 = net(validation_traj1)
                 validation_rewards2 = net(validation_traj2)
                 validation_predicted_probabilities = bradley_terry_model(
@@ -289,8 +227,7 @@ def train_model(
             batch_true_pref,
             _,
             _,
-        ) in whiten_data(train_dataloader):
-            # ) in train_dataloader:
+        ) in train_dataloader:
             # for item in list(zip(batch_traj1, batch_traj2, batch_true_pref)):
             #     print(item)
             rewards1 = net(batch_traj1)

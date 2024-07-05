@@ -163,6 +163,6 @@ if __name__ == "__main__":
         f"trajectories/trainedRF_{trainedPairs}.pkl", net=agent.reward_network
     )
 
-    plot_bradley_terry(bt, "False Bradley Terry", bt_)
-    plot_bradley_terry(bt_delta, "Bradley Terry Difference")
-    plot_trajectory_order(ordered_trajectories, "Trajectory Order")
+    # plot_bradley_terry(bt, "False Bradley Terry", bt_)
+    # plot_bradley_terry(bt_delta, "Bradley Terry Difference")
+    # plot_trajectory_order(ordered_trajectories, "Segment Order")
