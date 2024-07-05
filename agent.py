@@ -333,7 +333,7 @@ def generate_database(trajectory_path):
         if len(trajectories) % 2 != 0:
             trajectories.pop()
 
-        segment_generation_mode = "different_starts"
+        segment_generation_mode = "random"
         if segment_generation_mode == "random" or segment_generation_mode == "big_mode":
             random.shuffle(trajectory_segments)
             for i in range(0, len(trajectory_segments), 2):
@@ -430,7 +430,7 @@ def generate_database(trajectory_path):
                     trajectories[i + 1][2],
                 )
             )
-    print(trajectory_pairs)
+    # print(trajectory_pairs)
     #     print(f"Saving {num_traj} opposite pairs and {num_traj} default pairs.")
     print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 

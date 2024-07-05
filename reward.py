@@ -64,17 +64,46 @@ class TrajectoryDataset(Dataset):
         self.data_path = file_path
         with open(file_path, "rb") as f:
             self.trajectory_pairs = pickle.load(f)
+        self.first_trajectories = []
+        self.second_trajectories = []
+        self.labels = []
+        self.score1 = []
+        self.score2 = []
+        for trajectory_pair in self.trajectory_pairs:
+            trajectory1_flat = [[
+                item for sublist in trajectory_pair[0] for item in sublist
+            ]]
+            trajectory2_flat = [[
+                item for sublist in trajectory_pair[1] for item in sublist
+            ]]
+            self.first_trajectories.append(trajectory1_flat)
+            self.second_trajectories.append(trajectory2_flat)
+            self.labels.append(trajectory_pair[2])
+            self.score1.append(trajectory_pair[3])
+            self.score2.append(trajectory_pair[4])
+        self.first_trajectories = torch.tensor(self.first_trajectories, dtype=torch.float32).to(device)
+        self.second_trajectories = torch.tensor(self.second_trajectories, dtype=torch.float32).to(device)
+        self.labels = torch.tensor(self.labels, dtype=torch.float32).to(device)
+        self.score1 = torch.tensor(self.score1, dtype=torch.float32).to(device)
+        self.score2 = torch.tensor(self.score2, dtype=torch.float32).to(device)
+        # print(len(self.first_trajectories), len(self.second_trajectories), len(self.labels))
+        
             # for pair in self.trajectory_pairs:
             #     print(pair)
 
     def __getitem__(self, idx):
-        traj1, traj2, preference, score1, score2 = self.trajectory_pairs[idx]
-        # Convert trajectories and preference to tensors
-        traj1 = prepare_single_trajectory(traj1)
-        traj2 = prepare_single_trajectory(traj2)
-        preference = torch.tensor(preference, dtype=torch.float32).to(device)
-        score1 = torch.tensor(score1, dtype=torch.float32).to(device)
-        score2 = torch.tensor(score2, dtype=torch.float32).to(device)
+        traj1 = self.first_trajectories[idx]
+        traj2 = self.second_trajectories[idx]
+        preference = self.labels[idx]
+        score1 = self.score1[idx]
+        score2 = self.score2[idx]
+        # traj1, traj2, preference, score1, score2 = self.trajectory_pairs[idx]
+        # # Convert trajectories and preference to tensors
+        # traj1 = prepare_single_trajectory(traj1)
+        # traj2 = prepare_single_trajectory(traj2)
+        # preference = torch.tensor(preference, dtype=torch.float32).to(device)
+        # score1 = torch.tensor(score1, dtype=torch.float32).to(device)
+        # score2 = torch.tensor(score2, dtype=torch.float32).to(device)
 
         # Return the trajectories, preference, and scores
         return traj1, traj2, preference, score1, score2
@@ -156,12 +185,12 @@ def prepare_single_trajectory(trajectory, max_length=2):
             return trajectory[-max_length:]
         return trajectory
 
-    trajectory_flat = [
+    trajectory_flat = [[
         item for sublist in truncate(trajectory, max_length) for item in sublist
-    ]
+    ]]
 
     # Convert to tensor and add an extra dimension
-    trajectory_tensor = torch.tensor([trajectory_flat], dtype=torch.float32).to(device)
+    trajectory_tensor = torch.tensor(trajectory_flat, dtype=torch.float32).to(device)
 
     return trajectory_tensor
 
@@ -203,13 +232,13 @@ def train_model(
         train_dataset,
         batch_size=train_size if train_size < batch_size else batch_size,
         shuffle=True,
-        pin_memory=True,
+        pin_memory=False,
     )
     validation_dataloader = DataLoader(
         val_dataset,
         batch_size=val_size if val_size < batch_size else batch_size,
         shuffle=False,
-        pin_memory=True,
+        pin_memory=False,
     )
 
     if batch_size > train_size:
