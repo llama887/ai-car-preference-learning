@@ -72,22 +72,19 @@ class TrajectoryDataset(Dataset):
         self.labels = []
         self.score1 = []
         self.score2 = []
+        all_data = []
         for trajectory_pair in self.trajectory_pairs:
-            trajectory1_flat = [
-                [item for sublist in trajectory_pair[0] for item in sublist]
-            ]
-            trajectory2_flat = [
-                [item for sublist in trajectory_pair[1] for item in sublist]
-            ]
+            trajectory1_flat = [[item for sublist in trajectory_pair[0] for item in sublist]]
+            trajectory2_flat = [[item for sublist in trajectory_pair[1] for item in sublist]]
+            temp_flat = [item for sublist in trajectory_pair[0] for item in sublist]
+            all_data.append(temp_flat)
+            temp_flat = [item for sublist in trajectory_pair[1] for item in sublist]
+            all_data.append(temp_flat)
             self.first_trajectories.append(trajectory1_flat)
             self.second_trajectories.append(trajectory2_flat)
             self.labels.append(trajectory_pair[2])
             self.score1.append(trajectory_pair[3])
             self.score2.append(trajectory_pair[4])
-        all_data = []
-        all_data.extend(self.first_trajectories).extend(
-            self.second_trajectories
-        )
         scaler.fit(all_data)
         self.first_trajectories = torch.tensor(
             self.first_trajectories, dtype=torch.float32
@@ -278,7 +275,7 @@ def train_model(
 
             scheduler.step()
 
-        average_training_loss = total_loss  # / train_size
+        average_training_loss = total_loss / train_size
         training_losses.append(average_training_loss)
 
         average_training_accuracy = total_accuracy / train_size
