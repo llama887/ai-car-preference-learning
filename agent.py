@@ -521,7 +521,6 @@ def run_simulation(genomes, config):
         global agent_distances, agent_rewards
         counter += 1
 
-        # If we're collecting data, we stop when we reach ~7 seconds
         if counter == TRAJECTORY_LENGTH or still_alive == 0:
             for i, car in enumerate(cars):
                 if (
@@ -529,11 +528,12 @@ def run_simulation(genomes, config):
                     and run_type == "collect"
                 ):
                     break
-                if car.is_alive():
-                    car.save_trajectory(
-                        f"{trajectory_path}trajectory_{current_generation}_{i}.pkl"
-                    )
-                    saved_trajectory_count += 1
+                if not car.is_alive() and run_type == "collect":
+                    continue
+                car.save_trajectory(
+                    f"{trajectory_path}trajectory_{current_generation}_{i}.pkl"
+                )
+                saved_trajectory_count += 1
             if run_type != "collect":
                 global agent_distances
                 generation_distances = []
@@ -628,34 +628,9 @@ def run_population(
         old_trajectories = glob.glob(trajectory_path + "trajectory*")
         for f in old_trajectories:
             os.remove(f)
-
-        # temp_trajectory_count = (saved_trajectory_count) // 2
         current_generation = 0
         saved_trajectory_count = 0
-        # distances = agent_distances.copy()
-        # rewards = agent_rewards.copy()
-        # segment_distances = agent_segment_distances.copy()
-        # segment_rewards = agent_segment_rewards.copy()
-        # print(f"{run_type} DISTANCES LEN:", len(distances))
-        # print(distances)
-        # (
-        #     agent_distances,
-        #     agent_rewards,
-        #     agent_segment_distances,
-        #     agent_segment_rewards,
-        # ) = ([], [], [], [])
-
         return numTrajPairs
-        # if run_type == "collect":
-        #     return numTraj
-        # else:
-        #     return (
-        #         distances,
-        #         temp_trajectory_count,
-        #         rewards,
-        #         segment_distances,
-        #         segment_rewards,
-        #     )
     except KeyboardInterrupt:
         generate_database(trajectory_path)
 
@@ -681,9 +656,6 @@ if __name__ == "__main__":
     )
     args = parse.parse_args()
 
-    # if args.headless:
-    #     os.environ["SDL_VIDEODRIVER"] = "dummy"
-
     if args.reward and args.trajectories[0] > 0:
         print(
             "Cannot save trajectories and train reward function at the same time"
@@ -699,10 +671,8 @@ if __name__ == "__main__":
     print()
     if args.reward is not None:
         print("Loading reward network...")
-        # hidden_size = re.search(r"best_model_(\d+)\.pth", args.reward)
 
         reward_network = TrajectoryRewardNet(
-            # TRAJECTORY_LENGTH * 2, hidden_size=int(hidden_size.group(1))
             TRAIN_TRAJECTORY_LENGTH * 2,
             hidden_size=hidden_size,
         ).to(device)

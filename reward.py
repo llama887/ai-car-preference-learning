@@ -12,13 +12,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
+import wandb
 import yaml
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader, Dataset, random_split
-
-import wandb
 
 os.environ["WANDB_SILENT"] = "true"
 INPUT_SIZE = 2 * 2
@@ -159,7 +158,7 @@ def whiten_data(dataloader):
         yield traj1_whitened, traj2_whitened, true_pref, _, _
 
 
-def prepare_single_trajectory(trajectory, max_length=2):
+def prepare_single_trajectory(trajectory, scaler, max_length=2, device="cpu"):
     def truncate(trajectory, max_length):
         if len(trajectory) > max_length:
             return trajectory[-max_length:]
@@ -169,10 +168,20 @@ def prepare_single_trajectory(trajectory, max_length=2):
         item for sublist in truncate(trajectory, max_length) for item in sublist
     ]
 
-    # Convert to tensor and add an extra dimension
-    trajectory_tensor = torch.tensor([trajectory_flat], dtype=torch.float32).to(
-        device
+    # Convert to numpy array and reshape for the scaler
+    trajectory_np = np.array([trajectory_flat]).reshape(
+        -1, len(trajectory_flat)
     )
+
+    # Apply the scaler to whiten the data
+    trajectory_whitened_np = scaler.transform(trajectory_np)
+
+    # Convert back to tensor and reshape to original form
+    trajectory_tensor = (
+        torch.tensor(trajectory_whitened_np, dtype=torch.float32)
+        .to(device)
+        .reshape(1, -1)
+    )  # Assuming the trajectory should be reshaped back to (1, -1)
 
     return trajectory_tensor
 
@@ -252,6 +261,7 @@ def train_model(
                 _,
                 _,
             ) in whiten_data(validation_dataloader):
+                # ) in validation_dataloader:
                 validation_rewards1 = net(validation_traj1)
                 validation_rewards2 = net(validation_traj2)
                 validation_predicted_probabilities = bradley_terry_model(
@@ -280,6 +290,7 @@ def train_model(
             _,
             _,
         ) in whiten_data(train_dataloader):
+            # ) in train_dataloader:
             # for item in list(zip(batch_traj1, batch_traj2, batch_true_pref)):
             #     print(item)
             rewards1 = net(batch_traj1)
@@ -360,7 +371,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
         study = optuna.create_study(direction="minimize")
         study.set_user_attr("file_path", trajectories_file_path)
         study.set_user_attr("epochs", epochs)
-        study.optimize(objective, n_trials=5)
+        study.optimize(objective, n_trials=10)
 
         # Load and print the best trial
         best_trial = study.best_trial
@@ -396,6 +407,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
             learning_rate = data["learning_rate"]
             weight_decay = data["weight_decay"]
             dropout_prob = data["dropout_prob"]
+            batch_size = data["batch_size"]
 
             net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(
                 device
@@ -413,6 +425,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
                 net=net,
                 epochs=epochs,
                 optimizer=optimizer,
+                batch_size=batch_size,
             )
 
             torch.save(net.state_dict(), f"model_{epochs}.pth")
