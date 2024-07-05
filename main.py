@@ -77,11 +77,7 @@ if __name__ == "__main__":
     )
 
     args = parse.parse_args()
-    if (
-        args.trajectories[0] < 0
-        or args.generations[0] < 0
-        or args.epochs[0] < 0
-    ):
+    if args.trajectories[0] < 0 or args.generations[0] < 0 or args.epochs[0] < 0:
         print("Invalid input. All arguments must be positive integers.")
         sys.exit(1)
     if args.headless:
@@ -113,9 +109,7 @@ if __name__ == "__main__":
 
     # run the simulation with the trained reward function
     print("Simulating on trained reward function...")
-    agent.reward_network = TrajectoryRewardNet(TRAIN_TRAJECTORY_LENGTH * 2).to(
-        device
-    )
+    agent.reward_network = TrajectoryRewardNet(TRAIN_TRAJECTORY_LENGTH * 2).to(device)
     trainedPairs = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],

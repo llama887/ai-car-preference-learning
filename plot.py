@@ -220,10 +220,10 @@ def populate_lists(
             trained_agent_rewards.append(gen_trained_rewards)
 
     print("SANITY CHECK...")
-    lengths = [i * 10 for i in range(101)]
+    lengths = [i for i in range(101)]
     for l in lengths:
         segment = prepare_single_trajectory([[830, 920], [830, 920 + l]])
-        print(f"Segment of length {l} reward:", model(segment).item())
+        print(f"Segment of distance {l} reward:", model(segment).item())
 
     return (
         true_agent_distances,

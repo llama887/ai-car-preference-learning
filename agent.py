@@ -284,6 +284,16 @@ def sort_and_pair(trajectory_segments, clean=True):
     return segments_to_return
 
 
+def calculate_new_point(point, distance, angle):
+    x0, y0 = point
+    # Convert angle from degrees to radians
+    angle_rad = math.radians(angle)
+    # Calculate new coordinates
+    x1 = x0 + distance * math.cos(angle_rad)
+    y1 = y0 + distance * math.sin(angle_rad)
+    return [x1, y1]
+
+
 def generate_database(trajectory_path):
     def extract_numbers(path):
         match = re.search(r"trajectory_(\d+)_(\d+)\.pkl", path)
@@ -403,6 +413,33 @@ def generate_database(trajectory_path):
                             distance_2,
                         )
                     )
+        elif segment_generation_mode == "different_starts":
+            n = 100
+            trajectory_segments = []
+            start_points = [
+                [random.randint(-50, 50), random.randint(-50, 50)] for _ in range(100)
+            ]
+            for start in start_points:
+                for i in range(100):
+                    trajectory_segments.append(
+                        [start, calculate_new_point(start, i, random.randint(0, 365))]
+                    )
+            random.shuffle(trajectory_segments)
+            for i in range(0, len(trajectory_segments), 2):
+                distance_1 = dist(trajectory_segments[i])
+                distance_2 = dist(trajectory_segments[i + 1])
+                if abs(distance_1 - distance_2) < 0.01:
+                    continue
+                trajectory_pairs.append(
+                    (
+                        trajectory_segments[i],
+                        trajectory_segments[i + 1],
+                        0 if distance_1 > distance_2 else 1,
+                        distance_1,
+                        distance_2,
+                    )
+                )
+
         shuffle(trajectory_pairs)
     else:
         num_traj = (
@@ -422,7 +459,7 @@ def generate_database(trajectory_path):
                     trajectories[i + 1][2],
                 )
             )
-
+    # print(trajectory_pairs)
     #     print(f"Saving {num_traj} opposite pairs and {num_traj} default pairs.")
     print(
         f"Generating Database with {len(trajectory_pairs)} trajectory pairs..."
