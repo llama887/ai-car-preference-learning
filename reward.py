@@ -125,13 +125,8 @@ def prepare_single_trajectory(trajectory, max_length=2):
             return trajectory[-max_length:]
         return trajectory
 
-    trajectory_flat = [
-        [
-            item
-            for sublist in truncate(trajectory, max_length)
-            for item in sublist
-        ]
-    ]
+    trajectory_flat = [item for sublist in truncate(trajectory, max_length) for item in sublist ]
+    
 
     # Apply the fitted scaler to the flattened trajectory
     trajectory_flat_whitened = scaler.transform([trajectory_flat])
