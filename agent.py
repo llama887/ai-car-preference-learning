@@ -54,12 +54,8 @@ saved_trajectories = []
 class Car:
     def __init__(self):
         # Load Car Sprite and Rotate
-        self.sprite = pygame.image.load(
-            "car.png"
-        ).convert()  # Convert Speeds Up A Lot
-        self.sprite = pygame.transform.scale(
-            self.sprite, (CAR_SIZE_X, CAR_SIZE_Y)
-        )
+        self.sprite = pygame.image.load("car.png").convert()  # Convert Speeds Up A Lot
+        self.sprite = pygame.transform.scale(self.sprite, (CAR_SIZE_X, CAR_SIZE_Y))
         self.rotated_sprite = self.sprite
 
         self.position = [830, 920]  # Starting Position
@@ -129,10 +125,7 @@ class Car:
 
         # Calculate Distance To Border And Append To Radars List
         dist = int(
-            math.sqrt(
-                math.pow(x - self.center[0], 2)
-                + math.pow(y - self.center[1], 2)
-            )
+            math.sqrt(math.pow(x - self.center[0], 2) + math.pow(y - self.center[1], 2))
         )
         self.radars.append([(x, y), dist])
 
@@ -146,21 +139,19 @@ class Car:
         # Get Rotated Sprite And Move Into The Right X-Direction
         # Don't Let The Car Go Closer Than 20px To The Edge
         self.rotated_sprite = self.rotate_center(self.sprite, self.angle)
-        self.position[0] += (
-            math.cos(math.radians(360 - self.angle)) * self.speed
-        )
+        self.position[0] += math.cos(math.radians(360 - self.angle)) * self.speed
         self.position[0] = max(self.position[0], 20)
         self.position[0] = min(self.position[0], WIDTH - 120)
 
         # Increase Distance and Time
+        if not self.is_alive():
+            self.speed = 0
         self.distance += self.speed
         self.reward += self.get_reward()
         self.time += 1
 
         # Same For Y-Position
-        self.position[1] += (
-            math.sin(math.radians(360 - self.angle)) * self.speed
-        )
+        self.position[1] += math.sin(math.radians(360 - self.angle)) * self.speed
         self.position[1] = max(self.position[1], 20)
         self.position[1] = min(self.position[1], WIDTH - 120)
 
@@ -174,28 +165,20 @@ class Car:
         # Length Is Half The Side
         length = 0.5 * CAR_SIZE_X
         left_top = [
-            self.center[0]
-            + math.cos(math.radians(360 - (self.angle + 30))) * length,
-            self.center[1]
-            + math.sin(math.radians(360 - (self.angle + 30))) * length,
+            self.center[0] + math.cos(math.radians(360 - (self.angle + 30))) * length,
+            self.center[1] + math.sin(math.radians(360 - (self.angle + 30))) * length,
         ]
         right_top = [
-            self.center[0]
-            + math.cos(math.radians(360 - (self.angle + 150))) * length,
-            self.center[1]
-            + math.sin(math.radians(360 - (self.angle + 150))) * length,
+            self.center[0] + math.cos(math.radians(360 - (self.angle + 150))) * length,
+            self.center[1] + math.sin(math.radians(360 - (self.angle + 150))) * length,
         ]
         left_bottom = [
-            self.center[0]
-            + math.cos(math.radians(360 - (self.angle + 210))) * length,
-            self.center[1]
-            + math.sin(math.radians(360 - (self.angle + 210))) * length,
+            self.center[0] + math.cos(math.radians(360 - (self.angle + 210))) * length,
+            self.center[1] + math.sin(math.radians(360 - (self.angle + 210))) * length,
         ]
         right_bottom = [
-            self.center[0]
-            + math.cos(math.radians(360 - (self.angle + 330))) * length,
-            self.center[1]
-            + math.sin(math.radians(360 - (self.angle + 330))) * length,
+            self.center[0] + math.cos(math.radians(360 - (self.angle + 330))) * length,
+            self.center[1] + math.sin(math.radians(360 - (self.angle + 330))) * length,
         ]
         self.corners = [left_top, right_top, left_bottom, right_bottom]
 
@@ -248,9 +231,7 @@ class Car:
         if run_type != "collect":
             # with open(filename, "wb") as f:
             #     pickle.dump((self.distance, self.trajectory, self.reward), f)
-            saved_trajectories.append(
-                (self.distance, self.trajectory, self.reward)
-            )
+            saved_trajectories.append((self.distance, self.trajectory, self.reward))
         saved_segments.extend(break_into_segments(self.trajectory))
 
 
@@ -274,9 +255,7 @@ def dist(traj_segment):
 
 
 def sort_and_pair(trajectory_segments, clean=True):
-    sorted_trajectory_segments = sorted(
-        trajectory_segments, key=lambda x: dist(x)
-    )
+    sorted_trajectory_segments = sorted(trajectory_segments, key=lambda x: dist(x))
     distDict = {}
     cleaned_segments = []
     num_limit = 4
@@ -288,9 +267,7 @@ def sort_and_pair(trajectory_segments, clean=True):
         ):
             cleaned_segments.append(trajectory_segment)
         distDict[trajectory_distance] = 1 + distDict.get(trajectory_distance, 0)
-    segments_to_return = (
-        cleaned_segments if clean else sorted_trajectory_segments
-    )
+    segments_to_return = cleaned_segments if clean else sorted_trajectory_segments
     for i in range(len(segments_to_return)):
         print(
             segments_to_return[i],
@@ -335,10 +312,7 @@ def generate_database(trajectory_path):
 
     if run_type == "collect":
         segment_generation_mode = "random"
-        if (
-            segment_generation_mode == "random"
-            or segment_generation_mode == "big_mode"
-        ):
+        if segment_generation_mode == "random" or segment_generation_mode == "big_mode":
             random.shuffle(trajectory_segments)
             close_starts = []
             close_distance = []
@@ -416,17 +390,14 @@ def generate_database(trajectory_path):
             n = 100
             trajectory_segments = []
             start_points = [
-                [random.randint(-50, 50), random.randint(-50, 50)]
-                for _ in range(100)
+                [random.randint(-50, 50), random.randint(-50, 50)] for _ in range(100)
             ]
             for start in start_points:
                 for i in range(100):
                     trajectory_segments.append(
                         [
                             start,
-                            calculate_new_point(
-                                start, i, random.randint(0, 365)
-                            ),
+                            calculate_new_point(start, i, random.randint(0, 365)),
                         ]
                     )
             random.shuffle(trajectory_segments)
@@ -466,18 +437,14 @@ def generate_database(trajectory_path):
 
         # Pads shorter tajectoires so there is a consistent input size
         def pad_trajectory(trajectory, max_length):
-            return trajectory + [trajectory[-1]] * (
-                max_length - len(trajectory)
-            )
+            return trajectory + [trajectory[-1]] * (max_length - len(trajectory))
 
         max_length, _ = max(
             (len(trajectory), index)
             for index, (distance, trajectory, reward) in enumerate(trajectories)
         )
         num_traj = (
-            len(trajectory_pairs) * 2
-            if run_type == "collect"
-            else len(trajectories)
+            len(trajectory_pairs) * 2 if run_type == "collect" else len(trajectories)
         )
         for i in range(0, num_traj, 2):
             trajectory_pairs.append(
@@ -493,9 +460,7 @@ def generate_database(trajectory_path):
             )
     # print(trajectory_pairs)
     #     print(f"Saving {num_traj} opposite pairs and {num_traj} default pairs.")
-    print(
-        f"Generating Database with {len(trajectory_pairs)} trajectory pairs..."
-    )
+    print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
     # Delete all trajectories
     print("Removing saved trajectories...")
@@ -513,9 +478,7 @@ def generate_database(trajectory_path):
 
     prefix = "database" if run_type == "collect" else run_type
     # Save To Database
-    with open(
-        trajectory_path + f"{prefix}_{len(trajectory_pairs)}.pkl", "wb"
-    ) as f:
+    with open(trajectory_path + f"{prefix}_{len(trajectory_pairs)}.pkl", "wb") as f:
         pickle.dump(trajectory_pairs, f)
 
     # print("Done saving to database...")
@@ -544,9 +507,7 @@ def run_simulation(genomes, config):
     clock = pygame.time.Clock()
     generation_font = pygame.font.SysFont("Arial", 30)
     alive_font = pygame.font.SysFont("Arial", 20)
-    game_map = pygame.image.load(
-        "maps/map.png"
-    ).convert()  # Convert Speeds Up A Lot
+    game_map = pygame.image.load("maps/map.png").convert()  # Convert Speeds Up A Lot
 
     global current_generation, saved_trajectory_count, run_type, headless, agent_segment
     current_generation += 1
@@ -594,10 +555,7 @@ def run_simulation(genomes, config):
             #     num_expert_trajectory = 1
             # else:
             for i, car in enumerate(cars):
-                if (
-                    saved_trajectory_count >= number_of_pairs
-                    and run_type == "collect"
-                ):
+                if saved_trajectory_count >= number_of_pairs and run_type == "collect":
                     break
                 if not car.is_alive() and run_type == "collect":
                     continue
@@ -691,9 +649,7 @@ def run_population(
             generation += 1
 
         global saved_trajectory_count
-        print(
-            f"Saved {saved_trajectory_count} trajectories to {trajectory_path}."
-        )
+        print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
 
         numTrajPairs = generate_database(trajectory_path)
         saved_trajectory_count = 0
@@ -725,9 +681,7 @@ if __name__ == "__main__":
     args = parse.parse_args()
 
     if args.reward and args.trajectories[0] > 0:
-        print(
-            "Cannot save trajectories and train reward function at the same time"
-        )
+        print("Cannot save trajectories and train reward function at the same time")
         sys.exit(1)
 
     hidden_size = None
