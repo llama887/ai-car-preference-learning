@@ -232,7 +232,7 @@ class Car:
             reward = reward_network(trajectory_tensor)
             return reward.item()
         # return self.distance / (CAR_SIZE_X / 2)
-        return self.speed
+        return self.speed if self.is_alive() else 0
 
     def rotate_center(self, image, angle):
         # Rotate The Rectangle
@@ -248,7 +248,9 @@ class Car:
         if run_type != "collect":
             # with open(filename, "wb") as f:
             #     pickle.dump((self.distance, self.trajectory, self.reward), f)
-            saved_trajectories.append((self.distance, self.trajectory, self.reward))
+            saved_trajectories.append(
+                (self.distance, self.trajectory, self.reward)
+            )
         saved_segments.extend(break_into_segments(self.trajectory))
 
 
@@ -261,6 +263,7 @@ def break_into_segments(trajectory):
         prev += 1
         curr += 1
     return trajectory_segments
+
 
 def dist(traj_segment):
     traj_segment_distance = math.sqrt(
@@ -342,17 +345,19 @@ def generate_database(trajectory_path):
             for i in range(0, len(trajectory_segments), 2):
                 distance_1 = dist(trajectory_segments[i])
                 distance_2 = dist(trajectory_segments[i + 1])
-                start_distance = dist([trajectory_segments[i][0], trajectory_segments[i + 1][0]])
+                start_distance = dist(
+                    [trajectory_segments[i][0], trajectory_segments[i + 1][0]]
+                )
                 if abs(distance_1 - distance_2) < 0.01:
                     close_distance.append(
-                    (
-                        trajectory_segments[i],
-                        trajectory_segments[i + 1],
-                        0 if distance_1 > distance_2 else 1,
-                        distance_1,
-                        distance_2,
+                        (
+                            trajectory_segments[i],
+                            trajectory_segments[i + 1],
+                            0 if distance_1 > distance_2 else 1,
+                            distance_1,
+                            distance_2,
+                        )
                     )
-                )
                 else:
                     trajectory_pairs.append(
                         (
@@ -370,7 +375,7 @@ def generate_database(trajectory_path):
             fill = min(number_of_pairs - n, len(close_distance))
             for i in range(fill):
                 trajectory_pairs.append(close_distance[i])
-            
+
         elif segment_generation_mode == "sequential_pairing":
             trajectory_segments = sort_and_pair(trajectory_segments, False)
             n = len(trajectory_segments)
@@ -411,12 +416,18 @@ def generate_database(trajectory_path):
             n = 100
             trajectory_segments = []
             start_points = [
-                [random.randint(-50, 50), random.randint(-50, 50)] for _ in range(100)
+                [random.randint(-50, 50), random.randint(-50, 50)]
+                for _ in range(100)
             ]
             for start in start_points:
                 for i in range(100):
                     trajectory_segments.append(
-                        [start, calculate_new_point(start, i, random.randint(0, 365))]
+                        [
+                            start,
+                            calculate_new_point(
+                                start, i, random.randint(0, 365)
+                            ),
+                        ]
                     )
             random.shuffle(trajectory_segments)
             for i in range(0, len(trajectory_segments), 2):
@@ -452,10 +463,13 @@ def generate_database(trajectory_path):
         #         trajectories.append((distance, trajectory, reward))
 
         trajectories = saved_trajectories
+
         # Pads shorter tajectoires so there is a consistent input size
         def pad_trajectory(trajectory, max_length):
-            return trajectory + [trajectory[-1]] * (max_length - len(trajectory))
-        
+            return trajectory + [trajectory[-1]] * (
+                max_length - len(trajectory)
+            )
+
         max_length, _ = max(
             (len(trajectory), index)
             for index, (distance, trajectory, reward) in enumerate(trajectories)
@@ -563,10 +577,10 @@ def run_simulation(genomes, config):
         # Increase Fitness If Yes And Break Loop If Not
         still_alive = 0
         for i, car in enumerate(cars):
+            car_reward = car.get_reward()
             if car.is_alive():
                 still_alive += 1
                 car.update(game_map)
-                car_reward = car.get_reward()
                 genomes[i][1].fitness += car_reward
 
         global saved_segments
@@ -593,7 +607,11 @@ def run_simulation(genomes, config):
                 saved_trajectory_count += 1
                 num_expert_trajectory += 1
             if run_type == "collect":
-                print("THIS GENERATION PRODUCED", num_expert_trajectory, "EXPERT TRAJECTORIES.")
+                print(
+                    "THIS GENERATION PRODUCED",
+                    num_expert_trajectory,
+                    "EXPERT TRAJECTORIES.",
+                )
                 print("TOTAL SEGMENTS COLLECTED SO FAR:", len(saved_segments))
             break
 
@@ -660,7 +678,10 @@ def run_population(
         generation = 1
         while True:
             population.run(run_simulation, 1)
-            if run_type == "collect" and len(saved_segments) >= number_of_pairs * SEGMENTS_PER_PAIR:
+            if (
+                run_type == "collect"
+                and len(saved_segments) >= number_of_pairs * SEGMENTS_PER_PAIR
+            ):
                 print(f"Stopping after {generation} generations.")
                 pygame.display.quit()
                 pygame.quit()
@@ -669,8 +690,6 @@ def run_population(
                 break
             generation += 1
 
-
-        
         global saved_trajectory_count
         print(
             f"Saved {saved_trajectory_count} trajectories to {trajectory_path}."
@@ -678,7 +697,7 @@ def run_population(
 
         numTrajPairs = generate_database(trajectory_path)
         saved_trajectory_count = 0
-        
+
         return numTrajPairs
     except KeyboardInterrupt:
         generate_database(trajectory_path)
