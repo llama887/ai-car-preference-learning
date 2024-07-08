@@ -16,7 +16,8 @@ import pygame
 import torch
 import yaml
 
-from reward import TrajectoryRewardNet, prepare_single_trajectory
+import reward
+from reward import TrajectoryRewardNet, prepare_single_trajectory, scaler
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 trajectories_path = "trajectories/"
@@ -47,17 +48,24 @@ run_type = "collect"
 headless = False
 saved_segments = []
 saved_trajectories = []
+big_car_best_distance = 0
+big_car_distance = 0
 
 # need to save heading, there are 3dof
 
 
 class Car:
-    def __init__(self):
+    def __init__(self, color="blue"):
         # Load Car Sprite and Rotate
-        self.sprite = pygame.image.load("car.png").convert()  # Convert Speeds Up A Lot
+        if color == "red":
+            self.sprite = pygame.image.load("red_car.png").convert()
+        else:
+            self.sprite = pygame.image.load(
+                "car.png"
+            ).convert()  # Convert Speeds Up A Lot
         self.sprite = pygame.transform.scale(self.sprite, (CAR_SIZE_X, CAR_SIZE_Y))
         self.rotated_sprite = self.sprite
-
+        self.color = color
         self.position = [830, 920]  # Starting Position
         self.angle = 0
         self.speed = 0
@@ -312,7 +320,7 @@ def generate_database(trajectory_path):
 
     if run_type == "collect":
         segment_generation_mode = "random"
-        if segment_generation_mode == "random" or segment_generation_mode == "big_mode":
+        if segment_generation_mode == "random":
             random.shuffle(trajectory_segments)
             close_starts = []
             close_distance = []
@@ -489,7 +497,6 @@ def run_simulation(genomes, config):
     # Empty Collections For Nets and Cars
     nets = []
     cars = []
-
     # Initialize PyGame And The Display
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
@@ -501,6 +508,9 @@ def run_simulation(genomes, config):
         g.fitness = 0
 
         cars.append(Car())
+    global run_type
+    if run_type == "big_mode":
+        big_car = Car(color="red")
     # print("THIS GENERATION HAS", len(cars), "CARS.")
     # Clock Settings
     # Font Settings & Loading Map
@@ -509,7 +519,7 @@ def run_simulation(genomes, config):
     alive_font = pygame.font.SysFont("Arial", 20)
     game_map = pygame.image.load("maps/map.png").convert()  # Convert Speeds Up A Lot
 
-    global current_generation, saved_trajectory_count, run_type, headless, agent_segment
+    global current_generation, saved_trajectory_count, headless
     current_generation += 1
 
     # Simple Counter To Roughly Limit Time (Not Good Practice)
@@ -519,6 +529,18 @@ def run_simulation(genomes, config):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 sys.exit(0)
+
+        if run_type == "big_mode":
+            keys = pygame.key.get_pressed()
+
+            if keys[pygame.K_LEFT]:
+                big_car.angle += 2
+            if keys[pygame.K_RIGHT]:
+                big_car.angle -= 2
+            if keys[pygame.K_x]:
+                big_car.speed += 0.5
+            if keys[pygame.K_z]:
+                big_car.speed -= 0.5
 
         # For Each Car Get The Acton It Takes
         for i, car in enumerate(cars):
@@ -544,10 +566,18 @@ def run_simulation(genomes, config):
                 still_alive += 1
                 car.update(game_map)
 
+        global big_car_distance
+        big_car_alive = False
+        if run_type == "big_mode" and big_car.is_alive():
+            big_car_alive = True
+        if big_car_alive:
+            big_car_distance = big_car.distance
+            big_car.update(game_map)
+
         global saved_segments
         counter += 1
 
-        if counter == TRAJECTORY_LENGTH or still_alive == 0:
+        if counter == TRAJECTORY_LENGTH or (still_alive == 0 and not big_car_alive):
             num_expert_trajectory = 0
             # if still_alive == 0:
             #     maxCar = max(enumerate(cars), key=lambda x: len(x[1].trajectory))
@@ -579,6 +609,8 @@ def run_simulation(genomes, config):
             for car in cars:
                 if car.is_alive():
                     car.draw(screen)
+            if big_car_alive:
+                big_car.draw(screen)
 
             # Display Info
             text = generation_font.render(
@@ -594,6 +626,42 @@ def run_simulation(genomes, config):
             text_rect = text.get_rect()
             text_rect.center = (900, 490)
             screen.blit(text, text_rect)
+
+            if run_type == "big_mode":
+                global big_car_best_distance
+                text = alive_font.render(
+                    "Time Left before generation ends: "
+                    + str(TRAJECTORY_LENGTH - counter),
+                    True,
+                    (0, 0, 0),
+                )
+                text_rect = text.get_rect()
+                text_rect.center = (900, 530)
+                screen.blit(text, text_rect)
+
+                text = alive_font.render(
+                    "Left/Right Arrows for Steer | Z/X for Speed",
+                    True,
+                    (0, 0, 0),
+                )
+                text_rect = text.get_rect()
+                text_rect.center = (900, 570)
+                screen.blit(text, text_rect)
+
+                text = alive_font.render(
+                    "Current Distance: " + str(big_car_distance), True, (0, 0, 0)
+                )
+                text_rect = text.get_rect()
+                text_rect.center = (900, 610)
+                screen.blit(text, text_rect)
+
+                text = alive_font.render(
+                    "Best Distance: " + str(big_car_best_distance), True, (0, 0, 0)
+                )
+                text_rect = text.get_rect()
+                text_rect.center = (900, 650)
+                screen.blit(text, text_rect)
+
             pygame.display.flip()
         clock.tick(60)  # 60 FPS
 
@@ -647,6 +715,9 @@ def run_population(
             elif generation == max_generations:
                 break
             generation += 1
+            global big_car_distance, big_car_best_distance
+            big_car_best_distance = max(big_car_distance, big_car_best_distance)
+            big_car_distance = 0
 
         global saved_trajectory_count
         print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
@@ -678,6 +749,12 @@ if __name__ == "__main__":
     parse.add_argument(
         "--headless", action="store_true", help="Run simulation without GUI"
     )
+    parse.add_argument(
+        "-b",
+        "--big",
+        action="store_true",
+        help="flag for big mode",
+    )
     args = parse.parse_args()
 
     if args.reward and args.trajectories[0] > 0:
@@ -700,6 +777,10 @@ if __name__ == "__main__":
         weights = torch.load(args.reward)
         reward_network.load_state_dict(weights)
         runType = "trainedRF"
+        with open("scaler.pkl", "rb") as f:
+            reward.scaler = pickle.load(f)
+        if args.big:
+            runType = "big_mode"
 
     config_path = (
         "config/data_collection_config.txt"
