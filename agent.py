@@ -578,10 +578,10 @@ def run_simulation(genomes, config):
         still_alive = 0
         for i, car in enumerate(cars):
             car_reward = car.get_reward()
+            genomes[i][1].fitness += car_reward
             if car.is_alive():
                 still_alive += 1
                 car.update(game_map)
-                genomes[i][1].fitness += car_reward
 
         global saved_segments
         counter += 1
