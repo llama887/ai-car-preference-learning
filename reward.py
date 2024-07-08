@@ -58,7 +58,7 @@ class TrajectoryRewardNet(nn.Module):
         x = F.relu(self.ln4(self.fc4(x)))
         x = self.dropout4(x)
         x = self.fc5(x)
-        x = F.softplus(x) + 1e-6
+        # x = F.softplus(x) + 1e-6
         return x
 
 
@@ -211,20 +211,24 @@ def train_model(
                 validation_traj1,
                 validation_traj2,
                 validation_true_pref,
-                _,
-                _,
+                validation_score1,
+                validation_score2,
             ) in validation_dataloader:
                 validation_rewards1 = net(validation_traj1)
                 validation_rewards2 = net(validation_traj2)
                 validation_predicted_probabilities = bradley_terry_model(
                     validation_rewards1, validation_rewards2
                 )
+                validation_true_pref_dist = bradley_terry_model(
+                    validation_score1, validation_score2
+                )
                 total_validation_loss += preference_loss(
-                    validation_predicted_probabilities, validation_true_pref
+                    validation_predicted_probabilities, validation_true_pref_dist
                 )
                 total_validation_accuracy += calculate_accuracy(
                     validation_predicted_probabilities, validation_true_pref
                 ) * validation_true_pref.size(0)
+
         average_validation_loss = total_validation_loss / val_size
         average_validation_accuracy = total_validation_accuracy / val_size
         validation_losses.append(average_validation_loss.item())
@@ -239,8 +243,8 @@ def train_model(
             batch_traj1,
             batch_traj2,
             batch_true_pref,
-            _,
-            _,
+            batch_score1,
+            batch_score2,
         ) in train_dataloader:
             # for item in list(zip(batch_traj1, batch_traj2, batch_true_pref)):
             #     print(item)
@@ -249,9 +253,10 @@ def train_model(
             # print(rewards1, rewards2)
 
             predicted_probabilities = bradley_terry_model(rewards1, rewards2)
+            batch_true_pref_dist = bradley_terry_model(batch_score1, batch_score2)
             total_probability += predicted_probabilities.sum().item()
 
-            loss = preference_loss(predicted_probabilities, batch_true_pref)
+            loss = preference_loss(predicted_probabilities, batch_true_pref_dist)
             total_loss += loss.item()
             # ipdb.set_trace()
 
@@ -322,7 +327,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
         study = optuna.create_study(direction="minimize")
         study.set_user_attr("file_path", trajectories_file_path)
         study.set_user_attr("epochs", epochs)
-        study.optimize(objective, n_trials=10)
+        study.optimize(objective, n_trials=15)
 
         # Load and print the best trial
         best_trial = study.best_trial
