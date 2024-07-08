@@ -1,4 +1,5 @@
-dropout_prob: 0.0041368814369907025
-hidden_size: 654
-learning_rate: 0.0005018252716236861
-weight_decay: 9.920783949397913e-05
+batch_size: 872
+dropout_prob: 0.0
+hidden_size: 196
+learning_rate: 0.00013857780730255453
+weight_decay: 0.0003566031969233466

@@ -1,27 +1,26 @@
 # This Code is Heavily Inspired By The YouTuber: Cheesy AI
 # Code Changed, Optimized And Commented By: NeuralNine (Florian Dedov)
-# Code Adapted for preference learning for Emerge Lab research by Franklin Yiu
+# Code Adapted for preference learning for Emerge Lab research by Franklin Yiu, Alex Tang
 
-import math
-import random
-import sys
-import os
+import argparse
 import glob
+import math
+import os
+import pickle
+import random
+import re
+import sys
 
 import neat
 import pygame
-
-import argparse
-
-import pickle
+import torch
+import yaml
 
 from reward import TrajectoryRewardNet, prepare_single_trajectory
-import torch
-
-import re
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+trajectories_path = "trajectories/"
+os.makedirs(trajectories_path, exist_ok=True)
 # Constants
 
 WIDTH = 1920
@@ -33,6 +32,7 @@ CAR_SIZE_Y = 60
 BORDER_COLOR = (255, 255, 255, 255)  # Color To Crash on Hit
 
 TRAJECTORY_LENGTH = 30 * 15
+TRAIN_TRAJECTORY_LENGTH = 2
 
 DEFAULT_MAX_GENERATIONS = 1000
 
@@ -42,9 +42,11 @@ trajectory_path = "./trajectories/"
 reward_network = None
 number_of_trajectories = 0
 population = ""
-agent_distances = []
+agent_distances, agent_rewards = [], []
+agent_segment_distances, agent_segment_rewards = [], []
 run_type = "collect"
 headless = False
+saved_trajectories = []
 
 # need to save heading, there are 3dof
 
@@ -52,8 +54,12 @@ headless = False
 class Car:
     def __init__(self):
         # Load Car Sprite and Rotate
-        self.sprite = pygame.image.load("car.png").convert()  # Convert Speeds Up A Lot
-        self.sprite = pygame.transform.scale(self.sprite, (CAR_SIZE_X, CAR_SIZE_Y))
+        self.sprite = pygame.image.load(
+            "car.png"
+        ).convert()  # Convert Speeds Up A Lot
+        self.sprite = pygame.transform.scale(
+            self.sprite, (CAR_SIZE_X, CAR_SIZE_Y)
+        )
         self.rotated_sprite = self.sprite
 
         self.position = [830, 920]  # Starting Position
@@ -73,9 +79,10 @@ class Car:
         self.alive = True  # Boolean To Check If Car is Crashed
 
         self.distance = 0  # Distance Driven
+        self.reward = 0
         self.time = 0  # Time Passed
 
-        self.trajectory = []  # All Positions of the Car
+        self.trajectory = [[830, 920]]  # All Positions of the Car
 
     def draw(self, screen):
         screen.blit(self.rotated_sprite, self.position)  # Draw Sprite
@@ -122,7 +129,10 @@ class Car:
 
         # Calculate Distance To Border And Append To Radars List
         dist = int(
-            math.sqrt(math.pow(x - self.center[0], 2) + math.pow(y - self.center[1], 2))
+            math.sqrt(
+                math.pow(x - self.center[0], 2)
+                + math.pow(y - self.center[1], 2)
+            )
         )
         self.radars.append([(x, y), dist])
 
@@ -136,16 +146,21 @@ class Car:
         # Get Rotated Sprite And Move Into The Right X-Direction
         # Don't Let The Car Go Closer Than 20px To The Edge
         self.rotated_sprite = self.rotate_center(self.sprite, self.angle)
-        self.position[0] += math.cos(math.radians(360 - self.angle)) * self.speed
+        self.position[0] += (
+            math.cos(math.radians(360 - self.angle)) * self.speed
+        )
         self.position[0] = max(self.position[0], 20)
         self.position[0] = min(self.position[0], WIDTH - 120)
 
         # Increase Distance and Time
         self.distance += self.speed
+        self.reward += self.get_reward()
         self.time += 1
 
         # Same For Y-Position
-        self.position[1] += math.sin(math.radians(360 - self.angle)) * self.speed
+        self.position[1] += (
+            math.sin(math.radians(360 - self.angle)) * self.speed
+        )
         self.position[1] = max(self.position[1], 20)
         self.position[1] = min(self.position[1], WIDTH - 120)
 
@@ -159,20 +174,28 @@ class Car:
         # Length Is Half The Side
         length = 0.5 * CAR_SIZE_X
         left_top = [
-            self.center[0] + math.cos(math.radians(360 - (self.angle + 30))) * length,
-            self.center[1] + math.sin(math.radians(360 - (self.angle + 30))) * length,
+            self.center[0]
+            + math.cos(math.radians(360 - (self.angle + 30))) * length,
+            self.center[1]
+            + math.sin(math.radians(360 - (self.angle + 30))) * length,
         ]
         right_top = [
-            self.center[0] + math.cos(math.radians(360 - (self.angle + 150))) * length,
-            self.center[1] + math.sin(math.radians(360 - (self.angle + 150))) * length,
+            self.center[0]
+            + math.cos(math.radians(360 - (self.angle + 150))) * length,
+            self.center[1]
+            + math.sin(math.radians(360 - (self.angle + 150))) * length,
         ]
         left_bottom = [
-            self.center[0] + math.cos(math.radians(360 - (self.angle + 210))) * length,
-            self.center[1] + math.sin(math.radians(360 - (self.angle + 210))) * length,
+            self.center[0]
+            + math.cos(math.radians(360 - (self.angle + 210))) * length,
+            self.center[1]
+            + math.sin(math.radians(360 - (self.angle + 210))) * length,
         ]
         right_bottom = [
-            self.center[0] + math.cos(math.radians(360 - (self.angle + 330))) * length,
-            self.center[1] + math.sin(math.radians(360 - (self.angle + 330))) * length,
+            self.center[0]
+            + math.cos(math.radians(360 - (self.angle + 330))) * length,
+            self.center[1]
+            + math.sin(math.radians(360 - (self.angle + 330))) * length,
         ]
         self.corners = [left_top, right_top, left_bottom, right_bottom]
 
@@ -202,11 +225,14 @@ class Car:
     def get_reward(self):
         # Calculate Reward (Maybe Change?)
         # return self.distance / 50.0
+        if len(self.trajectory) < 2:
+            return 0
         if reward_network is not None:
             trajectory_tensor = prepare_single_trajectory(self.trajectory)
             reward = reward_network(trajectory_tensor)
             return reward.item()
-        return self.distance / (CAR_SIZE_X / 2)
+        # return self.distance / (CAR_SIZE_X / 2)
+        return self.speed
 
     def rotate_center(self, image, angle):
         # Rotate The Rectangle
@@ -219,17 +245,70 @@ class Car:
 
     def save_trajectory(self, filename):
         with open(filename, "wb") as f:
-            pickle.dump((self.get_reward(), self.trajectory), f)
-            # self.distance is used to calculate the true reward
+            pickle.dump((self.distance, self.trajectory, self.reward), f)
+        saved_trajectories.append((self.distance, self.trajectory, self.reward))
+
+
+def dist(traj_segment):
+    traj_segment_distance = math.sqrt(
+        (traj_segment[1][0] - traj_segment[0][0]) ** 2
+        + (traj_segment[1][1] - traj_segment[0][1]) ** 2
+    )
+    return traj_segment_distance
+
+
+def sort_and_pair(trajectory_segments, clean=True):
+    sorted_trajectory_segments = sorted(
+        trajectory_segments, key=lambda x: dist(x)
+    )
+    distDict = {}
+    cleaned_segments = []
+    num_limit = 4
+    for trajectory_segment in sorted_trajectory_segments:
+        trajectory_distance = round(dist(trajectory_segment))
+        if (
+            trajectory_distance not in distDict
+            or distDict[trajectory_distance] < num_limit
+        ):
+            cleaned_segments.append(trajectory_segment)
+        distDict[trajectory_distance] = 1 + distDict.get(trajectory_distance, 0)
+    segments_to_return = (
+        cleaned_segments if clean else sorted_trajectory_segments
+    )
+    for i in range(len(segments_to_return)):
+        print(
+            segments_to_return[i],
+            "; DIST:",
+            dist(segments_to_return[i]),
+        )
+    return segments_to_return
+
+
+def calculate_new_point(point, distance, angle):
+    x0, y0 = point
+    # Convert angle from degrees to radians
+    angle_rad = math.radians(angle)
+    # Calculate new coordinates
+    x1 = x0 + distance * math.cos(angle_rad)
+    y1 = y0 + distance * math.sin(angle_rad)
+    return [x1, y1]
 
 
 def generate_database(trajectory_path):
+    def extract_numbers(path):
+        match = re.search(r"trajectory_(\d+)_(\d+)\.pkl", path)
+        if match:
+            return (int(match.group(1)), int(match.group(2)))
+        return (0, 0)
+
     # Load All Trajectories
     trajectories = []
-    for file in glob.glob(f"{trajectory_path}/trajectory*.pkl"):
+    for file in sorted(
+        glob.glob(f"{trajectory_path}/trajectory*.pkl"), key=extract_numbers
+    ):
         with open(file, "rb") as f:
-            reward, trajectory = pickle.load(f)
-            trajectories.append((reward, trajectory))
+            distance, trajectory, reward = pickle.load(f)
+            trajectories.append((distance, trajectory, reward))
 
     # Pads shorter tajectoires so there is a consistent input size
     def pad_trajectory(trajectory, max_length):
@@ -238,27 +317,153 @@ def generate_database(trajectory_path):
     if not trajectories:
         print("No trajectories saved.")
         return
+
     max_length, max_index = max(
         (len(trajectory), index)
-        for index, (reward, trajectory) in enumerate(trajectories)
+        for index, (distance, trajectory, reward) in enumerate(trajectories)
     )
 
-    random.shuffle(trajectories)
-    if len(trajectories) % 2 != 0:
-        trajectories.pop()
+    trajectory_pairs = []
+    global run_type
 
-    trajectory_pairs = [
-        (
-            pad_trajectory(trajectories[i][1], max_length),
-            pad_trajectory(trajectories[i + 1][1], max_length),
-            0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
-            trajectories[i][0],
-            trajectories[i + 1][0],
+    def shuffle(trajectory_pairs):
+        random.shuffle(trajectory_pairs)
+        for i in range(len(trajectory_pairs)):
+            swap = random.randint(0, 1)
+            if swap:
+                trajectory_pairs[i] = (
+                    trajectory_pairs[i][1],
+                    trajectory_pairs[i][0],
+                    (trajectory_pairs[i][2] + 1) % 2,
+                    trajectory_pairs[i][4],
+                    trajectory_pairs[i][3],
+                )
+
+    # Break trajectories into trajectory segments
+    trajectory_segments = []
+    for _, trajectory, _ in trajectories:
+        prev = 0
+        curr = 1
+        while curr < len(trajectory):
+            trajectory_segments.append([trajectory[prev], trajectory[curr]])
+            prev += 1
+            curr += 1
+
+    if len(trajectory_segments) % 2 != 0:
+        trajectory_segments.pop()
+
+    if run_type == "collect":
+        # probably unnecessary...
+        if len(trajectories) % 2 != 0:
+            trajectories.pop()
+
+        segment_generation_mode = "random"
+        if (
+            segment_generation_mode == "random"
+            or segment_generation_mode == "big_mode"
+        ):
+            random.shuffle(trajectory_segments)
+            for i in range(0, len(trajectory_segments), 2):
+                distance_1 = dist(trajectory_segments[i])
+                distance_2 = dist(trajectory_segments[i + 1])
+                if abs(distance_1 - distance_2) < 0.01:
+                    continue
+                trajectory_pairs.append(
+                    (
+                        trajectory_segments[i],
+                        trajectory_segments[i + 1],
+                        0 if distance_1 > distance_2 else 1,
+                        distance_1,
+                        distance_2,
+                    )
+                )
+        elif segment_generation_mode == "sequential_pairing":
+            trajectory_segments = sort_and_pair(trajectory_segments, False)
+            n = len(trajectory_segments)
+            for i in range(n // 2):
+                j = n - i - 1
+                distance_1 = dist(trajectory_segments[i])
+                distance_2 = dist(trajectory_segments[j])
+                if abs(distance_1 - distance_2) < 1:
+                    continue
+                trajectory_pairs.append(
+                    (
+                        trajectory_segments[i],
+                        trajectory_segments[j],
+                        0 if distance_1 > distance_2 else 1,
+                        distance_1,
+                        distance_2,
+                    )
+                )
+        elif segment_generation_mode == "all_combinations":
+            trajectory_segments = sort_and_pair(trajectory_segments, True)
+            n = len(trajectory_segments)
+            for i in range(len(trajectory_segments)):
+                for j in range(i + 1, len(trajectory_segments)):
+                    distance_1 = dist(trajectory_segments[i])
+                    distance_2 = dist(trajectory_segments[j])
+                    if abs(distance_1 - distance_2) < 1:
+                        continue
+                    trajectory_pairs.append(
+                        (
+                            trajectory_segments[i],
+                            trajectory_segments[j],
+                            0 if distance_1 > distance_2 else 1,
+                            distance_1,
+                            distance_2,
+                        )
+                    )
+        elif segment_generation_mode == "different_starts":
+            n = 100
+            trajectory_segments = []
+            start_points = [
+                [random.randint(-50, 50), random.randint(-50, 50)] for _ in range(100)
+            ]
+            for start in start_points:
+                for i in range(100):
+                    trajectory_segments.append(
+                        [start, calculate_new_point(start, i, random.randint(0, 365))]
+                    )
+            random.shuffle(trajectory_segments)
+            for i in range(0, len(trajectory_segments), 2):
+                distance_1 = dist(trajectory_segments[i])
+                distance_2 = dist(trajectory_segments[i + 1])
+                if abs(distance_1 - distance_2) < 0.01:
+                    continue
+                trajectory_pairs.append(
+                    (
+                        trajectory_segments[i],
+                        trajectory_segments[i + 1],
+                        0 if distance_1 > distance_2 else 1,
+                        distance_1,
+                        distance_2,
+                    )
+                )
+
+        shuffle(trajectory_pairs)
+    else:
+        num_traj = (
+            len(trajectory_pairs) * 2
+            if run_type == "collect"
+            else len(trajectories)
         )
-        for i in range(0, len(trajectories), 2)
-    ]
-
-    print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
+        for i in range(0, num_traj, 2):
+            trajectory_pairs.append(
+                (
+                    pad_trajectory(trajectories[i][1], max_length),
+                    pad_trajectory(trajectories[i + 1][1], max_length),
+                    0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
+                    trajectories[i][0],
+                    trajectories[i + 1][0],
+                    trajectories[i][2],
+                    trajectories[i + 1][2],
+                )
+            )
+    # print(trajectory_pairs)
+    #     print(f"Saving {num_traj} opposite pairs and {num_traj} default pairs.")
+    print(
+        f"Generating Database with {len(trajectory_pairs)} trajectory pairs..."
+    )
 
     # Delete all trajectories
     print("Removing saved trajectories...")
@@ -274,13 +479,15 @@ def generate_database(trajectory_path):
     for f in old_trajectories:
         os.remove(f)
 
-    global run_type
     prefix = "database" if run_type == "collect" else run_type
     # Save To Database
-    with open(trajectory_path + f"{prefix}_{len(trajectory_pairs)}.pkl", "wb") as f:
+    with open(
+        trajectory_path + f"{prefix}_{len(trajectory_pairs)}.pkl", "wb"
+    ) as f:
         pickle.dump(trajectory_pairs, f)
 
-    print("Done saving to database...")
+    # print("Done saving to database...")
+    return len(trajectory_pairs)
 
 
 def run_simulation(genomes, config):
@@ -299,20 +506,23 @@ def run_simulation(genomes, config):
         g.fitness = 0
 
         cars.append(Car())
-    print("THIS GENERATION HAS", len(cars), "CARS.")
+    # print("THIS GENERATION HAS", len(cars), "CARS.")
     # Clock Settings
     # Font Settings & Loading Map
     clock = pygame.time.Clock()
     generation_font = pygame.font.SysFont("Arial", 30)
     alive_font = pygame.font.SysFont("Arial", 20)
-    game_map = pygame.image.load("maps/map.png").convert()  # Convert Speeds Up A Lot
+    game_map = pygame.image.load(
+        "maps/map.png"
+    ).convert()  # Convert Speeds Up A Lot
 
-    global current_generation, saved_trajectory_count, run_type
+    global current_generation, saved_trajectory_count, run_type, headless, agent_segment_distances, agent_segment_rewards
     current_generation += 1
 
     # Simple Counter To Roughly Limit Time (Not Good Practice)
     counter = 0
-
+    segment_distances = []
+    segment_rewards = []
     while True:
         # Exit On Quit Event
         for event in pygame.event.get():
@@ -340,12 +550,14 @@ def run_simulation(genomes, config):
             if car.is_alive():
                 still_alive += 1
                 car.update(game_map)
-                genomes[i][1].fitness += car.get_reward()
+                car_reward = car.get_reward()
+                genomes[i][1].fitness += car_reward
+                segment_rewards.append(car_reward)
+                segment_distances.append(dist(car.trajectory[-2:]))
 
-        global agent_distances
+        global agent_distances, agent_rewards
         counter += 1
 
-        # If we're collecting data, we stop when we reach ~7 seconds
         if counter == TRAJECTORY_LENGTH or still_alive == 0:
             for i, car in enumerate(cars):
                 if (
@@ -353,6 +565,8 @@ def run_simulation(genomes, config):
                     and run_type == "collect"
                 ):
                     break
+                if not car.is_alive() and run_type == "collect":
+                    continue
                 car.save_trajectory(
                     f"{trajectory_path}trajectory_{current_generation}_{i}.pkl"
                 )
@@ -360,16 +574,17 @@ def run_simulation(genomes, config):
             if run_type != "collect":
                 global agent_distances
                 generation_distances = []
+                generation_rewards = []
                 for i, car in enumerate(cars):
                     generation_distances.append(car.distance)
+                    generation_rewards.append(car.get_reward())
                 agent_distances.append(generation_distances)
+                agent_rewards.append(generation_rewards)
 
             if (
                 run_type == "collect"
                 and saved_trajectory_count >= number_of_trajectories
             ):
-                # print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
-                # generate_database(trajectory_path)
                 pygame.display.quit()
                 pygame.quit()
             break
@@ -397,56 +612,64 @@ def run_simulation(genomes, config):
             screen.blit(text, text_rect)
             pygame.display.flip()
         clock.tick(60)  # 60 FPS
+    agent_segment_distances.extend(segment_distances)
+    agent_segment_rewards.extend(segment_rewards)
 
 
 def run_population(
     config_path, max_generations, number_of_trajectories, runType, noHead=False
 ):
-    # Load Config
-    config = neat.config.Config(
-        neat.DefaultGenome,
-        neat.DefaultReproduction,
-        neat.DefaultSpeciesSet,
-        neat.DefaultStagnation,
-        config_path,
-    )
+    try:
+        # Load Config
+        config = neat.config.Config(
+            neat.DefaultGenome,
+            neat.DefaultReproduction,
+            neat.DefaultSpeciesSet,
+            neat.DefaultStagnation,
+            config_path,
+        )
 
-    global run_type, saved_trajectory_count, headless
-    run_type = runType
-    headless = noHead
+        global run_type, saved_trajectory_count, headless
+        run_type = runType
+        headless = noHead
+        if headless:
+            os.environ["SDL_VIDEODRIVER"] = "dummy"
+        else:
+            if "SDL_VIDEODRIVER" in os.environ:
+                del os.environ["SDL_VIDEODRIVER"]
 
-    print(run_type)
-    if run_type == "collect":
-        max_generations = math.ceil(number_of_trajectories / config.pop_size)
+        if run_type == "collect":
+            max_generations = math.ceil(number_of_trajectories)
+        if run_type == "trainedRF":
+            pass
 
-    # Create Population And Add Reporters
-    global population
-    population = neat.Population(config)
-    population.add_reporter(neat.StdOutReporter(True))
-    stats = neat.StatisticsReporter()
-    population.add_reporter(stats)
+        # Create Population And Add Reporters
+        global population
+        population = neat.Population(config)
+        population.add_reporter(neat.StdOutReporter(True))
+        stats = neat.StatisticsReporter()
+        population.add_reporter(stats)
 
-    print(f"Running for a maximum of {max_generations} generations...")
+        best_genome = population.run(
+            run_simulation,
+            max_generations,
+        )
 
-    best_genome = population.run(
-        run_simulation,
-        max_generations,
-    )
-
-    global saved_trajectory_count, current_generation, agent_distances
-    if saved_trajectory_count >= number_of_trajectories:
-        print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
-        generate_database(trajectory_path)
+        global saved_trajectory_count, current_generation, agent_distances, agent_rewards, agent_segment_distances, agent_segment_rewards
+        # if saved_trajectory_count >= number_of_trajectories:
+        print(
+            f"Saved {saved_trajectory_count} trajectories to {trajectory_path}."
+        )
+        numTrajPairs = generate_database(trajectory_path)
         print("Removing old trajectories...")
         old_trajectories = glob.glob(trajectory_path + "trajectory*")
         for f in old_trajectories:
             os.remove(f)
-
-    current_generation = 0
-    saved_trajectory_count = 0
-    ret = agent_distances.copy()
-    agent_distances = []
-    return ret
+        current_generation = 0
+        saved_trajectory_count = 0
+        return numTrajPairs
+    except KeyboardInterrupt:
+        generate_database(trajectory_path)
 
 
 if __name__ == "__main__":
@@ -470,22 +693,29 @@ if __name__ == "__main__":
     )
     args = parse.parse_args()
 
-    if args.headless:
-        os.environ["SDL_VIDEODRIVER"] = "dummy"
-
     if args.reward and args.trajectories[0] > 0:
-        print("Cannot save trajectories and train reward function at the same time")
+        print(
+            "Cannot save trajectories and train reward function at the same time"
+        )
         sys.exit(1)
 
+    hidden_size = None
+    parameters_path = "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/best_params.yaml"
+    with open(parameters_path, "r") as file:
+        data = yaml.safe_load(file)
+        hidden_size = data["hidden_size"]
+
+    print()
     if args.reward is not None:
         print("Loading reward network...")
-        hidden_size = re.search(r"best_model_(\d+)\.pth", args.reward)
+
         reward_network = TrajectoryRewardNet(
-            TRAJECTORY_LENGTH * 2, hidden_size=int(hidden_size.group(1))
+            TRAIN_TRAJECTORY_LENGTH * 2,
+            hidden_size=hidden_size,
         ).to(device)
         weights = torch.load(args.reward)
         reward_network.load_state_dict(weights)
-        run_type = "trainedRF"
+        runType = "trainedRF"
 
     config_path = (
         "config/data_collection_config.txt"
@@ -495,15 +725,12 @@ if __name__ == "__main__":
     # number_of_trajectories = [-1]
     if args.trajectories[0] > 0:
         number_of_trajectories = args.trajectories[0]
-        run_type = "collect"
+        runType = "collect"
 
-    try:
-        run_population(
-            config_path=config_path,
-            max_generations=DEFAULT_MAX_GENERATIONS,
-            number_of_trajectories=number_of_trajectories,
-            runType=run_type,
-            noHead=args.headless,
-        )
-    except KeyboardInterrupt:
-        generate_database(trajectory_path)
+    run_population(
+        config_path=config_path,
+        max_generations=DEFAULT_MAX_GENERATIONS,
+        number_of_trajectories=number_of_trajectories,
+        runType=runType,
+        noHead=args.headless,
+    )

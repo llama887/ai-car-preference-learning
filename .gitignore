@@ -11,3 +11,4 @@ best.pth
 figures/*
 test.py
 archive
+*.pth
