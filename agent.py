@@ -394,7 +394,7 @@ def generate_database(trajectory_path):
                             distance_2,
                         )
                     )
-        elif segment_generation_mode == "different_starts":
+        elif segment_generation_mode == "artificial":
             n = 100
             trajectory_segments = []
             start_points = [
@@ -426,21 +426,6 @@ def generate_database(trajectory_path):
 
         shuffle(trajectory_pairs)
     else:
-        # def extract_numbers(path):
-        #     match = re.search(r"trajectory_(\d+)_(\d+)\.pkl", path)
-        #     if match:
-        #         return (int(match.group(1)), int(match.group(2)))
-        #     return (0, 0)
-
-        # Load All Trajectories
-        # trajectories = []
-        # for file in sorted(
-        #     glob.glob(f"{trajectory_path}/trajectory*.pkl"), key=extract_numbers
-        # ):
-        #     with open(file, "rb") as f:
-        #         distance, trajectory, reward = pickle.load(f)
-        #         trajectories.append((distance, trajectory, reward))
-
         trajectories = saved_trajectories
 
         # Pads shorter tajectoires so there is a consistent input size
@@ -467,7 +452,6 @@ def generate_database(trajectory_path):
                 )
             )
     # print(trajectory_pairs)
-    #     print(f"Saving {num_traj} opposite pairs and {num_traj} default pairs.")
     print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
     # Delete all trajectories

@@ -136,9 +136,12 @@ if __name__ == "__main__":
         trained_agent_rewards,
         trained_segment_distances,
         trained_segment_rewards,
+        training_segment_distances,
+        training_segment_rewards,
     ) = populate_lists(
         true_database,
         trained_database,
+        database_path,
         agents_per_generation=20,
         model_weights=model_weights,
         hidden_size=hidden_size,
@@ -151,6 +154,8 @@ if __name__ == "__main__":
         trained_agent_rewards,
         trained_segment_distances,
         trained_segment_rewards,
+        training_segment_distances,
+        training_segment_rewards,
     )
 
     bt, bt_, bt_delta, ordered_trajectories = prepare_data(
