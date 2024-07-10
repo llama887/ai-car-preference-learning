@@ -89,9 +89,9 @@ class TrajectoryDataset(Dataset):
             self.labels.append(trajectory_pair[2])
             self.score1.append(trajectory_pair[3])
             self.score2.append(trajectory_pair[4])
-        scaler.fit(all_data)
-        with open("scaler.pkl", "wb") as f:
-            pickle.dump(scaler, f)
+        # scaler.fit(all_data)
+        # with open("scaler.pkl", "wb") as f:
+        #     pickle.dump(scaler, f)
         self.first_trajectories = torch.tensor(
             self.first_trajectories, dtype=torch.float32
         ).to(device)
@@ -136,10 +136,10 @@ def prepare_single_trajectory(trajectory, max_length=2):
     ]
 
     # Apply the fitted scaler to the flattened trajectory
-    trajectory_flat_whitened = scaler.transform([trajectory_flat])
+    # trajectory_flat_whitened = scaler.transform([trajectory_flat])
 
     # Convert to tensor and add an extra dimension
-    trajectory_tensor = torch.tensor(trajectory_flat_whitened, dtype=torch.float32).to(
+    trajectory_tensor = torch.tensor(trajectory_flat, dtype=torch.float32).to(
         device
     )
 
