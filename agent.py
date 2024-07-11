@@ -152,8 +152,6 @@ class Car:
         self.position[0] = min(self.position[0], WIDTH - 120)
 
         # Increase Distance and Time
-        if not self.is_alive():
-            self.speed = 0
         self.distance += self.speed
         self.reward += self.get_reward()
         self.time += 1
@@ -223,7 +221,7 @@ class Car:
             reward = reward_network(trajectory_tensor)
             return reward.item()
         # return self.distance / (CAR_SIZE_X / 2)
-        return self.speed if self.is_alive() else 0
+        return self.speed
 
     def rotate_center(self, image, angle):
         # Rotate The Rectangle
@@ -544,11 +542,11 @@ def run_simulation(genomes, config):
         # Increase Fitness If Yes And Break Loop If Not
         still_alive = 0
         for i, car in enumerate(cars):
-            car_reward = car.get_reward()
-            genomes[i][1].fitness += car_reward
             if car.is_alive():
+                car_reward = car.get_reward()
                 still_alive += 1
                 car.update(game_map)
+                genomes[i][1].fitness += car_reward
 
         global big_car_distance
         big_car_alive = False
@@ -746,7 +744,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     hidden_size = None
-    parameters_path = "/Users/alextang/Documents/EmergeLab/ai-car-preference-learning/best_params.yaml"
+    parameters_path = "best_params.yaml"
     with open(parameters_path, "r") as file:
         data = yaml.safe_load(file)
         hidden_size = data["hidden_size"]
