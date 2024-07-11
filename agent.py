@@ -676,12 +676,13 @@ def run_population(
             pass
 
         # Create Population And Add Reporters
-        global population, saved_segments, saved_trajectories
+        global current_generation, population, saved_segments, saved_trajectories
         population = neat.Population(config)
         population.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
 
+        current_generation = 0
         saved_trajectories = []
         generation = 1
         while True:

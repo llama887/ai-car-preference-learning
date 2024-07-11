@@ -58,7 +58,7 @@ class TrajectoryRewardNet(nn.Module):
         x = F.relu(self.ln4(self.fc4(x)))
         x = self.dropout4(x)
         x = self.fc5(x)
-        # x = F.softplus(x) + 1e-6
+        x += 15
         return x
 
 
@@ -139,9 +139,7 @@ def prepare_single_trajectory(trajectory, max_length=2):
     # trajectory_flat_whitened = scaler.transform([trajectory_flat])
 
     # Convert to tensor and add an extra dimension
-    trajectory_tensor = torch.tensor(trajectory_flat, dtype=torch.float32).to(
-        device
-    )
+    trajectory_tensor = torch.tensor(trajectory_flat, dtype=torch.float32).to(device)
 
     return trajectory_tensor
 

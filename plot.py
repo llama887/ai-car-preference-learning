@@ -166,16 +166,20 @@ def populate_lists(
     training_segment_distances = []
     training_segment_rewards = []
 
-    with open(true_database, "rb") as f:
-        true_trajectories = pickle.load(f)
-    with open(trained_database, "rb") as f:
-        trained_trajectories = pickle.load(f)
-    with open(training_database, "rb") as f:
-        training_trajectories = pickle.load(f)
+    if true_database:
+        with open(true_database, "rb") as f:
+            true_trajectories = pickle.load(f)
+    if trained_database:
+        with open(trained_database, "rb") as f:
+            trained_trajectories = pickle.load(f)
+    if training_database:
+        with open(training_database, "rb") as f:
+            training_trajectories = pickle.load(f)
 
     if model_weights is not None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = TrajectoryRewardNet(NET_SIZE, hidden_size=int(hidden_size)).to(device)
-        model.load_state_dict(torch.load(model_weights))
+        model.load_state_dict(torch.load(model_weights, map_location=device))
     elif net is not None:
         model = net
     else:
@@ -215,12 +219,17 @@ def populate_lists(
             trained_agent_distances.append(gen_trained_distances)
         if gen_trained_rewards:
             trained_agent_rewards.append(gen_trained_rewards)
-    
-    for traj1, traj2, _, dist1, dist2 in training_trajectories:
-        training_segment_distances.append(dist1)
-        training_segment_distances.append(dist2)
-        training_segment_rewards.append(model(prepare_single_trajectory(traj1)).item())
-        training_segment_rewards.append(model(prepare_single_trajectory(traj2)).item())
+
+    if training_database:
+        for traj1, traj2, _, dist1, dist2 in training_trajectories:
+            training_segment_distances.append(dist1)
+            training_segment_distances.append(dist2)
+            training_segment_rewards.append(
+                model(prepare_single_trajectory(traj1)).item()
+            )
+            training_segment_rewards.append(
+                model(prepare_single_trajectory(traj2)).item()
+            )
 
     print("SANITY CHECK...")
     lengths = [i for i in range(101)]
@@ -327,9 +336,18 @@ def handle_plotting(
     graph_trained_rewards(trained_agent_reward_averages, trained_agent_reward_maxes)
     graph_death_rates(true_agent_distances, "GT")
     graph_death_rates(trained_agent_distances, "Trained")
-    # graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards)
-    graph_segment_distance_vs_reward("Agent Segment Distance vs Reward", trained_segment_distances, trained_segment_rewards)
-    graph_segment_distance_vs_reward("Training Dataset Distance vs Reward", training_segment_distances, training_segment_rewards)
+    graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards)
+
+    graph_segment_distance_vs_reward(
+        "Agent Segment Distance vs Reward",
+        trained_segment_distances,
+        trained_segment_rewards,
+    )
+    graph_segment_distance_vs_reward(
+        "Training Dataset Distance vs Reward",
+        training_segment_distances,
+        training_segment_rewards,
+    )
 
 
 def graph_avg_max(averages, maxes):
@@ -493,13 +511,11 @@ def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
         )
 
 
-def graph_segment_distance_vs_reward(
-    title, segment_distances, segment_rewards
-):
+def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards):
+    if not segment_distances or not segment_rewards:
+        return
 
-    zipped_distance_reward = list(
-        zip(segment_distances, segment_rewards)
-    )
+    zipped_distance_reward = list(zip(segment_distances, segment_rewards))
     distTotal = {}
     distCount = {}
     for distance, reward in zipped_distance_reward:
@@ -539,9 +555,7 @@ def graph_segment_distance_vs_reward(
     plt.savefig(f"figures/{title}.png")
     plt.close()
 
-    zipped_distance_reward = list(
-        zip(segment_distances, segment_rewards)
-    )
+    zipped_distance_reward = list(zip(segment_distances, segment_rewards))
     random.shuffle(zipped_distance_reward)
     if len(zipped_distance_reward) % 2 != 0:
         zipped_distance_reward.pop()
@@ -559,14 +573,24 @@ def graph_segment_distance_vs_reward(
         # > 0.5
     ]
 
+    wrong = []
     acc = 0
-    for pair in pairs_of_zips:
-        if (pair[0][1] < pair[1][1] and pair[2]) or (
-            pair[0][1] > pair[1][1] and not pair[2]
-        ):
+    for zip1, zip2, label in pairs_of_zips:
+        if (zip1[1] < zip2[1] and label) or (zip1[1] > zip2[1] and not label):
             acc += 1
+        else:
+            wrong.append((zip1, zip2))
     acc /= len(pairs_of_zips)
     print("ACCURACY", acc)
+    print("WRONG:")
+    count = 0
+    for zip1, zip2 in wrong:
+        count += 1
+        print(
+            f"DISTANCES: {zip1[0]:11.8f}, {zip2[0]:11.8f} | REWARDS: {zip1[1]:11.8f}, {zip2[1]:11.8f}"
+        )
+        if count > 100:
+            break
 
 
 if __name__ == "__main__":
@@ -597,6 +621,8 @@ if __name__ == "__main__":
         try:
 
             trained_database = args.database[0]
+            true_database = None
+            training_database = None
             if len(database) > 1:
                 true_database = args.database[1]
             if len(database) > 2:
@@ -604,8 +630,8 @@ if __name__ == "__main__":
         except Exception as e:
             pass
     if args.reward:
-        with open("scaler.pkl", "rb") as f:
-            reward.scaler = pickle.load(f)
+        # with open("scaler.pkl", "rb") as f:
+        #     reward.scaler = pickle.load(f)
         reward = args.reward
     import time
 
