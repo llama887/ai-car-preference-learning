@@ -756,7 +756,7 @@ if __name__ == "__main__":
             TRAIN_TRAJECTORY_LENGTH * 2,
             hidden_size=hidden_size,
         ).to(device)
-        weights = torch.load(args.reward)
+        weights = torch.load(args.reward, map_location=torch.device(f"{device}"))
         reward_network.load_state_dict(weights)
         runType = "trainedRF"
         with open("scaler.pkl", "rb") as f:
