@@ -328,7 +328,7 @@ def generate_database(trajectory_path):
                 start_distance = dist(
                     [trajectory_segments[i][0], trajectory_segments[i + 1][0]]
                 )
-                if abs(distance_1 - distance_2) < 0.01:
+                if abs(distance_1 - distance_2) < 0.0:
                     close_distance.append(
                         (
                             trajectory_segments[i],

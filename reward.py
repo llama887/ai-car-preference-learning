@@ -203,97 +203,105 @@ def train_model(
         optimizer, start_factor=1.0, end_factor=0.01, total_iters=epochs
     )
 
-    for epoch in range(epochs):
-        net.eval()
-        total_validation_loss = 0.0
-        total_validation_accuracy = 0.0
-        with torch.no_grad():
-            for (
-                validation_traj1,
-                validation_traj2,
-                validation_true_pref,
-                validation_score1,
-                validation_score2,
-            ) in validation_dataloader:
-                validation_rewards1 = net(validation_traj1)
-                validation_rewards2 = net(validation_traj2)
-                validation_predicted_probabilities = bradley_terry_model(
-                    validation_rewards1, validation_rewards2
-                )
-                validation_true_pref_dist = bradley_terry_model(
-                    validation_score1, validation_score2
-                )
-                total_validation_loss += preference_loss(
-                    validation_predicted_probabilities, validation_true_pref_dist
-                )
-                total_validation_accuracy += calculate_accuracy(
-                    validation_predicted_probabilities, validation_true_pref
-                ) * validation_true_pref.size(0)
+    epoch = 0
+    try:
+        while epoch < epochs:
+            net.eval()
+            total_validation_loss = 0.0
+            total_validation_accuracy = 0.0
+            with torch.no_grad():
+                for (
+                    validation_traj1,
+                    validation_traj2,
+                    validation_true_pref,
+                    validation_score1,
+                    validation_score2,
+                ) in validation_dataloader:
+                    validation_rewards1 = net(validation_traj1)
+                    validation_rewards2 = net(validation_traj2)
+                    validation_predicted_probabilities = bradley_terry_model(
+                        validation_rewards1, validation_rewards2
+                    )
+                    validation_true_pref_dist = bradley_terry_model(
+                        validation_score1, validation_score2
+                    )
+                    total_validation_loss += preference_loss(
+                        validation_predicted_probabilities, validation_true_pref_dist
+                    )
+                    total_validation_accuracy += calculate_accuracy(
+                        validation_predicted_probabilities, validation_true_pref
+                    ) * validation_true_pref.size(0)
 
-        average_validation_loss = total_validation_loss / val_size
-        average_validation_accuracy = total_validation_accuracy / val_size
-        validation_losses.append(average_validation_loss.item())
-        validation_accuracies.append(average_validation_accuracy)
-
-        net.train()
-        total_loss = 0.0
-        total_accuracy = 0.0
-        total_probability = 0.0
-
-        for (
-            batch_traj1,
-            batch_traj2,
-            batch_true_pref,
-            batch_score1,
-            batch_score2,
-        ) in train_dataloader:
-            # for item in list(zip(batch_traj1, batch_traj2, batch_true_pref)):
-            #     print(item)
-            rewards1 = net(batch_traj1)
-            rewards2 = net(batch_traj2)
-            # print(rewards1, rewards2)
-
-            predicted_probabilities = bradley_terry_model(rewards1, rewards2)
-            batch_true_pref_dist = bradley_terry_model(batch_score1, batch_score2)
-            total_probability += predicted_probabilities.sum().item()
-
-            loss = preference_loss(predicted_probabilities, batch_true_pref_dist)
-            total_loss += loss.item()
-            # ipdb.set_trace()
-
-            if loss.item() < best_loss:
-                best_loss = loss.item()
+            average_validation_loss = total_validation_loss / val_size
+            if average_validation_loss < best_loss:
+                best_loss = average_validation_loss
                 torch.save(net.state_dict(), model_path)
+            average_validation_accuracy = total_validation_accuracy / val_size
+            validation_losses.append(average_validation_loss.item())
+            validation_accuracies.append(average_validation_accuracy)
 
-            accuracy = calculate_accuracy(predicted_probabilities, batch_true_pref)
-            total_accuracy += accuracy * batch_true_pref.size(0)
+            net.train()
+            total_loss = 0.0
+            total_accuracy = 0.0
+            total_probability = 0.0
 
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
-            optimizer.step()
+            for (
+                batch_traj1,
+                batch_traj2,
+                batch_true_pref,
+                batch_score1,
+                batch_score2,
+            ) in train_dataloader:
+                # for item in list(zip(batch_traj1, batch_traj2, batch_true_pref)):
+                #     print(item)
+                rewards1 = net(batch_traj1)
+                rewards2 = net(batch_traj2)
+                # print(rewards1, rewards2)
 
-            scheduler.step()
+                predicted_probabilities = bradley_terry_model(rewards1, rewards2)
+                batch_true_pref_dist = bradley_terry_model(batch_score1, batch_score2)
+                total_probability += predicted_probabilities.sum().item()
 
-        average_training_loss = total_loss / train_size
-        training_losses.append(average_training_loss)
+                loss = preference_loss(predicted_probabilities, batch_true_pref_dist)
+                total_loss += loss.item()
+                # ipdb.set_trace()
 
-        average_training_accuracy = total_accuracy / train_size
-        training_accuracies.append(average_training_accuracy)
+                # if loss.item() < best_loss:
+                #     best_loss = loss.item()
+                #     torch.save(net.state_dict(), model_path)
 
-        wandb.log(
-            {
-                "Train Loss": average_training_loss,
-                "Validation Loss": average_validation_loss.item(),
-                "Train Accuracy": average_training_accuracy,
-                "Validation Accuracy": average_validation_accuracy,
-            },
-            step=epoch,
-        )
+                accuracy = calculate_accuracy(predicted_probabilities, batch_true_pref)
+                total_accuracy += accuracy * batch_true_pref.size(0)
 
-        if epoch % 100 == 0:
-            print(
-                f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {average_validation_loss.item()}, Train Acc: {average_training_accuracy}, Val Acc: {average_validation_accuracy}"
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
+                optimizer.step()
+
+                scheduler.step()
+
+            average_training_loss = total_loss / train_size
+            training_losses.append(average_training_loss)
+
+            average_training_accuracy = total_accuracy / train_size
+            training_accuracies.append(average_training_accuracy)
+
+            wandb.log(
+                {
+                    "Train Loss": average_training_loss,
+                    "Validation Loss": average_validation_loss.item(),
+                    "Train Accuracy": average_training_accuracy,
+                    "Validation Accuracy": average_validation_accuracy,
+                },
+                step=epoch,
             )
+
+            if epoch % 100 == 0:
+                print(
+                    f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {average_validation_loss.item()}, Train Acc: {average_training_accuracy}, Val Acc: {average_validation_accuracy}"
+                )
+            epoch += 1
+    except:
+        torch.save(net.state_dict(), f"model_{epoch}.pth")
 
     plt.figure()
     plt.plot(training_losses, label="Train Loss")
@@ -378,7 +386,6 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
                 optimizer=optimizer,
                 batch_size=batch_size,
             )
-
             torch.save(net.state_dict(), f"model_{epochs}.pth")
         return best_loss
 

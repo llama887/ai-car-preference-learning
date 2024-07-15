@@ -166,7 +166,10 @@ def populate_lists(
     training_segment_distances = []
     training_segment_rewards = []
 
-    if true_database:
+    replace = False
+    if true_database == "blank":
+        replace = True
+    elif true_database:
         with open(true_database, "rb") as f:
             true_trajectories = pickle.load(f)
     if trained_database:
@@ -187,16 +190,17 @@ def populate_lists(
             "prepare_data expects either a path to model weights or the reward network"
         )
 
-    num_true_trajectories = len(true_trajectories)
-    count = 0
-    while count < num_true_trajectories:
-        gen_true_distances = []
-        for i in range(agents_per_generation // 2):
-            trajectory = true_trajectories[count]
-            gen_true_distances.extend([trajectory[3], trajectory[4]])
-            count += 1
-        if gen_true_distances:
-            true_agent_distances.append(gen_true_distances)
+    if not replace:
+        num_true_trajectories = len(true_trajectories)
+        count = 0
+        while count < num_true_trajectories:
+            gen_true_distances = []
+            for i in range(agents_per_generation // 2):
+                trajectory = true_trajectories[count]
+                gen_true_distances.extend([trajectory[3], trajectory[4]])
+                count += 1
+            if gen_true_distances:
+                true_agent_distances.append(gen_true_distances)
 
     num_trained_trajectories = len(trained_trajectories)
     count = 0
@@ -237,6 +241,11 @@ def populate_lists(
         segment = prepare_single_trajectory([[830, 920], [830, 920 + l]])
         print(f"Segment of distance {l} reward:", model(segment).item())
 
+    if replace:
+        true_agent_distances = [
+            [0 for _ in range(len(trained_agent_distances[0]))]
+            for _ in range(len(trained_agent_distances))
+        ]
     return (
         true_agent_distances,
         trained_agent_distances,
@@ -556,7 +565,7 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards):
     plt.close()
 
     zipped_distance_reward = list(zip(segment_distances, segment_rewards))
-    random.shuffle(zipped_distance_reward)
+    # random.shuffle(zipped_distance_reward)
     if len(zipped_distance_reward) % 2 != 0:
         zipped_distance_reward.pop()
     pairs_of_zips = [
@@ -576,7 +585,12 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards):
     wrong = []
     acc = 0
     for zip1, zip2, label in pairs_of_zips:
-        if (zip1[1] < zip2[1] and label) or (zip1[1] > zip2[1] and not label):
+        if (
+            (zip1[1] < zip2[1] and label)
+            or (zip1[1] > zip2[1] and not label)
+            or not zip1[0]
+            or not zip2[0]
+        ):
             acc += 1
         else:
             wrong.append((zip1, zip2))
