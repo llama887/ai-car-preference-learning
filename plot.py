@@ -246,6 +246,11 @@ def populate_lists(
             [0 for _ in range(len(trained_agent_distances[0]))]
             for _ in range(len(trained_agent_distances))
         ]
+
+    last_distance = true_agent_distances[-1][-1]
+    while len(true_agent_distances) < len(trained_agent_distances):
+        true_agent_distances.append([last_distance * agents_per_generation])
+
     return (
         true_agent_distances,
         trained_agent_distances,
@@ -565,7 +570,7 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards):
     plt.close()
 
     zipped_distance_reward = list(zip(segment_distances, segment_rewards))
-    # random.shuffle(zipped_distance_reward)
+    random.shuffle(zipped_distance_reward)
     if len(zipped_distance_reward) % 2 != 0:
         zipped_distance_reward.pop()
     pairs_of_zips = [
@@ -584,6 +589,7 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards):
 
     wrong = []
     acc = 0
+    reacc = 0
     for zip1, zip2, label in pairs_of_zips:
         if (
             (zip1[1] < zip2[1] and label)
@@ -592,10 +598,20 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards):
             or not zip2[0]
         ):
             acc += 1
+        if (
+            (zip1[1] < zip2[1] and label)
+            or (zip1[1] > zip2[1] and not label)
+            or not zip1[0]
+            or not zip2[0]
+            or abs(zip1[0] - zip2[0]) < 0.01
+        ):
+            reacc += 1
         else:
             wrong.append((zip1, zip2))
     acc /= len(pairs_of_zips)
+    reacc /= len(pairs_of_zips)
     print("ACCURACY", acc)
+    print("ACCURACY W/O SAME DIST PAIRS", reacc)
     print("WRONG:")
     count = 0
     for zip1, zip2 in wrong:

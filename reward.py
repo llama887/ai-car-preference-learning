@@ -334,7 +334,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
         study = optuna.create_study(direction="minimize")
         study.set_user_attr("file_path", trajectories_file_path)
         study.set_user_attr("epochs", epochs)
-        study.optimize(objective, n_trials=25)
+        study.optimize(objective, n_trials=10)
 
         # Load and print the best trial
         best_trial = study.best_trial
