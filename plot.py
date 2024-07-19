@@ -148,6 +148,14 @@ def dist(traj_segment):
     )
     return traj_segment_distance
 
+def calculate_new_point(point, distance, angle):
+    x0, y0 = point
+    # Convert angle from degrees to radians
+    angle_rad = math.radians(angle)
+    # Calculate new coordinates
+    x1 = x0 + distance * math.cos(angle_rad)
+    y1 = y0 + distance * math.sin(angle_rad)
+    return [x1, y1]
 
 def populate_lists(
     true_database,
@@ -165,6 +173,8 @@ def populate_lists(
     trained_segment_rewards = []
     training_segment_distances = []
     training_segment_rewards = []
+    training_segment_starts = set()
+    training_segment_ends = set()
 
     replace = False
     if true_database == "blank":
@@ -224,10 +234,19 @@ def populate_lists(
         if gen_trained_rewards:
             trained_agent_rewards.append(gen_trained_rewards)
 
+    def round_10_point(position):
+        x, y = position
+        rounded_x = round(x * 100 / 10) * 10
+        rounded_y = round(y * 100 / 10) * 10
+        return rounded_x, rounded_y
     if training_database:
         for traj1, traj2, _, dist1, dist2 in training_trajectories:
             training_segment_distances.append(dist1)
             training_segment_distances.append(dist2)
+            training_segment_starts.add((round_10_point(traj1[0])))
+            training_segment_starts.add((round_10_point(traj2[0])))
+            training_segment_ends.add((round_10_point(traj1[1])))
+            training_segment_ends.add((round_10_point(traj2[1])))
             training_segment_rewards.append(
                 model(prepare_single_trajectory(traj1)).item()
             )
@@ -259,6 +278,8 @@ def populate_lists(
         trained_segment_rewards,
         training_segment_distances,
         training_segment_rewards,
+        list(training_segment_starts),
+        list(training_segment_ends),
     )
 
 
@@ -308,16 +329,9 @@ def plot_trajectory_order(data, title):
     plt.savefig(f"{figure_path}/{title}.png")
     plt.close()
 
-
-def dist(traj_segment):
-    traj_segment_distance = math.sqrt(
-        (traj_segment[1][0] - traj_segment[0][0]) ** 2
-        + (traj_segment[1][1] - traj_segment[0][1]) ** 2
-    )
-    return traj_segment_distance
-
-
 def handle_plotting(
+    model_weights,
+    hidden_size,
     true_agent_distances,
     trained_agent_distances,
     trained_agent_rewards,
@@ -325,6 +339,8 @@ def handle_plotting(
     trained_segment_rewards,
     training_segment_distances,
     training_segment_rewards,
+    training_segment_starts,
+    training_segment_ends,
 ):
     traj_per_generation = len(true_agent_distances[0])
     true_reward_averages = [
@@ -361,6 +377,18 @@ def handle_plotting(
         "Training Dataset Distance vs Reward",
         training_segment_distances,
         training_segment_rewards,
+    )
+    graph_position_rewards(
+        training_segment_starts,
+        "start",
+        model_weights, 
+        hidden_size,
+    )
+    graph_position_rewards(
+        training_segment_ends,
+        "end",
+        model_weights, 
+        hidden_size,
     )
 
 
@@ -622,6 +650,48 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards):
         if count > 100:
             break
 
+def graph_position_rewards(positions, type, model_weights, hidden_size):
+    title = ""
+    if type == "start":
+        title = "Segment Starts"
+    else:
+        title = "Segment Ends"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = TrajectoryRewardNet(NET_SIZE, hidden_size=int(hidden_size)).to(device)
+    model.load_state_dict(torch.load(model_weights, map_location=device))
+    xs = []
+    ys = []
+    rewards = []
+    for position in positions:
+        xs.append(position[0])
+        ys.append(position[1])
+    print("POINTS:", len(positions))
+    for idx in range(len(positions)):
+        point = [xs[idx], ys[idx]]
+        # print(point)
+        avg_reward = 0
+        for i in range(0, 100, 5):
+            new_point = calculate_new_point(point, i, random.randint(0, 365))
+            new_segment = [
+                    point,
+                    new_point
+                ] if type == "start" else [
+                    new_point,
+                    point
+                ]
+            avg_reward += model(prepare_single_trajectory(new_segment)).item() / 100
+        rewards.append(avg_reward)
+    print("plotting...")
+    plt.scatter(xs, ys, s=rewards, c=rewards, cmap='viridis', alpha=0.6)
+    plt.colorbar(label='Rewards')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.title(title)
+    plt.savefig(f"{figure_path}/{title}.png")
+    plt.close()
+
+        
+
 
 if __name__ == "__main__":
     run_wandb = False
@@ -680,6 +750,8 @@ if __name__ == "__main__":
         trained_segment_rewards,
         training_segment_distances,
         training_segment_rewards,
+        training_segment_starts,
+        training_segment_ends,
     ) = populate_lists(
         true_database,
         trained_database,
@@ -690,6 +762,8 @@ if __name__ == "__main__":
     )
 
     handle_plotting(
+        reward,
+        558,
         true_agent_distances,
         trained_agent_distances,
         trained_agent_rewards,
@@ -697,4 +771,6 @@ if __name__ == "__main__":
         trained_segment_rewards,
         training_segment_distances,
         training_segment_rewards,
+        training_segment_starts,
+        training_segment_ends,
     )

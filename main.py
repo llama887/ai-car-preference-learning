@@ -24,6 +24,7 @@ from reward import TrajectoryRewardNet, train_reward_function
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 os.environ["WANDB_SILENT"] = "true"
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 
 def start_simulation(

@@ -262,6 +262,17 @@ def train_model(
                 batch_true_pref_dist = bradley_terry_model(batch_score1, batch_score2)
                 total_probability += predicted_probabilities.sum().item()
 
+
+                # try:
+                #     assert all(0 <= pref <= 1 for pref in predicted_probabilities)
+                # except:
+                #     print("PREDICTED bradley terry failed.")
+
+                # try:
+                #     assert all(0 <= pref <= 1 for pref in batch_true_pref_dist)
+                # except:
+                #     print("TRUE PREFS bradley terry failed.")
+
                 loss = preference_loss(predicted_probabilities, batch_true_pref_dist)
                 total_loss += loss.item()
                 # ipdb.set_trace()
