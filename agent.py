@@ -107,7 +107,6 @@ class Car:
             if game_map.get_at((int(point[0]), int(point[1]))) == BORDER_COLOR:
                 self.alive = False
                 self.speed = 0
-                self.angle = 0 
                 break
 
     def check_radar(self, degree, game_map):
@@ -174,20 +173,28 @@ class Car:
             # Length Is Half The Side
             length = 0.5 * CAR_SIZE_X
             left_top = [
-                self.center[0] + math.cos(math.radians(360 - (self.angle + 30))) * length,
-                self.center[1] + math.sin(math.radians(360 - (self.angle + 30))) * length,
+                self.center[0]
+                + math.cos(math.radians(360 - (self.angle + 30))) * length,
+                self.center[1]
+                + math.sin(math.radians(360 - (self.angle + 30))) * length,
             ]
             right_top = [
-                self.center[0] + math.cos(math.radians(360 - (self.angle + 150))) * length,
-                self.center[1] + math.sin(math.radians(360 - (self.angle + 150))) * length,
+                self.center[0]
+                + math.cos(math.radians(360 - (self.angle + 150))) * length,
+                self.center[1]
+                + math.sin(math.radians(360 - (self.angle + 150))) * length,
             ]
             left_bottom = [
-                self.center[0] + math.cos(math.radians(360 - (self.angle + 210))) * length,
-                self.center[1] + math.sin(math.radians(360 - (self.angle + 210))) * length,
+                self.center[0]
+                + math.cos(math.radians(360 - (self.angle + 210))) * length,
+                self.center[1]
+                + math.sin(math.radians(360 - (self.angle + 210))) * length,
             ]
             right_bottom = [
-                self.center[0] + math.cos(math.radians(360 - (self.angle + 330))) * length,
-                self.center[1] + math.sin(math.radians(360 - (self.angle + 330))) * length,
+                self.center[0]
+                + math.cos(math.radians(360 - (self.angle + 330))) * length,
+                self.center[1]
+                + math.sin(math.radians(360 - (self.angle + 330))) * length,
             ]
             self.corners = [left_top, right_top, left_bottom, right_bottom]
 
@@ -217,9 +224,9 @@ class Car:
     def get_reward(self):
         # Calculate Reward (Maybe Change?)
         # return self.distance / 50.0
-        if len(self.trajectory) < 2:
-            return 0
         if reward_network is not None:
+            if len(self.trajectory) < 2:
+                return 0
             trajectory_tensor = prepare_single_trajectory(self.trajectory)
             reward = reward_network(trajectory_tensor)
             return reward.item()
@@ -533,28 +540,38 @@ def run_simulation(genomes, config):
 
         # For Each Car Get The Acton It Takes
         for i, car in enumerate(cars):
-            output = nets[i].activate(car.get_data())
-            choice = output.index(max(output))
-            if choice == 0:
-                car.angle += 10  # Left
-            elif choice == 1:
-                car.angle -= 10  # Right
-            elif choice == 2:
-                if car.speed - 2 >= 12:
-                    car.speed -= 2  # Slow Down
-            else:
-                car.speed += 2  # Speed Up
+            if car.is_alive():
+                output = nets[i].activate(car.get_data())
+                choice = output.index(max(output))
+                if choice == 0:
+                    car.angle += 10  # Left
+                elif choice == 1:
+                    car.angle -= 10  # Right
+                elif choice == 2:
+                    if car.speed - 2 >= 12:
+                        car.speed -= 2  # Slow Down
+                else:
+                    car.speed += 2  # Speed Up
 
         # Check If Car Is Still Alive
         # Increase Fitness If Yes And Break Loop If Not
         still_alive = 0
+        speeds = []
+        rewards = []
         for i, car in enumerate(cars):
             if car.is_alive():
                 still_alive += 1
-                
+
             car_reward = car.get_reward()
+            rewards.append(car_reward)
+            speeds.append(car.speed)
             car.update(game_map)
             genomes[i][1].fitness += car_reward
+
+        # print("SPEED:", speeds)
+        # print("REWARDS:", rewards)
+        # print("STILL ALIVE:", still_alive)
+        # print("NON-ZERO:", sum([1 if r == 0 else 0 for r in rewards]))
 
         global big_car_distance
         big_car_alive = False
