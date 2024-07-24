@@ -106,6 +106,8 @@ class Car:
             # Assumes Rectangle
             if game_map.get_at((int(point[0]), int(point[1]))) == BORDER_COLOR:
                 self.alive = False
+                self.speed = 0
+                self.angle = 0 
                 break
 
     def check_radar(self, degree, game_map):
@@ -140,61 +142,62 @@ class Car:
     def update(self, game_map):
         # Set The Speed To 20 For The First Time
         # Only When Having 4 Output Nodes With Speed Up and Down
-        if not self.speed_set:
-            self.speed = 20
-            self.speed_set = True
+        if self.alive:
+            if not self.speed_set:
+                self.speed = 20
+                self.speed_set = True
 
-        # Get Rotated Sprite And Move Into The Right X-Direction
-        # Don't Let The Car Go Closer Than 20px To The Edge
-        self.rotated_sprite = self.rotate_center(self.sprite, self.angle)
-        self.position[0] += math.cos(math.radians(360 - self.angle)) * self.speed
-        self.position[0] = max(self.position[0], 20)
-        self.position[0] = min(self.position[0], WIDTH - 120)
+            # Get Rotated Sprite And Move Into The Right X-Direction
+            # Don't Let The Car Go Closer Than 20px To The Edge
+            self.rotated_sprite = self.rotate_center(self.sprite, self.angle)
+            self.position[0] += math.cos(math.radians(360 - self.angle)) * self.speed
+            self.position[0] = max(self.position[0], 20)
+            self.position[0] = min(self.position[0], WIDTH - 120)
 
-        # Increase Distance and Time
-        self.distance += self.speed
-        self.reward += self.get_reward()
-        self.time += 1
+            # Increase Distance and Time
+            self.distance += self.speed
+            self.reward += self.get_reward()
+            self.time += 1
 
-        # Same For Y-Position
-        self.position[1] += math.sin(math.radians(360 - self.angle)) * self.speed
-        self.position[1] = max(self.position[1], 20)
-        self.position[1] = min(self.position[1], WIDTH - 120)
+            # Same For Y-Position
+            self.position[1] += math.sin(math.radians(360 - self.angle)) * self.speed
+            self.position[1] = max(self.position[1], 20)
+            self.position[1] = min(self.position[1], WIDTH - 120)
 
-        # Calculate New Center
-        self.center = [
-            int(self.position[0]) + CAR_SIZE_X / 2,
-            int(self.position[1]) + CAR_SIZE_Y / 2,
-        ]
+            # Calculate New Center
+            self.center = [
+                int(self.position[0]) + CAR_SIZE_X / 2,
+                int(self.position[1]) + CAR_SIZE_Y / 2,
+            ]
 
-        # Calculate Four Corners
-        # Length Is Half The Side
-        length = 0.5 * CAR_SIZE_X
-        left_top = [
-            self.center[0] + math.cos(math.radians(360 - (self.angle + 30))) * length,
-            self.center[1] + math.sin(math.radians(360 - (self.angle + 30))) * length,
-        ]
-        right_top = [
-            self.center[0] + math.cos(math.radians(360 - (self.angle + 150))) * length,
-            self.center[1] + math.sin(math.radians(360 - (self.angle + 150))) * length,
-        ]
-        left_bottom = [
-            self.center[0] + math.cos(math.radians(360 - (self.angle + 210))) * length,
-            self.center[1] + math.sin(math.radians(360 - (self.angle + 210))) * length,
-        ]
-        right_bottom = [
-            self.center[0] + math.cos(math.radians(360 - (self.angle + 330))) * length,
-            self.center[1] + math.sin(math.radians(360 - (self.angle + 330))) * length,
-        ]
-        self.corners = [left_top, right_top, left_bottom, right_bottom]
+            # Calculate Four Corners
+            # Length Is Half The Side
+            length = 0.5 * CAR_SIZE_X
+            left_top = [
+                self.center[0] + math.cos(math.radians(360 - (self.angle + 30))) * length,
+                self.center[1] + math.sin(math.radians(360 - (self.angle + 30))) * length,
+            ]
+            right_top = [
+                self.center[0] + math.cos(math.radians(360 - (self.angle + 150))) * length,
+                self.center[1] + math.sin(math.radians(360 - (self.angle + 150))) * length,
+            ]
+            left_bottom = [
+                self.center[0] + math.cos(math.radians(360 - (self.angle + 210))) * length,
+                self.center[1] + math.sin(math.radians(360 - (self.angle + 210))) * length,
+            ]
+            right_bottom = [
+                self.center[0] + math.cos(math.radians(360 - (self.angle + 330))) * length,
+                self.center[1] + math.sin(math.radians(360 - (self.angle + 330))) * length,
+            ]
+            self.corners = [left_top, right_top, left_bottom, right_bottom]
 
-        # Check Collisions And Clear Radars
-        self.check_collision(game_map)
-        self.radars.clear()
+            # Check Collisions And Clear Radars
+            self.check_collision(game_map)
+            self.radars.clear()
 
-        # From -90 To 120 With Step-Size 45 Check Radar
-        for d in range(-90, 120, 45):
-            self.check_radar(d, game_map)
+            # From -90 To 120 With Step-Size 45 Check Radar
+            for d in range(-90, 120, 45):
+                self.check_radar(d, game_map)
 
         self.trajectory.append(self.position.copy())
 
@@ -246,9 +249,13 @@ def break_into_segments(trajectory):
     prev = 0
     curr = 1
     while curr < len(trajectory):
-        trajectory_segments.append([trajectory[prev], trajectory[curr]])
+        segment = [trajectory[prev], trajectory[curr]]
+        if dist(segment) == 0:
+            break
+        trajectory_segments.append(segment)
         prev += 1
         curr += 1
+
     return trajectory_segments
 
 
@@ -458,15 +465,15 @@ def generate_database(trajectory_path):
     for f in old_trajectories:
         os.remove(f)
 
+    prefix = "database" if run_type == "collect" else run_type
     # Delete old database if it is redundant (same size)
     print("Removing old database...")
     old_trajectories = glob.glob(
-        trajectory_path + f"database_{len(trajectory_pairs)}.pkl"
+        trajectory_path + f"{prefix}_{len(trajectory_pairs)}.pkl"
     )
     for f in old_trajectories:
         os.remove(f)
 
-    prefix = "database" if run_type == "collect" else run_type
     # Save To Database
     with open(trajectory_path + f"{prefix}_{len(trajectory_pairs)}.pkl", "wb") as f:
         pickle.dump(trajectory_pairs, f)
@@ -543,10 +550,11 @@ def run_simulation(genomes, config):
         still_alive = 0
         for i, car in enumerate(cars):
             if car.is_alive():
-                car_reward = car.get_reward()
                 still_alive += 1
-                car.update(game_map)
-                genomes[i][1].fitness += car_reward
+                
+            car_reward = car.get_reward()
+            car.update(game_map)
+            genomes[i][1].fitness += car_reward
 
         global big_car_distance
         big_car_alive = False

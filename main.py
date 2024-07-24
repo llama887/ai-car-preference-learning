@@ -139,6 +139,8 @@ if __name__ == "__main__":
         trained_segment_rewards,
         training_segment_distances,
         training_segment_rewards,
+        training_segment_starts,
+        training_segment_ends,
     ) = populate_lists(
         true_database,
         trained_database,
@@ -150,6 +152,8 @@ if __name__ == "__main__":
 
     print("PLOTTING...")
     handle_plotting(
+        model_weights,
+        558,
         true_agent_distances,
         trained_agent_distances,
         trained_agent_rewards,
@@ -157,6 +161,8 @@ if __name__ == "__main__":
         trained_segment_rewards,
         training_segment_distances,
         training_segment_rewards,
+        training_segment_starts,
+        training_segment_ends,
     )
 
     bt, bt_, bt_delta, ordered_trajectories = prepare_data(
