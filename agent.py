@@ -257,8 +257,8 @@ def break_into_segments(trajectory):
     curr = 1
     while curr < len(trajectory):
         segment = [trajectory[prev], trajectory[curr]]
-        if dist(segment) == 0:
-            break
+        # if dist(segment) == 0:
+        #     break
         trajectory_segments.append(segment)
         prev += 1
         curr += 1
@@ -585,22 +585,25 @@ def run_simulation(genomes, config):
         counter += 1
 
         if counter == TRAJECTORY_LENGTH or (still_alive == 0 and not big_car_alive):
+            non_expert_traj = False
             num_expert_trajectory = 0
             # if still_alive == 0:
             #     maxCar = max(enumerate(cars), key=lambda x: len(x[1].trajectory))
             #     maxCar[1].save_trajectory(f"{trajectory_path}trajectory_{current_generation}_{maxCar[0]}.pkl")
             #     num_expert_trajectory = 1
             # else:
+
             for i, car in enumerate(cars):
                 if saved_trajectory_count >= number_of_pairs and run_type == "collect":
                     break
-                if not car.is_alive() and run_type == "collect":
+                if not car.is_alive() and run_type == "collect" and non_expert_traj:
                     continue
                 car.save_trajectory(
                     f"{trajectory_path}trajectory_{current_generation}_{i}.pkl"
                 )
                 saved_trajectory_count += 1
                 num_expert_trajectory += 1
+                non_expert_traj = True
             if run_type == "collect":
                 print(
                     "THIS GENERATION PRODUCED",
@@ -635,6 +638,7 @@ def run_simulation(genomes, config):
             screen.blit(text, text_rect)
 
             if run_type == "big_mode":
+                pygame.draw.circle(screen, (255, 0, 0), big_car.position, 30)
                 global big_car_best_distance
                 text = alive_font.render(
                     "Time Left before generation ends: "
