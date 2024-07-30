@@ -58,7 +58,7 @@ class TrajectoryRewardNet(nn.Module):
         x = F.relu(self.ln4(self.fc4(x)))
         x = self.dropout4(x)
         x = self.fc5(x)
-        x += 15
+        # x += 15
         return x
 
 

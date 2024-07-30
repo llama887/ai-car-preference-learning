@@ -535,7 +535,7 @@ def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
     )
     plt.xlabel("Distance")
     plt.ylabel("Reward")
-    plt.title("Reward vs. Distance Travelled")
+    plt.title("Total Reward vs. Total Distance Travelled")
     plt.legend()
     plt.savefig("figures/agent_distance_vs_reward.png")
     plt.close()

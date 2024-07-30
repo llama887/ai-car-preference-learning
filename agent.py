@@ -520,6 +520,7 @@ def run_simulation(genomes, config):
 
     # Simple Counter To Roughly Limit Time (Not Good Practice)
     counter = 0
+    reward_count = 0
     while True:
         # Exit On Quit Event
         for event in pygame.event.get():
@@ -562,6 +563,7 @@ def run_simulation(genomes, config):
             if car.is_alive():
                 still_alive += 1
 
+            reward_count += 1
             car_reward = car.get_reward()
             rewards.append(car_reward)
             speeds.append(car.speed)
@@ -584,7 +586,8 @@ def run_simulation(genomes, config):
         global saved_segments
         counter += 1
 
-        if counter == TRAJECTORY_LENGTH or (still_alive == 0 and not big_car_alive):
+        # if counter == TRAJECTORY_LENGTH or (still_alive == 0 and not big_car_alive and run_type == "collect"):
+        if counter == TRAJECTORY_LENGTH:
             non_expert_traj = False
             num_expert_trajectory = 0
             # if still_alive == 0:
@@ -675,7 +678,7 @@ def run_simulation(genomes, config):
 
             pygame.display.flip()
         clock.tick(60)  # 60 FPS
-
+    print("GET REWARD CALLED:", reward_count, "TIMES THIS GENERATION.")
 
 def run_population(
     config_path, max_generations, number_of_pairs, runType, noHead=False
