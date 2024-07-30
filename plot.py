@@ -378,18 +378,18 @@ def handle_plotting(
         training_segment_distances,
         training_segment_rewards,
     )
-    graph_position_rewards(
-        training_segment_starts,
-        "start",
-        model_weights, 
-        hidden_size,
-    )
-    graph_position_rewards(
-        training_segment_ends,
-        "end",
-        model_weights, 
-        hidden_size,
-    )
+    # graph_position_rewards(
+    #     training_segment_starts,
+    #     "start",
+    #     model_weights, 
+    #     hidden_size,
+    # )
+    # graph_position_rewards(
+    #     training_segment_ends,
+    #     "end",
+    #     model_weights, 
+    #     hidden_size,
+    # )
 
 
 def graph_avg_max(averages, maxes):
@@ -666,6 +666,7 @@ def graph_position_rewards(positions, type, model_weights, hidden_size):
         xs.append(position[0])
         ys.append(position[1])
     print("POINTS:", len(positions))
+    min_rew = float('inf')
     for idx in range(len(positions)):
         point = [xs[idx], ys[idx]]
         # print(point)
@@ -680,9 +681,12 @@ def graph_position_rewards(positions, type, model_weights, hidden_size):
                     point
                 ]
             avg_reward += model(prepare_single_trajectory(new_segment)).item() / 100
+            min_rew = min(min_rew, avg_reward)
         rewards.append(avg_reward)
+    offset = abs(min_rew) + 1
+    scaled_rewards = [r + offset for r in rewards]
     print("plotting...")
-    plt.scatter(xs, ys, s=rewards, c=rewards, cmap='viridis', alpha=0.6)
+    plt.scatter(xs, ys, s=scaled_rewards, c=rewards, cmap='viridis', alpha=0.6)
     plt.colorbar(label='Rewards')
     plt.xlabel('x')
     plt.ylabel('y')
