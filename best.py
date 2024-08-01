@@ -72,7 +72,7 @@ def display_top_trajectories(database_path, num, best, model_weights=None, hidde
         top_traj.append(traj[1])
         if best:
             traj = (traj[0] * -1, traj[1], traj[2])
-        print(f'{i}. FITNESS (TOTAL REWARD): {traj[0]} | DIST: {traj[2]}')
+        print(f'{i + 1}. FITNESS (TOTAL REWARD): {traj[0]} | DIST: {traj[2]}')
     graph_top_traj(top_traj)
 
 def graph_top_traj(top_traj):

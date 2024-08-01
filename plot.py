@@ -527,11 +527,38 @@ def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
     for i in range(len(trained_agent_distances)):
         aggregate_trained_distance.extend(trained_agent_distances[i])
         aggregate_trained_reward.extend(trained_agent_rewards[i])
-    plt.figure()
-    plt.scatter(
+
+    zipped_distance_reward = list(zip(aggregate_trained_distance, aggregate_trained_reward))
+    distTotal = {}
+    distCount = {}
+    for distance, reward in zipped_distance_reward:
+        rounded_distance = round(distance, 1)
+        distCount[rounded_distance] = 1 + distCount.get(rounded_distance, 0)
+        distTotal[rounded_distance] = reward + distTotal.get(rounded_distance, 0)
+
+    rounded_distances = list(distCount.keys())
+    rounded_distances = [rounded_distances[i] for i in range(len(0,rounded_distances, 5))]
+    avg_reward_for_distances = []
+    for rounded_distance in rounded_distances:
+        avg_reward_for_distances.append(
+            distTotal[rounded_distance] / distCount[rounded_distance]
+        )
+
+    os.makedirs("figures", exist_ok=True)
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    ax1.scatter(
         x=aggregate_trained_distance,
         y=aggregate_trained_reward,
         label="Trained Agent",
+        c="b",
+        alpha=0.2,
+    )
+    ax1.scatter(
+        x=rounded_distances,
+        y=avg_reward_for_distances,
+        label="Avg Reward per Trajectory Dist.",
+        c="r",
     )
     plt.xlabel("Distance")
     plt.ylabel("Reward")
