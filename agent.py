@@ -34,6 +34,7 @@ BORDER_COLOR = (255, 255, 255, 255)  # Color To Crash on Hit
 
 TRAJECTORY_LENGTH = 30 * 15
 TRAIN_TRAJECTORY_LENGTH = 2
+STATE_ACTION_SIZE = 7
 
 DEFAULT_MAX_GENERATIONS = 1000
 SEGMENTS_PER_PAIR = 5
@@ -54,6 +55,31 @@ big_car_distance = 0
 # need to save heading, there are 3dof
 
 
+class state_action_pair:
+    def __init__(self, radars, position):
+        if len(radars) != 5:
+            raise ValueError("radars must be 5 floats")
+        if len(position) != 2:
+            raise ValueError("position must be 2 floats")
+
+        self.radars = radars
+        self.position = position
+
+    def __iter__(self):
+        return iter(self.radars + self.position)
+
+    def __getitem__(self, index):
+        if 0 <= index < 5:
+            return self.radars[index]
+        elif 5 <= index < 7:
+            return self.position[index - 5]
+        else:
+            raise IndexError("Index out of range")
+
+    def __len__(self):
+        return 7
+
+
 class Car:
     def __init__(self, color="blue"):
         # Load Car Sprite and Rotate
@@ -71,6 +97,7 @@ class Car:
         self.speed = 0
 
         self.speed_set = False  # Flag For Default Speed Later on
+        self.radar_max = 10000
 
         self.center = [
             self.position[0] + CAR_SIZE_X / 2,
@@ -86,7 +113,7 @@ class Car:
         self.reward = 0
         self.time = 0  # Time Passed
 
-        self.trajectory = [[830, 920]]  # All Positions of the Car
+        self.trajectory = []  # All Positions of the Car
 
     def draw(self, screen):
         screen.blit(self.rotated_sprite, self.position)  # Draw Sprite
@@ -121,7 +148,7 @@ class Car:
         )
 
         # While We Don't Hit BORDER_COLOR AND length < 300 (just a max) -> go further and further
-        while not game_map.get_at((x, y)) == BORDER_COLOR and length < 300:
+        while not game_map.get_at((x, y)) == BORDER_COLOR and length < self.radar_max:
             length = length + 1
             x = int(
                 self.center[0]
@@ -137,6 +164,7 @@ class Car:
             math.sqrt(math.pow(x - self.center[0], 2) + math.pow(y - self.center[1], 2))
         )
         self.radars.append([(x, y), dist])
+        return dist
 
     def update(self, game_map):
         # Set The Speed To 20 For The First Time
@@ -145,6 +173,12 @@ class Car:
             if not self.speed_set:
                 self.speed = 20
                 self.speed_set = True
+
+                first_state_action = state_action_pair(
+                    [self.check_radar(d, game_map) for d in range(-90, 120, 45)],
+                    [830, 920],
+                )
+                self.trajectory.append(first_state_action)
 
             # Get Rotated Sprite And Move Into The Right X-Direction
             # Don't Let The Car Go Closer Than 20px To The Edge
@@ -200,13 +234,14 @@ class Car:
 
             # Check Collisions And Clear Radars
             self.check_collision(game_map)
-            self.radars.clear()
+        self.radars.clear()
 
-            # From -90 To 120 With Step-Size 45 Check Radar
-            for d in range(-90, 120, 45):
-                self.check_radar(d, game_map)
-
-        self.trajectory.append(self.position.copy())
+        radar_dists = []
+        # From -90 To 120 With Step-Size 45 Check Radar
+        for d in range(-90, 120, 45):
+            radar_dists.append(self.check_radar(d, game_map))
+        next_state_action = state_action_pair(radar_dists, self.position)
+        self.trajectory.append(next_state_action)
 
     def get_data(self):
         # Get Distances To Border
@@ -267,9 +302,10 @@ def break_into_segments(trajectory):
 
 
 def dist(traj_segment):
+    position_segment = [traj_segment[0].position, traj_segment[1].position]
     traj_segment_distance = math.sqrt(
-        (traj_segment[1][0] - traj_segment[0][0]) ** 2
-        + (traj_segment[1][1] - traj_segment[0][1]) ** 2
+        (position_segment[1][0] - position_segment[0][0]) ** 2
+        + (position_segment[1][1] - position_segment[0][1]) ** 2
     )
     return traj_segment_distance
 
@@ -334,20 +370,16 @@ def generate_database(trajectory_path):
         segment_generation_mode = "random"
         if segment_generation_mode == "random":
             random.shuffle(trajectory_segments)
-            close_starts = []
             close_distance = []
             for i in range(0, len(trajectory_segments), 2):
                 distance_1 = dist(trajectory_segments[i])
                 distance_2 = dist(trajectory_segments[i + 1])
-                start_distance = dist(
-                    [trajectory_segments[i][0], trajectory_segments[i + 1][0]]
-                )
                 if abs(distance_1 - distance_2) < 0.001:
                     close_distance.append(
                         (
-                            trajectory_segments[i],
-                            trajectory_segments[i + 1],
-                            0 if distance_1 > distance_2 else 1,
+                            list(trajectory_segments[i]),
+                            list(trajectory_segments[i + 1]),
+                            0 if distance_1 < distance_2 else 1,
                             distance_1,
                             distance_2,
                         )
@@ -355,9 +387,9 @@ def generate_database(trajectory_path):
                 else:
                     trajectory_pairs.append(
                         (
-                            trajectory_segments[i],
-                            trajectory_segments[i + 1],
-                            0 if distance_1 > distance_2 else 1,
+                            list(trajectory_segments[i]),
+                            list(trajectory_segments[i + 1]),
+                            0 if distance_1 < distance_2 else 1,
                             distance_1,
                             distance_2,
                         )
@@ -680,6 +712,7 @@ def run_simulation(genomes, config):
         clock.tick(60)  # 60 FPS
     print("GET REWARD CALLED:", reward_count, "TIMES THIS GENERATION.")
 
+
 def run_population(
     config_path, max_generations, number_of_pairs, runType, noHead=False
 ):
@@ -786,7 +819,7 @@ if __name__ == "__main__":
         print("\nLoading reward network...")
 
         reward_network = TrajectoryRewardNet(
-            TRAIN_TRAJECTORY_LENGTH * 2,
+            STATE_ACTION_SIZE * 2,
             hidden_size=hidden_size,
         ).to(device)
         weights = torch.load(args.reward, map_location=torch.device(f"{device}"))

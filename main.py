@@ -88,9 +88,9 @@ if __name__ == "__main__":
     if args.headless:
         os.environ["SDL_VIDEODRIVER"] = "dummy"
 
-
     database_path = f"trajectories/database_{args.trajectories[0]}.pkl"
     model_weights = ""
+
     if args.reward is None:
         # start the simulation in data collecting mode
         num_traj = start_simulation(
@@ -117,7 +117,6 @@ if __name__ == "__main__":
     else:
         model_weights = args.reward
 
-
     # run the simulation with the true reward function
     print("Simulating on true reward function...")
     truePairs = start_simulation(
@@ -127,13 +126,15 @@ if __name__ == "__main__":
         "trueRF",
         False,
     )
-        
+
     with open("best_params.yaml", "r") as file:
         data = yaml.safe_load(file)
         hidden_size = data["hidden_size"]
 
     print("Simulating on trained reward function...")
-    agent.reward_network = TrajectoryRewardNet(TRAIN_TRAJECTORY_LENGTH * 2, hidden_size=hidden_size).to(device)
+    agent.reward_network = TrajectoryRewardNet(
+        TRAIN_TRAJECTORY_LENGTH * 2, hidden_size=hidden_size
+    ).to(device)
 
     weights = torch.load(model_weights, map_location=device)
     agent.reward_network.load_state_dict(weights)

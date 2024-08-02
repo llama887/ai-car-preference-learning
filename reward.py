@@ -21,7 +21,7 @@ from torch.utils.data import DataLoader, Dataset, random_split
 import wandb
 
 os.environ["WANDB_SILENT"] = "true"
-INPUT_SIZE = 2 * 2
+INPUT_SIZE = 7 * 2
 
 figure_path = "figures/"
 os.makedirs(figure_path, exist_ok=True)
@@ -117,7 +117,7 @@ class TrajectoryDataset(Dataset):
 def bradley_terry_model(r1, r2):
     exp_r1 = torch.exp(r1)
     exp_r2 = torch.exp(r2)
-    probability = exp_r2 / (exp_r1 + exp_r2)
+    probability = exp_r1 / (exp_r1 + exp_r2)
     return probability.squeeze()
 
 
@@ -159,7 +159,7 @@ def train_model(
     batch_size=256,
     model_path="best.pth",
 ):
-    print("BATCH_SIZE:", batch_size)
+    print("BATCH_SIZE:", batch_size, "| file path:", file_path, "| epochs:", epochs)
     wandb.init(project="Micro Preference")
     wandb.watch(net, log="all")
 
@@ -206,6 +206,7 @@ def train_model(
     epoch = 0
     try:
         while epoch < epochs:
+            print("epoch:", epoch)
             net.eval()
             total_validation_loss = 0.0
             total_validation_accuracy = 0.0
@@ -261,7 +262,6 @@ def train_model(
                 predicted_probabilities = bradley_terry_model(rewards1, rewards2)
                 batch_true_pref_dist = bradley_terry_model(batch_score1, batch_score2)
                 total_probability += predicted_probabilities.sum().item()
-
 
                 # try:
                 #     assert all(0 <= pref <= 1 for pref in predicted_probabilities)
