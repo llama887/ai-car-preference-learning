@@ -56,7 +56,7 @@ big_car_distance = 0
 
 
 class state_action_pair:
-    def __init__(self, radars, position):
+    def __init__(self, radars, position, alive):
         if len(radars) != 5:
             raise ValueError("radars must be 5 floats")
         if len(position) != 2:
@@ -64,6 +64,7 @@ class state_action_pair:
 
         self.radars = radars
         self.position = position
+        self.alive = alive
 
     def __iter__(self):
         return iter(self.radars + self.position)
@@ -177,6 +178,7 @@ class Car:
                 first_state_action = state_action_pair(
                     [self.check_radar(d, game_map) for d in range(-90, 120, 45)],
                     [830, 920],
+                    True
                 )
                 self.trajectory.append(first_state_action)
 
@@ -240,7 +242,7 @@ class Car:
         # From -90 To 120 With Step-Size 45 Check Radar
         for d in range(-90, 120, 45):
             radar_dists.append(self.check_radar(d, game_map))
-        next_state_action = state_action_pair(radar_dists, self.position)
+        next_state_action = state_action_pair(radar_dists, self.position, self.alive)
         self.trajectory.append(next_state_action)
 
     def get_data(self):
@@ -283,7 +285,14 @@ class Car:
             # with open(filename, "wb") as f:
             #     pickle.dump((self.distance, self.trajectory, self.reward), f)
             saved_trajectories.append((self.distance, self.trajectory, self.reward))
+        for sa_pair in self.trajectory:
+            rad = sa_pair.radars.copy()
+            rad.extend(sa_pair.position)
+            rad.append(sa_pair.alive)
+            print(rad)
         saved_segments.extend(break_into_segments(self.trajectory))
+
+        
 
 
 def break_into_segments(trajectory):
@@ -602,11 +611,6 @@ def run_simulation(genomes, config):
             car.update(game_map)
             genomes[i][1].fitness += car_reward
 
-        # print("SPEED:", speeds)
-        # print("REWARDS:", rewards)
-        # print("STILL ALIVE:", still_alive)
-        # print("NON-ZERO:", sum([1 if r == 0 else 0 for r in rewards]))
-
         global big_car_distance
         big_car_alive = False
         if run_type == "big_mode" and big_car.is_alive():
@@ -620,7 +624,7 @@ def run_simulation(genomes, config):
 
         # if counter == TRAJECTORY_LENGTH or (still_alive == 0 and not big_car_alive and run_type == "collect"):
         if counter == TRAJECTORY_LENGTH:
-            non_expert_traj = False
+            non_expert_traj = True
             num_expert_trajectory = 0
             # if still_alive == 0:
             #     maxCar = max(enumerate(cars), key=lambda x: len(x[1].trajectory))
@@ -636,9 +640,10 @@ def run_simulation(genomes, config):
                 car.save_trajectory(
                     f"{trajectory_path}trajectory_{current_generation}_{i}.pkl"
                 )
+                print() # DELETE
                 saved_trajectory_count += 1
                 num_expert_trajectory += 1
-                non_expert_traj = True
+                # non_expert_traj = True
             if run_type == "collect":
                 print(
                     "THIS GENERATION PRODUCED",

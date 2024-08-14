@@ -17,6 +17,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader, Dataset, random_split
+from collections import defaultdict 
 
 import wandb
 
@@ -47,20 +48,70 @@ class TrajectoryRewardNet(nn.Module):
         self.ln4 = nn.LayerNorm(hidden_size // 4)
         self.dropout4 = nn.Dropout(dropout_prob)
         self.fc5 = nn.Linear(hidden_size // 4, 1)
+        # self.init_weights()
+
+        self.activations = defaultdict(list)
+        self.gradients = defaultdict(list)
+        self.register_hooks()
+
+    def register_hooks(self):
+        def get_activation(name):
+            def hook(model, input, output):
+                self.activations[name].append(output.detach())
+            return hook
+
+        def get_gradient(name):
+            def hook(model, grad_input, grad_output):
+                self.gradients[name].append(grad_output[0].detach())
+            return hook
+
+        self.fc1.register_forward_hook(get_activation('fc1'))
+        self.fc2.register_forward_hook(get_activation('fc2'))
+        self.fc3.register_forward_hook(get_activation('fc3'))
+        self.fc4.register_forward_hook(get_activation('fc4'))
+        self.fc5.register_forward_hook(get_activation('fc5'))
+
+        self.fc1.register_backward_hook(get_gradient('fc1'))
+        self.fc2.register_backward_hook(get_gradient('fc2'))
+        self.fc3.register_backward_hook(get_gradient('fc3'))
+        self.fc4.register_backward_hook(get_gradient('fc4'))
+        self.fc5.register_backward_hook(get_gradient('fc5'))
 
     def forward(self, x):
+        # print("Before Layers:", x)
         x = F.relu(self.ln1(self.fc1(x)))
+        # print("After fc1:", x)
         x = self.dropout1(x)
         x = F.relu(self.ln2(self.fc2(x)))
+        # print("After fc2:", x)
         x = self.dropout2(x)
         x = F.relu(self.ln3(self.fc3(x)))
+        # print("After fc3:", x)
         x = self.dropout3(x)
         x = F.relu(self.ln4(self.fc4(x)))
+        # print("After fc4:", x)
         x = self.dropout4(x)
         x = self.fc5(x)
-        # x += 15
         return x
 
+def plot_activations_and_gradients(model):
+    for i in range(1, 6):
+        layer_name = f'fc{i}'
+        activations = torch.cat(model.activations[layer_name]).cpu().numpy()
+        gradients = torch.cat(model.gradients[layer_name]).cpu().numpy()
+
+        plt.figure(figsize=(12, 5))
+
+        plt.subplot(1, 2, 1)
+        plt.title(f'Activations at {layer_name}')
+        plt.hist(activations.flatten(), bins=100)
+
+        plt.subplot(1, 2, 2)
+        plt.title(f'Gradients at {layer_name}')
+        plt.hist(gradients.flatten(), bins=100)
+
+        plt.savefig(f"{figure_path}activation_{i}.png")
+        plt.close()
 
 class TrajectoryDataset(Dataset):
     def __init__(self, file_path):
@@ -89,15 +140,23 @@ class TrajectoryDataset(Dataset):
             self.labels.append(trajectory_pair[2])
             self.score1.append(trajectory_pair[3])
             self.score2.append(trajectory_pair[4])
-        # scaler.fit(all_data)
-        # with open("scaler.pkl", "wb") as f:
-        #     pickle.dump(scaler, f)
-        self.first_trajectories = torch.tensor(
-            self.first_trajectories, dtype=torch.float32
-        ).to(device)
-        self.second_trajectories = torch.tensor(
-            self.second_trajectories, dtype=torch.float32
-        ).to(device)
+
+        for i in range(100):
+            print(self.first_trajectories[i])
+        scaler.fit(all_data)
+        self.first_trajectories = torch.tensor([scaler.transform(trajectory1_flat) for trajectory1_flat in self.first_trajectories], dtype=torch.float32).to(device)
+        self.second_trajectories = torch.tensor([scaler.transform(trajectory2_flat) for trajectory2_flat in self.second_trajectories], dtype=torch.float32).to(device)
+
+        # self.first_trajectories = torch.tensor(
+        #     self.first_trajectories, dtype=torch.float32
+        # ).to(device)
+        # self.second_trajectories = torch.tensor(
+        #     self.second_trajectories, dtype=torch.float32
+        # ).to(device)
+        for i in range(100):
+            print(self.first_trajectories[i])
+
+
         self.labels = torch.tensor(self.labels, dtype=torch.float32).to(device)
         self.score1 = torch.tensor(self.score1, dtype=torch.float32).to(device)
         self.score2 = torch.tensor(self.score2, dtype=torch.float32).to(device)
@@ -253,27 +312,24 @@ def train_model(
                 batch_score1,
                 batch_score2,
             ) in train_dataloader:
-                # for item in list(zip(batch_traj1, batch_traj2, batch_true_pref)):
-                #     print(item)
                 rewards1 = net(batch_traj1)
                 rewards2 = net(batch_traj2)
-                # print(rewards1, rewards2)
 
+                # print("REWARD 1 HAS NAN:", torch.any(torch.isnan(rewards1)))
+                # print("REWARD 2 HAS NAN:", torch.any(torch.isnan(rewards2)))
+                # print("SCORE 1 HAS NAN:", torch.any(torch.isnan(batch_score1)))
+                # print("SCORE 2 HAS NAN:", torch.any(torch.isnan(batch_score2)))
                 predicted_probabilities = bradley_terry_model(rewards1, rewards2)
                 batch_true_pref_dist = bradley_terry_model(batch_score1, batch_score2)
+                # print(predicted_probabilities)
+                # print(batch_true_pref_dist)
+                # print("PREDICTED PROB BRADLEY_TERRY INVALID:", torch.any((predicted_probabilities < 0) | (predicted_probabilities > 1)))
+                # print("TRUE PROB BRADLEY_TERRY INVALID:", torch.any((batch_true_pref_dist < 0) | (batch_true_pref_dist > 1)))
+                # print("-------------------------")
                 total_probability += predicted_probabilities.sum().item()
 
-                # try:
-                #     assert all(0 <= pref <= 1 for pref in predicted_probabilities)
-                # except:
-                #     print("PREDICTED bradley terry failed.")
-
-                # try:
-                #     assert all(0 <= pref <= 1 for pref in batch_true_pref_dist)
-                # except:
-                #     print("TRUE PREFS bradley terry failed.")
-
                 loss = preference_loss(predicted_probabilities, batch_true_pref_dist)
+                print("LOSS:", loss)
                 total_loss += loss.item()
                 # ipdb.set_trace()
 
@@ -285,7 +341,10 @@ def train_model(
                 total_accuracy += accuracy * batch_true_pref.size(0)
 
                 loss.backward()
+                plot_activations_and_gradients(net)
+
                 torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
+
                 optimizer.step()
 
                 scheduler.step()
@@ -313,6 +372,7 @@ def train_model(
             epoch += 1
     except:
         torch.save(net.state_dict(), f"model_{epoch}.pth")
+
 
     plt.figure()
     plt.plot(training_losses, label="Train Loss")
@@ -372,7 +432,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
         # Delete saved hyperparameter trials
         for file in glob.glob("best_model_trial_*.pth"):
             os.remove(file)
-
+        plot_activations_and_gradients(best_model)
     else:
         print("RUNNING WITHOUT OPTUNA:")
         with open(parameters_path, "r") as file:
@@ -398,7 +458,9 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
                 batch_size=batch_size,
             )
             torch.save(net.state_dict(), f"model_{epochs}.pth")
+            plot_activations_and_gradients(net)
         return best_loss
+
 
 
 def objective(trial):
