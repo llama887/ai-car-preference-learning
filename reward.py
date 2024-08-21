@@ -52,7 +52,7 @@ class TrajectoryRewardNet(nn.Module):
 
         self.activations = defaultdict(list)
         self.gradients = defaultdict(list)
-        self.register_hooks()
+        # self.register_hooks()
 
     def register_hooks(self):
         def get_activation(name):
@@ -141,21 +141,12 @@ class TrajectoryDataset(Dataset):
             self.score1.append(trajectory_pair[3])
             self.score2.append(trajectory_pair[4])
 
-        for i in range(100):
-            print(self.first_trajectories[i])
-        scaler.fit(all_data)
-        self.first_trajectories = torch.tensor([scaler.transform(trajectory1_flat) for trajectory1_flat in self.first_trajectories], dtype=torch.float32).to(device)
-        self.second_trajectories = torch.tensor([scaler.transform(trajectory2_flat) for trajectory2_flat in self.second_trajectories], dtype=torch.float32).to(device)
-
-        # self.first_trajectories = torch.tensor(
-        #     self.first_trajectories, dtype=torch.float32
-        # ).to(device)
-        # self.second_trajectories = torch.tensor(
-        #     self.second_trajectories, dtype=torch.float32
-        # ).to(device)
-        for i in range(100):
-            print(self.first_trajectories[i])
-
+        # scaler.fit(all_data)
+        # self.first_trajectories = torch.tensor([scaler.transform(trajectory1_flat) for trajectory1_flat in self.first_trajectories], dtype=torch.float32).to(device)
+        # self.second_trajectories = torch.tensor([scaler.transform(trajectory2_flat) for trajectory2_flat in self.second_trajectories], dtype=torch.float32).to(device)
+        
+        self.first_trajectories = torch.tensor(self.first_trajectories, dtype=torch.float32).to(device)
+        self.second_trajectories = torch.tensor(self.second_trajectories, dtype=torch.float32).to(device)
 
         self.labels = torch.tensor(self.labels, dtype=torch.float32).to(device)
         self.score1 = torch.tensor(self.score1, dtype=torch.float32).to(device)
@@ -265,7 +256,6 @@ def train_model(
     epoch = 0
     try:
         while epoch < epochs:
-            print("epoch:", epoch)
             net.eval()
             total_validation_loss = 0.0
             total_validation_accuracy = 0.0
@@ -315,21 +305,13 @@ def train_model(
                 rewards1 = net(batch_traj1)
                 rewards2 = net(batch_traj2)
 
-                # print("REWARD 1 HAS NAN:", torch.any(torch.isnan(rewards1)))
-                # print("REWARD 2 HAS NAN:", torch.any(torch.isnan(rewards2)))
-                # print("SCORE 1 HAS NAN:", torch.any(torch.isnan(batch_score1)))
-                # print("SCORE 2 HAS NAN:", torch.any(torch.isnan(batch_score2)))
                 predicted_probabilities = bradley_terry_model(rewards1, rewards2)
                 batch_true_pref_dist = bradley_terry_model(batch_score1, batch_score2)
-                # print(predicted_probabilities)
-                # print(batch_true_pref_dist)
-                # print("PREDICTED PROB BRADLEY_TERRY INVALID:", torch.any((predicted_probabilities < 0) | (predicted_probabilities > 1)))
-                # print("TRUE PROB BRADLEY_TERRY INVALID:", torch.any((batch_true_pref_dist < 0) | (batch_true_pref_dist > 1)))
-                # print("-------------------------")
+    
                 total_probability += predicted_probabilities.sum().item()
 
                 loss = preference_loss(predicted_probabilities, batch_true_pref_dist)
-                print("LOSS:", loss)
+                # print(loss)
                 total_loss += loss.item()
                 # ipdb.set_trace()
 
@@ -341,7 +323,7 @@ def train_model(
                 total_accuracy += accuracy * batch_true_pref.size(0)
 
                 loss.backward()
-                plot_activations_and_gradients(net)
+                # plot_activations_and_gradients(net)
 
                 torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
 
@@ -432,7 +414,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
         # Delete saved hyperparameter trials
         for file in glob.glob("best_model_trial_*.pth"):
             os.remove(file)
-        plot_activations_and_gradients(best_model)
+        # plot_activations_and_gradients(best_model)
     else:
         print("RUNNING WITHOUT OPTUNA:")
         with open(parameters_path, "r") as file:
@@ -458,7 +440,7 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
                 batch_size=batch_size,
             )
             torch.save(net.state_dict(), f"model_{epochs}.pth")
-            plot_activations_and_gradients(net)
+            # plot_activations_and_gradients(net)
         return best_loss
 
 

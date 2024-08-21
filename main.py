@@ -11,7 +11,7 @@ import yaml
 
 import agent
 import wandb
-from agent import TRAIN_TRAJECTORY_LENGTH, run_population, trajectory_path
+from agent import STATE_ACTION_SIZE, run_population, trajectory_path
 from plot import (
     handle_plotting,
     plot_bradley_terry,
@@ -80,6 +80,12 @@ if __name__ == "__main__":
         type=str,
         help="Directory to reward function weights",
     )
+    parse.add_argument(
+        "-d",
+        "--database",
+        type=str,
+        help="Directory to trajectory database file",
+    )
 
     args = parse.parse_args()
     if args.trajectories[0] < 0 or args.generations[0] < 0 or args.epochs[0] < 0:
@@ -88,18 +94,23 @@ if __name__ == "__main__":
     if args.headless:
         os.environ["SDL_VIDEODRIVER"] = "dummy"
 
-    database_path = f"trajectories/database_{args.trajectories[0]}.pkl"
-    model_weights = ""
+    database_path = ""
+    if args.database is None:
+        database_path = f"trajectories/database_{args.trajectories[0]}.pkl"
+    else:
+        database_path = args.database
 
+    model_weights = ""
     if args.reward is None:
         # start the simulation in data collecting mode
-        num_traj = start_simulation(
-            "./config/data_collection_config.txt",
-            args.trajectories[0],
-            args.trajectories[0],
-            "collect",
-            args.headless,
-        )
+        if not args.database:
+            num_traj = start_simulation(
+                "./config/data_collection_config.txt",
+                args.trajectories[0],
+                args.trajectories[0],
+                "collect",
+                args.headless,
+            )
 
         print("Starting training on trajectories...")
         train_reward_function(database_path, args.epochs[0], args.parameters)
@@ -133,7 +144,7 @@ if __name__ == "__main__":
 
     print("Simulating on trained reward function...")
     agent.reward_network = TrajectoryRewardNet(
-        TRAIN_TRAJECTORY_LENGTH * 2, hidden_size=hidden_size
+        STATE_ACTION_SIZE * 2, hidden_size=hidden_size
     ).to(device)
 
     weights = torch.load(model_weights, map_location=device)
@@ -182,9 +193,9 @@ if __name__ == "__main__":
         training_segment_ends,
     )
 
-    bt, bt_, bt_delta, ordered_trajectories = prepare_data(
-        f"trajectories/trainedRF_{trainedPairs}.pkl", net=agent.reward_network
-    )
+    # bt, bt_, bt_delta, ordered_trajectories = prepare_data(
+    #     f"trajectories/trainedRF_{trainedPairs}.pkl", net=agent.reward_network
+    # )
 
     # plot_bradley_terry(bt, "False Bradley Terry", bt_)
     # plot_bradley_terry(bt_delta, "Bradley Terry Difference")

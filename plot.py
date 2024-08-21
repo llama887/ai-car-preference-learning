@@ -1,5 +1,6 @@
 import reward
 from reward import TrajectoryRewardNet, prepare_single_trajectory, scaler
+from agent import StateActionPair
 
 figure_path = reward.figure_path
 
@@ -16,7 +17,7 @@ import torch
 import wandb
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-NET_SIZE = 4
+NET_SIZE = 14
 run_wandb = True
 
 
@@ -142,9 +143,10 @@ def break_into_segments(trajectory, single=False):
 
 
 def dist(traj_segment):
+    position_segment = [traj_segment[0].position, traj_segment[1].position]
     traj_segment_distance = math.sqrt(
-        (traj_segment[1][0] - traj_segment[0][0]) ** 2
-        + (traj_segment[1][1] - traj_segment[0][1]) ** 2
+        (position_segment[1][0] - position_segment[0][0]) ** 2
+        + (position_segment[1][1] - position_segment[0][1]) ** 2
     )
     return traj_segment_distance
 
@@ -182,12 +184,14 @@ def populate_lists(
     elif true_database:
         with open(true_database, "rb") as f:
             true_trajectories = pickle.load(f)
+            # print(true_trajectories[:10])
     if trained_database:
         with open(trained_database, "rb") as f:
             trained_trajectories = pickle.load(f)
     if training_database:
         with open(training_database, "rb") as f:
             training_trajectories = pickle.load(f)
+            # print(training_trajectories[:10])
 
     if model_weights is not None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -205,9 +209,9 @@ def populate_lists(
         count = 0
         while count < num_true_trajectories:
             gen_true_distances = []
-            for i in range(agents_per_generation // 2):
-                trajectory = true_trajectories[count]
-                gen_true_distances.extend([trajectory[3], trajectory[4]])
+            for _ in range(agents_per_generation // 2):
+                trajectory_pair = true_trajectories[count]
+                gen_true_distances.extend([trajectory_pair.d1, trajectory_pair.d2])
                 count += 1
             if gen_true_distances:
                 true_agent_distances.append(gen_true_distances)
@@ -217,12 +221,12 @@ def populate_lists(
     while count < num_trained_trajectories:
         gen_trained_distances = []
         gen_trained_rewards = []
-        for i in range(agents_per_generation // 2):
-            trajectory = trained_trajectories[count]
-            gen_trained_distances.extend([trajectory[3], trajectory[4]])
-            gen_trained_rewards.extend([trajectory[5], trajectory[6]])
-            for segment in break_into_segments(trajectory[0]) + break_into_segments(
-                trajectory[1]
+        for _ in range(agents_per_generation // 2):
+            trajectory_pair = trained_trajectories[count]
+            gen_trained_distances.extend([trajectory_pair.d1, trajectory_pair.d2])
+            gen_trained_rewards.extend([trajectory_pair.r1, trajectory_pair.r2])
+            for segment in break_into_segments(trajectory_pair.t1) + break_into_segments(
+                trajectory_pair.t2
             ):
                 trained_segment_distances.append(dist(segment))
                 trained_segment_rewards.append(
@@ -243,10 +247,10 @@ def populate_lists(
         for traj1, traj2, _, dist1, dist2 in training_trajectories:
             training_segment_distances.append(dist1)
             training_segment_distances.append(dist2)
-            training_segment_starts.add((round_10_point(traj1[0])))
-            training_segment_starts.add((round_10_point(traj2[0])))
-            training_segment_ends.add((round_10_point(traj1[1])))
-            training_segment_ends.add((round_10_point(traj2[1])))
+            training_segment_starts.add((round_10_point([traj1[0][5], traj1[0][6]])))
+            training_segment_starts.add((round_10_point([traj2[0][5], traj2[0][6]])))
+            training_segment_ends.add((round_10_point([traj1[1][5], traj1[1][6]])))
+            training_segment_ends.add((round_10_point([traj2[1][5], traj2[1][6]])))
             training_segment_rewards.append(
                 model(prepare_single_trajectory(traj1)).item()
             )
@@ -254,11 +258,7 @@ def populate_lists(
                 model(prepare_single_trajectory(traj2)).item()
             )
 
-    print("SANITY CHECK...")
-    lengths = [i for i in range(101)]
-    for l in lengths:
-        segment = prepare_single_trajectory([[830, 920], [830, 920 + l]])
-        print(f"Segment of distance {l} reward:", model(segment).item())
+    
 
     if replace:
         true_agent_distances = [
@@ -537,7 +537,7 @@ def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
         distTotal[rounded_distance] = reward + distTotal.get(rounded_distance, 0)
 
     rounded_distances = list(distCount.keys())
-    rounded_distances = [rounded_distances[i] for i in range(len(0,rounded_distances, 5))]
+    rounded_distances = [rounded_distances[i] for i in range(0, len(rounded_distances), 5)]
     avg_reward_for_distances = []
     for rounded_distance in rounded_distances:
         avg_reward_for_distances.append(
@@ -738,7 +738,7 @@ if __name__ == "__main__":
         "-r",
         "--reward",
         type=str,
-        help="Directory to Directory to reward function weights",
+        help="Directory to reward function weights",
     )
     parse.add_argument(
         "-hs",

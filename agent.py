@@ -55,7 +55,7 @@ big_car_distance = 0
 # need to save heading, there are 3dof
 
 
-class state_action_pair:
+class StateActionPair:
     def __init__(self, radars, position, alive):
         if len(radars) != 5:
             raise ValueError("radars must be 5 floats")
@@ -77,8 +77,33 @@ class state_action_pair:
         else:
             raise IndexError("Index out of range")
 
+    def __repr__(self):
+        return "<Radars: " + str([radar for radar in self.radars]) + " ,Position: " + str(self.position) + ">"
+    
     def __len__(self):
         return 7
+
+class TrajectoryPair:
+    def __init__(self, t1, t2, label, d1, d2, r1, r2):
+        self.t1 = t1
+        self.t2 = t2
+        self.label = label
+        self.d1 = d1
+        self.d2 = d2
+        self.r1 = r1
+        self.r2 = r2
+    
+    def truncate(self, trajectory):
+        trajectory_length = len(trajectory)
+        truncated_trajectory = trajectory[:3]
+        if trajectory_length > 3:
+            truncated_trajectory.append(f"...{trajectory_length - 3} more StateActionPairs")
+        return truncated_trajectory
+        
+    
+    def __repr__(self):
+        return "Trajectory 1:\n" + str(self.truncate(self.t1)) + "\n" + "Distance: " + str(self.d1) + "\n" + "Reward: " + str(self.r1) + "\n" + "Trajectory 2:\n" + str(self.truncate(self.t2)) + "\n" + "Distance: " + str(self.d2) + "\n" + "Reward: " + str(self.r2) + "\n\n" 
+                
 
 
 class Car:
@@ -113,6 +138,7 @@ class Car:
         self.distance = 0  # Distance Driven
         self.reward = 0
         self.time = 0  # Time Passed
+        self.id = 0
 
         self.trajectory = []  # All Positions of the Car
 
@@ -132,6 +158,7 @@ class Car:
         for point in self.corners:
             # If Any Corner Touches Border Color -> Crash
             # Assumes Rectangle
+            global i 
             if game_map.get_at((int(point[0]), int(point[1]))) == BORDER_COLOR:
                 self.alive = False
                 self.speed = 0
@@ -175,7 +202,7 @@ class Car:
                 self.speed = 20
                 self.speed_set = True
 
-                first_state_action = state_action_pair(
+                first_state_action = StateActionPair(
                     [self.check_radar(d, game_map) for d in range(-90, 120, 45)],
                     [830, 920],
                     True
@@ -242,7 +269,7 @@ class Car:
         # From -90 To 120 With Step-Size 45 Check Radar
         for d in range(-90, 120, 45):
             radar_dists.append(self.check_radar(d, game_map))
-        next_state_action = state_action_pair(radar_dists, self.position, self.alive)
+        next_state_action = StateActionPair(radar_dists, self.position.copy(), self.alive)
         self.trajectory.append(next_state_action)
 
     def get_data(self):
@@ -282,14 +309,12 @@ class Car:
     def save_trajectory(self, filename):
         global run_type, saved_segments, saved_trajectories
         if run_type != "collect":
-            # with open(filename, "wb") as f:
-            #     pickle.dump((self.distance, self.trajectory, self.reward), f)
             saved_trajectories.append((self.distance, self.trajectory, self.reward))
-        for sa_pair in self.trajectory:
-            rad = sa_pair.radars.copy()
-            rad.extend(sa_pair.position)
-            rad.append(sa_pair.alive)
-            print(rad)
+        # for sa_pair in self.trajectory:
+        #     rad = sa_pair.radars.copy()
+        #     rad.extend(sa_pair.position)
+        #     rad.append(sa_pair.alive)
+        #     print(rad)
         saved_segments.extend(break_into_segments(self.trajectory))
 
         
@@ -394,6 +419,11 @@ def generate_database(trajectory_path):
                         )
                     )
                 else:
+                    print("TRAJ 1:", list(trajectory_segments[i]), 
+                          "\n TRAJ 2:", list(trajectory_segments[i + 1]), 
+                          "\n LABEL:",  0 if distance_1 < distance_2 else 1,
+                          "\n DIST1: ", distance_1,
+                          "\n DIST2: ", distance_2, "\n")
                     trajectory_pairs.append(
                         (
                             list(trajectory_segments[i]),
@@ -480,29 +510,17 @@ def generate_database(trajectory_path):
         shuffle(trajectory_pairs)
     else:
         trajectories = saved_trajectories
-
-        # Pads shorter tajectoires so there is a consistent input size
-        def pad_trajectory(trajectory, max_length):
-            return trajectory + [trajectory[-1]] * (max_length - len(trajectory))
-
-        max_length, _ = max(
-            (len(trajectory), index)
-            for index, (distance, trajectory, reward) in enumerate(trajectories)
-        )
-        num_traj = (
-            len(trajectory_pairs) * 2 if run_type == "collect" else len(trajectories)
-        )
+        num_traj = len(trajectories)
         for i in range(0, num_traj, 2):
+            new_pair = TrajectoryPair(t1=trajectories[i][1],
+                                          t2=trajectories[i + 1][1],
+                                          label=0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
+                                          d1 = trajectories[i][0],
+                                          d2 =  trajectories[i + 1][0], 
+                                          r1 = trajectories[i][2],
+                                          r2 = trajectories[i + 1][2],)
             trajectory_pairs.append(
-                (
-                    pad_trajectory(trajectories[i][1], max_length),
-                    pad_trajectory(trajectories[i + 1][1], max_length),
-                    0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
-                    trajectories[i][0],
-                    trajectories[i + 1][0],
-                    trajectories[i][2],
-                    trajectories[i + 1][2],
-                )
+                new_pair
             )
     # print(trajectory_pairs)
     print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
@@ -545,6 +563,8 @@ def run_simulation(genomes, config):
         g.fitness = 0
 
         cars.append(Car())
+    for i, car in enumerate(cars):
+        cars[i].id = i
     global run_type
     if run_type == "big_mode":
         big_car = Car(color="red")
@@ -640,10 +660,10 @@ def run_simulation(genomes, config):
                 car.save_trajectory(
                     f"{trajectory_path}trajectory_{current_generation}_{i}.pkl"
                 )
-                print() # DELETE
                 saved_trajectory_count += 1
                 num_expert_trajectory += 1
                 # non_expert_traj = True
+                
             if run_type == "collect":
                 print(
                     "THIS GENERATION PRODUCED",
