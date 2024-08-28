@@ -39,15 +39,17 @@ STATE_ACTION_SIZE = 7
 DEFAULT_MAX_GENERATIONS = 1000
 SEGMENTS_PER_PAIR = 5
 
+NUMBER_OF_RULES = 1
+SEGMENT_DISTRIBUTION_BY_RULES = [0.5, 0.5]
+
 current_generation = 0  # Generation counter
-saved_trajectory_count = 0  # Counter for saved trajectories
 trajectory_path = "./trajectories/"
 reward_network = None
-number_of_pairs = 0
+num_pairs = 0
 population = ""
 run_type = "collect"
 headless = False
-saved_segments = []
+saved_segments = [[] for _ in range(NUMBER_OF_RULES + 1)]
 saved_trajectories = []
 big_car_best_distance = 0
 big_car_distance = 0
@@ -306,32 +308,36 @@ class Car:
         rotated_image = rotated_image.subsurface(rotated_rectangle).copy()
         return rotated_image
 
-    def save_trajectory(self, filename):
+    def save_trajectory(self):
         global run_type, saved_segments, saved_trajectories
         if run_type != "collect":
             saved_trajectories.append((self.distance, self.trajectory, self.reward))
-        # for sa_pair in self.trajectory:
-        #     rad = sa_pair.radars.copy()
-        #     rad.extend(sa_pair.position)
-        #     rad.append(sa_pair.alive)
-        #     print(rad)
-        saved_segments.extend(break_into_segments(self.trajectory))
-
-        
+        global num_pairs
+        status = collection_status(num_pairs)
+        for i in range(NUMBER_OF_RULES + 1):
+            new_segments = break_into_segments(self.trajectory, status)
+            saved_segments[i].extend(new_segments[i])
 
 
-def break_into_segments(trajectory):
-    trajectory_segments = []
+def break_into_segments(trajectory, done):
+    trajectory_segments = [[] for _ in range(NUMBER_OF_RULES + 1)]
     prev = 0
     curr = 1
     while curr < len(trajectory):
+        rules_satisfied = 0
         segment = [trajectory[prev], trajectory[curr]]
-        # if dist(segment) == 0:
-        #     break
-        trajectory_segments.append(segment)
+
+        # rule definitions can go here
+        if dist(segment) > 20:
+            rules_satisfied += 1
+    
+        trajectory_segments[rules_satisfied].append(segment)
         prev += 1
         curr += 1
 
+    for i in range(NUMBER_OF_RULES + 1):
+        if done[i]: # done collecting segments satisfying i rules, then don't collect them anymore
+            trajectory_segments[i] = []
     return trajectory_segments
 
 
@@ -376,7 +382,6 @@ def calculate_new_point(point, distance, angle):
     y1 = y0 + distance * math.sin(angle_rad)
     return [x1, y1]
 
-
 def generate_database(trajectory_path):
     trajectory_pairs = []
     global run_type, saved_segments, number_of_pairs, saved_trajectories
@@ -395,7 +400,10 @@ def generate_database(trajectory_path):
                 )
 
     # Break trajectories into trajectory segments
-    trajectory_segments = saved_segments
+    print([len(s) for s in saved_segments])
+    trajectory_segments = []
+    for i in range(NUMBER_OF_RULES + 1):
+        trajectory_segments.extend(saved_segments[i])
 
     if len(trajectory_segments) % 2 != 0:
         trajectory_segments.pop()
@@ -419,11 +427,11 @@ def generate_database(trajectory_path):
                         )
                     )
                 else:
-                    print("TRAJ 1:", list(trajectory_segments[i]), 
-                          "\n TRAJ 2:", list(trajectory_segments[i + 1]), 
-                          "\n LABEL:",  0 if distance_1 < distance_2 else 1,
-                          "\n DIST1: ", distance_1,
-                          "\n DIST2: ", distance_2, "\n")
+                    # print("TRAJ 1:", list(trajectory_segments[i]), 
+                    #       "\n TRAJ 2:", list(trajectory_segments[i + 1]), 
+                    #       "\n LABEL:",  0 if distance_1 < distance_2 else 1,
+                    #       "\n DIST1: ", distance_1,
+                    #       "\n DIST2: ", distance_2, "\n")
                     trajectory_pairs.append(
                         (
                             list(trajectory_segments[i]),
@@ -441,42 +449,6 @@ def generate_database(trajectory_path):
             for i in range(fill):
                 trajectory_pairs.append(close_distance[i])
 
-        elif segment_generation_mode == "sequential_pairing":
-            trajectory_segments = sort_and_pair(trajectory_segments, False)
-            n = len(trajectory_segments)
-            for i in range(n // 2):
-                j = n - i - 1
-                distance_1 = dist(trajectory_segments[i])
-                distance_2 = dist(trajectory_segments[j])
-                if abs(distance_1 - distance_2) < 1:
-                    continue
-                trajectory_pairs.append(
-                    (
-                        trajectory_segments[i],
-                        trajectory_segments[j],
-                        0 if distance_1 > distance_2 else 1,
-                        distance_1,
-                        distance_2,
-                    )
-                )
-        elif segment_generation_mode == "all_combinations":
-            trajectory_segments = sort_and_pair(trajectory_segments, True)
-            n = len(trajectory_segments)
-            for i in range(len(trajectory_segments)):
-                for j in range(i + 1, len(trajectory_segments)):
-                    distance_1 = dist(trajectory_segments[i])
-                    distance_2 = dist(trajectory_segments[j])
-                    if abs(distance_1 - distance_2) < 1:
-                        continue
-                    trajectory_pairs.append(
-                        (
-                            trajectory_segments[i],
-                            trajectory_segments[j],
-                            0 if distance_1 > distance_2 else 1,
-                            distance_1,
-                            distance_2,
-                        )
-                    )
         elif segment_generation_mode == "artificial":
             n = 100
             trajectory_segments = []
@@ -568,7 +540,6 @@ def run_simulation(genomes, config):
     global run_type
     if run_type == "big_mode":
         big_car = Car(color="red")
-    # print("THIS GENERATION HAS", len(cars), "CARS.")
     # Clock Settings
     # Font Settings & Loading Map
     clock = pygame.time.Clock()
@@ -576,7 +547,7 @@ def run_simulation(genomes, config):
     alive_font = pygame.font.SysFont("Arial", 20)
     game_map = pygame.image.load("maps/map.png").convert()  # Convert Speeds Up A Lot
 
-    global current_generation, saved_trajectory_count, headless
+    global current_generation, headless
     current_generation += 1
 
     # Simple Counter To Roughly Limit Time (Not Good Practice)
@@ -639,38 +610,21 @@ def run_simulation(genomes, config):
             big_car_distance = big_car.distance
             big_car.update(game_map)
 
-        global saved_segments
         counter += 1
-
-        # if counter == TRAJECTORY_LENGTH or (still_alive == 0 and not big_car_alive and run_type == "collect"):
         if counter == TRAJECTORY_LENGTH:
-            non_expert_traj = True
-            num_expert_trajectory = 0
-            # if still_alive == 0:
-            #     maxCar = max(enumerate(cars), key=lambda x: len(x[1].trajectory))
-            #     maxCar[1].save_trajectory(f"{trajectory_path}trajectory_{current_generation}_{maxCar[0]}.pkl")
-            #     num_expert_trajectory = 1
-            # else:
-
+            global saved_segments
+            old_lengths = [len(seg) for seg in saved_segments]
             for i, car in enumerate(cars):
-                if saved_trajectory_count >= number_of_pairs and run_type == "collect":
-                    break
-                if not car.is_alive() and run_type == "collect" and non_expert_traj:
-                    continue
-                car.save_trajectory(
-                    f"{trajectory_path}trajectory_{current_generation}_{i}.pkl"
-                )
-                saved_trajectory_count += 1
-                num_expert_trajectory += 1
-                # non_expert_traj = True
+                car.save_trajectory()
                 
             if run_type == "collect":
-                print(
-                    "THIS GENERATION PRODUCED",
-                    num_expert_trajectory,
-                    "EXPERT TRAJECTORIES.",
-                )
-                print("TOTAL SEGMENTS COLLECTED SO FAR:", len(saved_segments))
+                for i in range(NUMBER_OF_RULES + 1):
+                    print(
+                        "THIS GENERATION PRODUCED",
+                        len(saved_segments[i]) - old_lengths[i],
+                        f"SEGMENTS SATISFYING {i} RULES.",
+                    )
+                print("TOTAL SEGMENTS COLLECTED SO FAR:", list((f"{i}: {len(seg)}"for i, seg in enumerate(saved_segments))))
             break
 
         if not headless:
@@ -738,6 +692,23 @@ def run_simulation(genomes, config):
     print("GET REWARD CALLED:", reward_count, "TIMES THIS GENERATION.")
 
 
+def finished_collecting(number_of_pairs):
+    return collection_status(number_of_pairs) == [True] * (NUMBER_OF_RULES + 1)
+
+def collection_status(number_of_pairs):  
+    rule_finished = [False] * (NUMBER_OF_RULES + 1)
+    global saved_segments
+    for i in range(NUMBER_OF_RULES + 1):
+        if len(saved_segments[i]) >= number_of_pairs * SEGMENTS_PER_PAIR * SEGMENT_DISTRIBUTION_BY_RULES[i]:
+            rule_finished[i] = True
+    return rule_finished
+
+def trim_segment_counts(number_of_pairs):
+    global saved_segments
+    for i in range(NUMBER_OF_RULES + 1):
+        while len(saved_segments[i]) > number_of_pairs * SEGMENTS_PER_PAIR * SEGMENT_DISTRIBUTION_BY_RULES[i]:
+            saved_segments[i].pop()
+
 def run_population(
     config_path, max_generations, number_of_pairs, runType, noHead=False
 ):
@@ -751,7 +722,7 @@ def run_population(
             config_path,
         )
 
-        global run_type, saved_trajectory_count, headless
+        global run_type, headless
         run_type = runType
         headless = noHead
         if headless:
@@ -766,12 +737,13 @@ def run_population(
             pass
 
         # Create Population And Add Reporters
-        global current_generation, population, saved_segments, saved_trajectories
+        global current_generation, population, saved_segments, saved_trajectories, num_pairs
         population = neat.Population(config)
         population.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
-
+        num_pairs = number_of_pairs
+    
         current_generation = 0
         saved_trajectories = []
         generation = 1
@@ -779,7 +751,7 @@ def run_population(
             population.run(run_simulation, 1)
             if (
                 run_type == "collect"
-                and len(saved_segments) >= number_of_pairs * SEGMENTS_PER_PAIR
+                and finished_collecting(number_of_pairs)
             ):
                 print(f"Stopping after {generation} generations.")
                 pygame.display.quit()
@@ -792,11 +764,8 @@ def run_population(
             big_car_best_distance = max(big_car_distance, big_car_best_distance)
             big_car_distance = 0
 
-        global saved_trajectory_count
-        print(f"Saved {saved_trajectory_count} trajectories to {trajectory_path}.")
-
+        trim_segment_counts(number_of_pairs)
         numTrajPairs = generate_database(trajectory_path)
-        saved_trajectory_count = 0
 
         return numTrajPairs
     except KeyboardInterrupt:

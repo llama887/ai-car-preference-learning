@@ -152,6 +152,14 @@ class TrajectoryDataset(Dataset):
         self.score1 = torch.tensor(self.score1, dtype=torch.float32).to(device)
         self.score2 = torch.tensor(self.score2, dtype=torch.float32).to(device)
 
+        for i in range(100):
+            print(self.first_trajectories[i])
+            print(self.second_trajectories[i])
+            print(self.labels[i])
+            print(self.score1[i])
+            print(self.score2[i])
+            print()
+
     def __getitem__(self, idx):
         traj1 = self.first_trajectories[idx]
         traj2 = self.second_trajectories[idx]
@@ -256,6 +264,7 @@ def train_model(
     epoch = 0
     try:
         while epoch < epochs:
+            # print("epoch:", epoch)
             net.eval()
             total_validation_loss = 0.0
             total_validation_accuracy = 0.0
@@ -305,9 +314,20 @@ def train_model(
                 rewards1 = net(batch_traj1)
                 rewards2 = net(batch_traj2)
 
+                # print("REWARD 1 HAS NAN:", torch.any(torch.isnan(rewards1)))
+                # print("REWARD 2 HAS NAN:", torch.any(torch.isnan(rewards2)))
+                # print("SCORE 1 HAS NAN:", torch.any(torch.isnan(batch_score1)))
+                # print("SCORE 2 HAS NAN:", torch.any(torch.isnan(batch_score2)))
+
                 predicted_probabilities = bradley_terry_model(rewards1, rewards2)
                 batch_true_pref_dist = bradley_terry_model(batch_score1, batch_score2)
-    
+
+                # print(predicted_probabilities)
+                # print(batch_true_pref_dist)
+                # print("PREDICTED PROB BRADLEY_TERRY INVALID:", torch.any((predicted_probabilities < 0) | (predicted_probabilities > 1)))
+                # print("TRUE PROB BRADLEY_TERRY INVALID:", torch.any((batch_true_pref_dist < 0) | (batch_true_pref_dist > 1)))
+                # print("-------------------------")
+
                 total_probability += predicted_probabilities.sum().item()
 
                 loss = preference_loss(predicted_probabilities, batch_true_pref_dist)
