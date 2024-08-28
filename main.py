@@ -84,7 +84,7 @@ if __name__ == "__main__":
         "-d",
         "--database",
         type=str,
-        help="Directory to trajectory database file",
+        help="Directory to trajectory database file, the number of pairs indicated by this file name will override -t flag",
     )
 
     args = parse.parse_args()
@@ -99,6 +99,8 @@ if __name__ == "__main__":
         database_path = f"trajectories/database_{args.trajectories[0]}.pkl"
     else:
         database_path = args.database
+        num_pairs = database_path.split('_')[1].split('.')[0]
+        args.trajectories[0] = num_pairs
 
     model_weights = ""
     if args.reward is None:
@@ -157,6 +159,15 @@ if __name__ == "__main__":
         False,
     )
 
+    model_info = {
+        "weights" : model_weights, 
+        "net" : None,
+        "hidden-size" : 558, 
+        "epochs": args.epochs[0], 
+        "pairs-learned" : args.trajectories[0], 
+        "agents-per-generation" : 20
+    }
+
     true_database = trajectory_path + f"trueRF_{truePairs}.pkl"
     trained_database = trajectory_path + f"trainedRF_{trainedPairs}.pkl"
     (
@@ -173,15 +184,12 @@ if __name__ == "__main__":
         true_database,
         trained_database,
         database_path,
-        agents_per_generation=20,
-        model_weights=model_weights,
-        hidden_size=hidden_size,
+        model_info,
     )
 
     print("PLOTTING...")
     handle_plotting(
-        model_weights,
-        558,
+        model_info,
         true_agent_distances,
         trained_agent_distances,
         trained_agent_rewards,

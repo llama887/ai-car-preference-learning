@@ -310,13 +310,14 @@ class Car:
 
     def save_trajectory(self):
         global run_type, saved_segments, saved_trajectories
-        if run_type != "collect":
+        if run_type == "collect":
+            global num_pairs
+            status = collection_status(num_pairs)
+            for i in range(NUMBER_OF_RULES + 1):
+                new_segments = break_into_segments(self.trajectory, status)
+                saved_segments[i].extend(new_segments[i])
+        else:
             saved_trajectories.append((self.distance, self.trajectory, self.reward))
-        global num_pairs
-        status = collection_status(num_pairs)
-        for i in range(NUMBER_OF_RULES + 1):
-            new_segments = break_into_segments(self.trajectory, status)
-            saved_segments[i].extend(new_segments[i])
 
 
 def break_into_segments(trajectory, done):
@@ -400,7 +401,6 @@ def generate_database(trajectory_path):
                 )
 
     # Break trajectories into trajectory segments
-    print([len(s) for s in saved_segments])
     trajectory_segments = []
     for i in range(NUMBER_OF_RULES + 1):
         trajectory_segments.extend(saved_segments[i])
@@ -482,6 +482,8 @@ def generate_database(trajectory_path):
         shuffle(trajectory_pairs)
     else:
         trajectories = saved_trajectories
+        if len(trajectories) % 2 != 0:
+            trajectories.pop()
         num_traj = len(trajectories)
         for i in range(0, num_traj, 2):
             new_pair = TrajectoryPair(t1=trajectories[i][1],

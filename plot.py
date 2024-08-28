@@ -6,10 +6,13 @@ figure_path = reward.figure_path
 
 import argparse
 import math
+import statistics
 import os
 import pickle
 import random
 import re
+import glob
+from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -19,7 +22,7 @@ import wandb
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 NET_SIZE = 14
 run_wandb = True
-
+epochs = None
 
 class RewardNormalizer:
     def __init__(self, rewards):
@@ -163,11 +166,14 @@ def populate_lists(
     true_database,
     trained_database,
     training_database,
-    agents_per_generation,
-    model_weights=None,
-    net=None,
-    hidden_size=None,
+    model_info
 ):
+    
+    model_weights = model_info["weights"]
+    net = model_info["net"]
+    hidden_size = model_info["hidden-size"]
+    agents_per_generation = model_info["agents-per-generation"]
+
     true_agent_distances = []
     trained_agent_distances = []
     trained_agent_rewards = []
@@ -330,8 +336,7 @@ def plot_trajectory_order(data, title):
     plt.close()
 
 def handle_plotting(
-    model_weights,
-    hidden_size,
+    model_info,
     true_agent_distances,
     trained_agent_distances,
     trained_agent_rewards,
@@ -342,6 +347,11 @@ def handle_plotting(
     training_segment_starts,
     training_segment_ends,
 ):
+    model_weights = model_info["weights"]  
+    hidden_size = model_info["hidden-size"]
+    epochs = model_info["epochs"]
+    pairs_learned = model_info["pairs-learned"]
+
     traj_per_generation = len(true_agent_distances[0])
     true_reward_averages = [
         (sum(generation) / traj_per_generation) for generation in true_agent_distances
@@ -372,12 +382,16 @@ def handle_plotting(
         "Agent Segment Distance vs Reward",
         trained_segment_distances,
         trained_segment_rewards,
+        epochs,
+        pairs_learned,
     )
+
     graph_segment_distance_vs_reward(
         "Training Dataset Distance vs Reward",
         training_segment_distances,
         training_segment_rewards,
     )
+
     # graph_position_rewards(
     #     training_segment_starts,
     #     "start",
@@ -390,6 +404,8 @@ def handle_plotting(
     #     model_weights, 
     #     hidden_size,
     # )
+
+    graph_variances()
 
 
 def graph_avg_max(averages, maxes):
@@ -580,26 +596,32 @@ def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
         )
 
 
-def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards):
+def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards, epochs=None, pairs_learned=None):
     if not segment_distances or not segment_rewards:
         return
 
     zipped_distance_reward = list(zip(segment_distances, segment_rewards))
-    distTotal = {}
-    distCount = {}
+    distRewards = defaultdict(list)
     for distance, reward in zipped_distance_reward:
         rounded_distance = round(distance, 1)
-        distCount[rounded_distance] = 1 + distCount.get(rounded_distance, 0)
-        distTotal[rounded_distance] = reward + distTotal.get(rounded_distance, 0)
+        distRewards[rounded_distance].append(reward)
+
     print(title)
-    for dist in sorted(distCount.keys()):
-        print("DISTANCE:", dist, "| COUNT:", distCount[dist])
-    rounded_distances = list(distCount.keys())
+    sorted_distances = sorted(list(distRewards.keys()))
+    for sorted_distance in sorted_distances:
+        print("DISTANCE:", sorted_distance, "| COUNT:", len(distRewards[sorted_distance]))
+
     avg_reward_for_distances = []
-    for rounded_distance in rounded_distances:
+    variances = {}
+    for rounded_distance in sorted_distances:
         avg_reward_for_distances.append(
-            distTotal[rounded_distance] / distCount[rounded_distance]
+            statistics.mean(distRewards[rounded_distance])
         )
+        variances[rounded_distance] = statistics.variance(distRewards[rounded_distance])
+
+    if epochs and pairs_learned:
+        with open(f"output_data/variances_{epochs}_epochs_{pairs_learned}_pairs.pkl", 'wb') as file:
+            pickle.dump(variances, file)
 
     os.makedirs("figures", exist_ok=True)
     fig = plt.figure()
@@ -612,7 +634,7 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards):
         alpha=0.2,
     )
     ax1.scatter(
-        x=rounded_distances,
+        x=sorted_distances,
         y=avg_reward_for_distances,
         label="Avg Reward per Traj Segment Dist.",
         c="r",
@@ -635,12 +657,8 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards):
             zipped_distance_reward[i][0] < zipped_distance_reward[i + 1][0],
         )
         for i in range(0, len(zipped_distance_reward), 2)
-        # if abs(
-        #     round(zipped_distance_reward[i][0])
-        #     - round(zipped_distance_reward[i + 1][0])
-        # )
-        # > 0.5
     ]
+    num_segments = len(pairs_of_zips)
 
     wrong = []
     acc = 0
@@ -663,8 +681,8 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards):
             reacc += 1
         else:
             wrong.append((zip1, zip2))
-    acc /= len(pairs_of_zips)
-    reacc /= len(pairs_of_zips)
+    acc /= num_segments
+    reacc /= num_segments
     print("ACCURACY", acc)
     print("ACCURACY W/O SAME DIST PAIRS", reacc)
     print("WRONG:")
@@ -676,6 +694,7 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards):
         )
         if count > 100:
             break
+    print("------------------------------------------------------------------\n")
 
 def graph_position_rewards(positions, type, model_weights, hidden_size):
     title = ""
@@ -722,6 +741,35 @@ def graph_position_rewards(positions, type, model_weights, hidden_size):
     plt.close()
 
         
+def graph_variances():
+    variance_data = {}
+    variance_files = glob.glob("output_data/variances*")
+    for variance_file in variance_files:
+        epochs = variance_file.split('_')[2]
+        pairs_learned = variance_file.split('_')[4]
+        with open(variance_file, "rb") as file:
+            variance_data[(epochs, pairs_learned)] = pickle.load(file)
+
+    os.makedirs("figures", exist_ok=True)
+    plt.figure()
+
+    for epochs, pairs_learned in variance_data.keys():
+        rounded_distances = sorted(variance_data[(epochs, pairs_learned)].keys())
+        variances = [variance_data[(epochs, pairs_learned)][rounded_distance] for rounded_distance in rounded_distances]
+
+        plt.scatter(
+            x=rounded_distances,
+            y=variances,
+            label=f"{epochs} Epochs, {pairs_learned} Pairs",
+            alpha=0.5,
+        )
+
+    plt.xlabel("Distance of Trajectory Segment")
+    plt.ylabel("Variance of Reward")
+    plt.title("Variances for Different Model Parameters")
+    plt.legend()
+    plt.savefig(f"figures/variances.png")
+    plt.close()
 
 
 if __name__ == "__main__":
@@ -746,11 +794,14 @@ if __name__ == "__main__":
         type=int,
         help="Hidden size of the model",
     )
+
     args = parse.parse_args()
+    epochs = None
+    num_pairs_learned = None
+
     if args.database:
         database = args.database
         try:
-
             trained_database = args.database[0]
             true_database = None
             training_database = None
@@ -758,13 +809,17 @@ if __name__ == "__main__":
                 true_database = args.database[1]
             if len(database) > 2:
                 training_database = args.database[2]
+                num_pairs_learned = training_database.split('_')[1].split('.')[0]
+
+
         except Exception as e:
             pass
+    epochs = None
     if args.reward:
         # with open("scaler.pkl", "rb") as f:
         #     reward.scaler = pickle.load(f)
         reward = args.reward
-    import time
+        epochs = reward.split('_')[1].split('.')[0]
 
     # bt, bt_, bt_delta, ordered_trajectories = prepare_data(
     #     trained_database, reward, hidden_size=311
@@ -772,6 +827,15 @@ if __name__ == "__main__":
     # plot_bradley_terry(bt, "False Bradley Terry", bt_)
     # plot_bradley_terry(bt_delta, "Bradley Terry Difference")
     # plot_trajectory_order(ordered_trajectories, "Trajectory Order")
+
+    model_info = {
+        "weights" : reward, 
+        "net" : None,
+        "hidden-size" : 558, 
+        "epochs": epochs, 
+        "pairs-learned" : num_pairs_learned, 
+        "agents-per-generation" : 20
+    }
 
     (
         true_agent_distances,
@@ -787,14 +851,11 @@ if __name__ == "__main__":
         true_database,
         trained_database,
         training_database,
-        agents_per_generation=20,
-        model_weights=reward,
-        hidden_size=558,
+        model_info,
     )
 
     handle_plotting(
-        reward,
-        558,
+        model_info,
         true_agent_distances,
         trained_agent_distances,
         trained_agent_rewards,
