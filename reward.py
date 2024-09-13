@@ -22,7 +22,7 @@ from collections import defaultdict
 import wandb
 
 os.environ["WANDB_SILENT"] = "true"
-INPUT_SIZE = 7 * 2
+INPUT_SIZE = 8 * 2
 
 figure_path = "figures/"
 os.makedirs(figure_path, exist_ok=True)
@@ -320,7 +320,7 @@ def train_model(
                 # print("SCORE 2 HAS NAN:", torch.any(torch.isnan(batch_score2)))
 
                 predicted_probabilities = bradley_terry_model(rewards1, rewards2)
-                batch_true_pref_dist = bradley_terry_model(batch_score1, batch_score2)
+                # batch_true_pref_dist = bradley_terry_model(batch_score1, batch_score2)
 
                 # print(predicted_probabilities)
                 # print(batch_true_pref_dist)
@@ -329,8 +329,8 @@ def train_model(
                 # print("-------------------------")
 
                 total_probability += predicted_probabilities.sum().item()
-
-                loss = preference_loss(predicted_probabilities, batch_true_pref_dist)
+                loss = preference_loss(predicted_probabilities, batch_true_pref)
+                # loss = preference_loss(predicted_probabilities, batch_true_pref_dist)
                 # print(loss)
                 total_loss += loss.item()
                 # ipdb.set_trace()

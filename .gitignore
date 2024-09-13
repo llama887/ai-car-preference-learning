@@ -1,6 +1,7 @@
 trajectories/*
 wandb
 /Users/alextang/Documents/EmergeLab/ai-car-preference-learning/wandb/*
+storage/*
 test.py
 scratch.py
 

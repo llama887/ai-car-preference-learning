@@ -20,7 +20,7 @@ import torch
 import wandb
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-NET_SIZE = 14
+NET_SIZE = 16
 run_wandb = True
 epochs = None
 
@@ -253,10 +253,10 @@ def populate_lists(
         for traj1, traj2, _, dist1, dist2 in training_trajectories:
             training_segment_distances.append(dist1)
             training_segment_distances.append(dist2)
-            training_segment_starts.add((round_10_point([traj1[0][5], traj1[0][6]])))
-            training_segment_starts.add((round_10_point([traj2[0][5], traj2[0][6]])))
-            training_segment_ends.add((round_10_point([traj1[1][5], traj1[1][6]])))
-            training_segment_ends.add((round_10_point([traj2[1][5], traj2[1][6]])))
+            training_segment_starts.add((round_10_point([traj1[0][6], traj1[0][7]])))
+            training_segment_starts.add((round_10_point([traj2[0][6], traj2[0][7]])))
+            training_segment_ends.add((round_10_point([traj1[1][6], traj1[1][7]])))
+            training_segment_ends.add((round_10_point([traj2[1][6], traj2[1][7]])))
             training_segment_rewards.append(
                 model(prepare_single_trajectory(traj1)).item()
             )
@@ -613,6 +613,11 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards, 
 
     avg_reward_for_distances = []
     variances = {}
+    for dist in sorted_distances:
+        if len(distRewards[dist]) < 2:
+            del distRewards[dist]
+            sorted_distances.remove(dist)
+    
     for rounded_distance in sorted_distances:
         avg_reward_for_distances.append(
             statistics.mean(distRewards[rounded_distance])

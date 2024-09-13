@@ -34,7 +34,8 @@ BORDER_COLOR = (255, 255, 255, 255)  # Color To Crash on Hit
 
 TRAJECTORY_LENGTH = 30 * 15
 TRAIN_TRAJECTORY_LENGTH = 2
-STATE_ACTION_SIZE = 7
+NUM_RADARS = 5
+STATE_ACTION_SIZE = 8
 
 DEFAULT_MAX_GENERATIONS = 1000
 SEGMENTS_PER_PAIR = 5
@@ -58,32 +59,35 @@ big_car_distance = 0
 
 
 class StateActionPair:
-    def __init__(self, radars, position, alive):
+    def __init__(self, radars, action, position, alive):
         if len(radars) != 5:
             raise ValueError("radars must be 5 floats")
         if len(position) != 2:
             raise ValueError("position must be 2 floats")
 
         self.radars = radars
+        self.action = action
         self.position = position
         self.alive = alive
 
     def __iter__(self):
-        return iter(self.radars + self.position)
+        return iter(self.radars + [self.action] + self.position)
 
     def __getitem__(self, index):
-        if 0 <= index < 5:
+        if 0 <= index < NUM_RADARS:
             return self.radars[index]
-        elif 5 <= index < 7:
-            return self.position[index - 5]
+        elif index == NUM_RADARS:
+            return self.action
+        elif NUM_RADARS + 1 <= index < NUM_RADARS + 3:
+            return self.position[index - NUM_RADARS - 1]
         else:
             raise IndexError("Index out of range")
 
     def __repr__(self):
-        return "<Radars: " + str([radar for radar in self.radars]) + " ,Position: " + str(self.position) + ">"
+        return "<Radars: " + str([radar for radar in self.radars]) + ", Action: " + self.action + " ,Position: " + str(self.position) + ">"
     
     def __len__(self):
-        return 7
+        return 8
 
 class TrajectoryPair:
     def __init__(self, t1, t2, label, d1, d2, r1, r2):
@@ -196,7 +200,7 @@ class Car:
         self.radars.append([(x, y), dist])
         return dist
 
-    def update(self, game_map):
+    def update(self, game_map, action):
         # Set The Speed To 20 For The First Time
         # Only When Having 4 Output Nodes With Speed Up and Down
         if self.alive:
@@ -206,6 +210,7 @@ class Car:
 
                 first_state_action = StateActionPair(
                     [self.check_radar(d, game_map) for d in range(-90, 120, 45)],
+                    action, 
                     [830, 920],
                     True
                 )
@@ -271,7 +276,7 @@ class Car:
         # From -90 To 120 With Step-Size 45 Check Radar
         for d in range(-90, 120, 45):
             radar_dists.append(self.check_radar(d, game_map))
-        next_state_action = StateActionPair(radar_dists, self.position.copy(), self.alive)
+        next_state_action = StateActionPair(radar_dists, action, self.position.copy(), self.alive)
         self.trajectory.append(next_state_action)
 
     def get_data(self):
@@ -427,11 +432,6 @@ def generate_database(trajectory_path):
                         )
                     )
                 else:
-                    # print("TRAJ 1:", list(trajectory_segments[i]), 
-                    #       "\n TRAJ 2:", list(trajectory_segments[i + 1]), 
-                    #       "\n LABEL:",  0 if distance_1 < distance_2 else 1,
-                    #       "\n DIST1: ", distance_1,
-                    #       "\n DIST2: ", distance_2, "\n")
                     trajectory_pairs.append(
                         (
                             list(trajectory_segments[i]),
@@ -574,7 +574,9 @@ def run_simulation(genomes, config):
                 big_car.speed -= 0.5
 
         # For Each Car Get The Acton It Takes
+        actions = []
         for i, car in enumerate(cars):
+            action = -1
             if car.is_alive():
                 output = nets[i].activate(car.get_data())
                 choice = output.index(max(output))
@@ -587,7 +589,9 @@ def run_simulation(genomes, config):
                         car.speed -= 2  # Slow Down
                 else:
                     car.speed += 2  # Speed Up
-
+                action = choice
+            actions.append(action)
+            
         # Check If Car Is Still Alive
         # Increase Fitness If Yes And Break Loop If Not
         still_alive = 0
@@ -601,7 +605,7 @@ def run_simulation(genomes, config):
             car_reward = car.get_reward()
             rewards.append(car_reward)
             speeds.append(car.speed)
-            car.update(game_map)
+            car.update(game_map, actions[i])
             genomes[i][1].fitness += car_reward
 
         global big_car_distance
