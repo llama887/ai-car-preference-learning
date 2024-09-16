@@ -314,10 +314,10 @@ def train_model(
                 rewards1 = net(batch_traj1)
                 rewards2 = net(batch_traj2)
 
-                # print("REWARD 1 HAS NAN:", torch.any(torch.isnan(rewards1)))
-                # print("REWARD 2 HAS NAN:", torch.any(torch.isnan(rewards2)))
-                # print("SCORE 1 HAS NAN:", torch.any(torch.isnan(batch_score1)))
-                # print("SCORE 2 HAS NAN:", torch.any(torch.isnan(batch_score2)))
+                print("REWARD 1 HAS NAN:", torch.any(torch.isnan(rewards1)))
+                print("REWARD 2 HAS NAN:", torch.any(torch.isnan(rewards2)))
+                print("SCORE 1 HAS NAN:", torch.any(torch.isnan(batch_score1)))
+                print("SCORE 2 HAS NAN:", torch.any(torch.isnan(batch_score2)))
 
                 predicted_probabilities = bradley_terry_model(rewards1, rewards2)
                 batch_true_pref_dist = bradley_terry_model(batch_score1, batch_score2)
