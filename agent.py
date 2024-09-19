@@ -8,7 +8,6 @@ import math
 import os
 import pickle
 import random
-import re
 import sys
 
 import neat
@@ -42,6 +41,7 @@ SEGMENTS_PER_PAIR = 5
 
 NUMBER_OF_RULES = 1
 SEGMENT_DISTRIBUTION_BY_RULES = [0.5, 0.5]
+assert len(SEGMENT_DISTRIBUTION_BY_RULES) == NUMBER_OF_RULES+1, f"SEGMENT_DISTRIBUTION_BY_RULES: {SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {NUMBER_OF_RULES}"
 
 current_generation = 0  # Generation counter
 trajectory_path = "./trajectories/"
@@ -54,9 +54,7 @@ saved_segments = [[] for _ in range(NUMBER_OF_RULES + 1)]
 saved_trajectories = []
 big_car_best_distance = 0
 big_car_distance = 0
-
-# need to save heading, there are 3dof
-
+game_map = None
 
 class StateActionPair:
     def __init__(self, radars, action, position, alive):
@@ -127,6 +125,7 @@ class Car:
         self.position = [830, 920]  # Starting Position
         self.angle = 0
         self.speed = 0
+        self.rules_per_step =[]
 
         self.speed_set = False  # Flag For Default Speed Later on
         self.radar_max = 10000
@@ -293,16 +292,14 @@ class Car:
         return self.alive
 
     def get_reward(self):
-        # Calculate Reward (Maybe Change?)
-        # return self.distance / 50.0
         if reward_network is not None:
             if len(self.trajectory) < 2:
                 return 0
             trajectory_tensor = prepare_single_trajectory(self.trajectory)
             reward = reward_network(trajectory_tensor)
             return reward.item()
-        # return self.distance / (CAR_SIZE_X / 2)
-        return self.speed
+        self.rules_per_step.append(check_rules(self, NUMBER_OF_RULES)) 
+        return self.rules_per_step[-1] == NUMBER_OF_RULES
 
     def rotate_center(self, image, angle):
         # Rotate The Rectangle
@@ -319,23 +316,19 @@ class Car:
             global num_pairs
             status = collection_status(num_pairs)
             for i in range(NUMBER_OF_RULES + 1):
-                new_segments = break_into_segments(self.trajectory, status)
+                new_segments = break_into_segments(self.trajectory, self.rules_per_step, status)
                 saved_segments[i].extend(new_segments[i])
         else:
             saved_trajectories.append((self.distance, self.trajectory, self.reward))
 
 
-def break_into_segments(trajectory, done):
+def break_into_segments(trajectory, rules_per_step, done):
     trajectory_segments = [[] for _ in range(NUMBER_OF_RULES + 1)]
     prev = 0
     curr = 1
     while curr < len(trajectory):
-        rules_satisfied = 0
+        rules_satisfied = rules_per_step[curr]
         segment = [trajectory[prev], trajectory[curr]]
-
-        # rule definitions can go here
-        if dist(segment) > 20:
-            rules_satisfied += 1
     
         trajectory_segments[rules_satisfied].append(segment)
         prev += 1
@@ -547,7 +540,8 @@ def run_simulation(genomes, config):
     clock = pygame.time.Clock()
     generation_font = pygame.font.SysFont("Arial", 30)
     alive_font = pygame.font.SysFont("Arial", 20)
-    game_map = pygame.image.load("maps/map.png").convert()  # Convert Speeds Up A Lot
+    global game_map
+    game_map = pygame.image.load("maps/map.png").convert()
 
     global current_generation, headless
     current_generation += 1
@@ -596,14 +590,12 @@ def run_simulation(genomes, config):
         # Increase Fitness If Yes And Break Loop If Not
         still_alive = 0
         speeds = []
-        rewards = []
         for i, car in enumerate(cars):
             if car.is_alive():
                 still_alive += 1
 
             reward_count += 1
             car_reward = car.get_reward()
-            rewards.append(car_reward)
             speeds.append(car.speed)
             car.update(game_map, actions[i])
             genomes[i][1].fitness += car_reward
@@ -777,6 +769,17 @@ def run_population(
     except KeyboardInterrupt:
         generate_database(trajectory_path)
 
+def check_rules(agent, total_rules):
+    rule_counter = 0
+    if total_rules >= 1 and agent.speed > 30:
+        rule_counter += 1
+
+    left_radar = agent.check_radar(-90, game_map)
+    right_radar = agent.check_radar(90, game_map)
+    if total_rules >= 2 and left_radar > right_radar:
+        rule_counter += 1
+    
+    return rule_counter
 
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(description="AI Car Preference Learning")

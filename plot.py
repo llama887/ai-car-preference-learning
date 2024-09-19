@@ -608,8 +608,8 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards, 
 
     print(title)
     sorted_distances = sorted(list(distRewards.keys()))
-    for sorted_distance in sorted_distances:
-        print("DISTANCE:", sorted_distance, "| COUNT:", len(distRewards[sorted_distance]))
+    # for sorted_distance in sorted_distances:
+    #     print("DISTANCE:", sorted_distance, "| COUNT:", len(distRewards[sorted_distance]))
 
     avg_reward_for_distances = []
     variances = {}
@@ -691,15 +691,15 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards, 
     print("ACCURACY", acc)
     print("ACCURACY W/O SAME DIST PAIRS", reacc)
     print("WRONG:")
-    count = 0
-    for zip1, zip2 in wrong:
-        count += 1
-        print(
-            f"DISTANCES: {zip1[0]:11.8f}, {zip2[0]:11.8f} | REWARDS: {zip1[1]:11.8f}, {zip2[1]:11.8f}"
-        )
-        if count > 100:
-            break
-    print("------------------------------------------------------------------\n")
+    # count = 0
+    # for zip1, zip2 in wrong:
+    #     count += 1
+    #     print(
+    #         f"DISTANCES: {zip1[0]:11.8f}, {zip2[0]:11.8f} | REWARDS: {zip1[1]:11.8f}, {zip2[1]:11.8f}"
+    #     )
+    #     if count > 100:
+    #         break
+    # print("------------------------------------------------------------------\n")
 
 def graph_position_rewards(positions, type, model_weights, hidden_size):
     title = ""

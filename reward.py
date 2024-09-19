@@ -21,6 +21,7 @@ from collections import defaultdict
 
 import wandb
 
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 os.environ["WANDB_SILENT"] = "true"
 INPUT_SIZE = 8 * 2
 
