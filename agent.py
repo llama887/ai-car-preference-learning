@@ -43,7 +43,9 @@ SEGMENTS_PER_PAIR = 5
 
 NUMBER_OF_RULES = 1
 SEGMENT_DISTRIBUTION_BY_RULES = [0.5, 0.5]
-assert len(SEGMENT_DISTRIBUTION_BY_RULES) == NUMBER_OF_RULES+1, f"SEGMENT_DISTRIBUTION_BY_RULES: {SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {NUMBER_OF_RULES}"
+assert (
+    len(SEGMENT_DISTRIBUTION_BY_RULES) == NUMBER_OF_RULES + 1
+), f"SEGMENT_DISTRIBUTION_BY_RULES: {SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {NUMBER_OF_RULES}"
 
 current_generation = 0  # Generation counter
 trajectory_path = "./trajectories/"
@@ -57,6 +59,7 @@ saved_trajectories = []
 big_car_best_distance = 0
 big_car_distance = 0
 game_map = None
+
 
 class StateActionPair:
     def __init__(self, radars, action, position, alive):
@@ -84,32 +87,60 @@ class StateActionPair:
             raise IndexError("Index out of range")
 
     def __repr__(self):
-        return "<Radars: " + str([radar for radar in self.radars]) + ", Action: " + str(self.action) + " ,Position: " + str(self.position) + ">"
-    
+        return (
+            "<Radars: "
+            + str([radar for radar in self.radars])
+            + ", Action: "
+            + str(self.action)
+            + ", Position: "
+            + str(self.position)
+            + ">"
+        )
+
     def __len__(self):
         return 8
 
+
 class TrajectoryPair:
-    def __init__(self, t1, t2, label, d1, d2, r1, r2):
+    def __init__(self, t1, t2, label, e1, e2, r1, r2):
         self.t1 = t1
         self.t2 = t2
         self.label = label
-        self.d1 = d1
-        self.d2 = d2
+        self.e1 = e1
+        self.e2 = e2
         self.r1 = r1
         self.r2 = r2
-    
+
     def truncate(self, trajectory):
         trajectory_length = len(trajectory)
         truncated_trajectory = trajectory[:3]
         if trajectory_length > 3:
-            truncated_trajectory.append(f"...{trajectory_length - 3} more StateActionPairs")
+            truncated_trajectory.append(
+                f"...{trajectory_length - 3} more StateActionPairs"
+            )
         return truncated_trajectory
-        
-    
+
     def __repr__(self):
-        return "Trajectory 1:\n" + str(self.truncate(self.t1)) + "\n" + "Distance: " + str(self.d1) + "\n" + "Reward: " + str(self.r1) + "\n" + "Trajectory 2:\n" + str(self.truncate(self.t2)) + "\n" + "Distance: " + str(self.d2) + "\n" + "Reward: " + str(self.r2) + "\n\n" 
-                
+        return (
+            "Trajectory 1:\n"
+            + str(self.truncate(self.t1))
+            + "\n"
+            + "Number of Expert Segments: "
+            + str(self.e1)
+            + "\n"
+            + "Reward: "
+            + str(self.r1)
+            + "\n"
+            + "Trajectory 2:\n"
+            + str(self.truncate(self.t2))
+            + "\n"
+            + "Number of Expert Segments: "
+            + str(self.e2)
+            + "\n"
+            + "Reward: "
+            + str(self.r2)
+            + "\n\n"
+        )
 
 
 class Car:
@@ -127,7 +158,8 @@ class Car:
         self.position = [830, 920]  # Starting Position
         self.angle = 0
         self.speed = 0
-        self.rules_per_step =[]
+        self.rules_per_step = []
+        self.expert_segments = 0
 
         self.speed_set = False  # Flag For Default Speed Later on
         self.radar_max = 10000
@@ -165,7 +197,7 @@ class Car:
         for point in self.corners:
             # If Any Corner Touches Border Color -> Crash
             # Assumes Rectangle
-            global i 
+            global i
             if game_map.get_at((int(point[0]), int(point[1]))) == BORDER_COLOR:
                 self.alive = False
                 self.speed = 0
@@ -211,9 +243,9 @@ class Car:
 
                 first_state_action = StateActionPair(
                     [self.check_radar(d, game_map) for d in range(-90, 120, 45)],
-                    action, 
+                    action,
                     [830, 920],
-                    True
+                    True,
                 )
                 self.trajectory.append(first_state_action)
 
@@ -277,7 +309,9 @@ class Car:
         # From -90 To 120 With Step-Size 45 Check Radar
         for d in range(-90, 120, 45):
             radar_dists.append(self.check_radar(d, game_map))
-        next_state_action = StateActionPair(radar_dists, action, self.position.copy(), self.alive)
+        next_state_action = StateActionPair(
+            radar_dists, action, self.position.copy(), self.alive
+        )
         self.trajectory.append(next_state_action)
 
     def get_data(self):
@@ -300,8 +334,10 @@ class Car:
             trajectory_tensor = prepare_single_trajectory(self.trajectory)
             reward = reward_network(trajectory_tensor)
             return reward.item()
-        self.rules_per_step.append(check_rules(self, NUMBER_OF_RULES)) 
-        return self.rules_per_step[-1] == NUMBER_OF_RULES
+        self.rules_per_step.append(check_rules(self, NUMBER_OF_RULES)[0])
+        is_segment_expert = self.rules_per_step[-1] == NUMBER_OF_RULES
+        self.expert_segments += is_segment_expert
+        return is_segment_expert
 
     def rotate_center(self, image, angle):
         # Rotate The Rectangle
@@ -318,10 +354,14 @@ class Car:
             global num_pairs
             status = collection_status(num_pairs)
             for i in range(NUMBER_OF_RULES + 1):
-                new_segments = break_into_segments(self.trajectory, self.rules_per_step, status)
+                new_segments = break_into_segments(
+                    self.trajectory, self.rules_per_step, status
+                )
                 saved_segments[i].extend(new_segments[i])
         else:
-            saved_trajectories.append((self.distance, self.trajectory, self.reward))
+            saved_trajectories.append(
+                (self.expert_segments, self.trajectory, self.reward)
+            )
 
 
 def break_into_segments(trajectory, rules_per_step, done):
@@ -336,7 +376,9 @@ def break_into_segments(trajectory, rules_per_step, done):
         curr += 1
 
     for i in range(NUMBER_OF_RULES + 1):
-        if done[i]: # done collecting segments satisfying i rules, then don't collect them anymore
+        if done[
+            i
+        ]:  # done collecting segments satisfying i rules, then don't collect them anymore
             trajectory_segments[i] = []
     return trajectory_segments
 
@@ -382,6 +424,7 @@ def calculate_new_point(point, distance, angle):
     y1 = y0 + distance * math.sin(angle_rad)
     return [x1, y1]
 
+
 def generate_database(trajectory_path):
     trajectory_pairs = []
     global run_type, saved_segments, number_of_pairs, saved_trajectories
@@ -414,7 +457,9 @@ def generate_database(trajectory_path):
             close_distance = []
             for i in range(0, len(trajectory_segments), 2):
                 _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
-                _, reward_2 = rules.check_rules(trajectory_segments[i+1], NUMBER_OF_RULES)
+                _, reward_2 = rules.check_rules(
+                    trajectory_segments[i + 1], NUMBER_OF_RULES
+                )
                 if abs(reward_1 - reward_2) < 0.001:
                     close_distance.append(
                         (
@@ -460,7 +505,9 @@ def generate_database(trajectory_path):
             random.shuffle(trajectory_segments)
             for i in range(0, len(trajectory_segments), 2):
                 _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
-                _, reward_2 = rules.check_rules(trajectory_segments[i+1], NUMBER_OF_RULES)
+                _, reward_2 = rules.check_rules(
+                    trajectory_segments[i + 1], NUMBER_OF_RULES
+                )
                 if abs(reward_1 - reward_2) < 0.01:
                     continue
                 trajectory_pairs.append(
@@ -480,16 +527,16 @@ def generate_database(trajectory_path):
             trajectories.pop()
         num_traj = len(trajectories)
         for i in range(0, num_traj, 2):
-            new_pair = TrajectoryPair(t1=trajectories[i][1],
-                                          t2=trajectories[i + 1][1],
-                                          label=0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
-                                          d1 = trajectories[i][0],
-                                          d2 =  trajectories[i + 1][0], 
-                                          r1 = trajectories[i][2],
-                                          r2 = trajectories[i + 1][2],)
-            trajectory_pairs.append(
-                new_pair
+            new_pair = TrajectoryPair(
+                t1=trajectories[i][1],
+                t2=trajectories[i + 1][1],
+                label=0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
+                e1=trajectories[i][0],
+                e2=trajectories[i + 1][0],
+                r1=trajectories[i][2],
+                r2=trajectories[i + 1][2],
             )
+            trajectory_pairs.append(new_pair)
     # print(trajectory_pairs)
     print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
@@ -586,7 +633,7 @@ def run_simulation(genomes, config):
                     car.speed += 2  # Speed Up
                 action = choice
             actions.append(action)
-            
+
         # Check If Car Is Still Alive
         # Increase Fitness If Yes And Break Loop If Not
         still_alive = 0
@@ -615,7 +662,7 @@ def run_simulation(genomes, config):
             old_lengths = [len(seg) for seg in saved_segments]
             for i, car in enumerate(cars):
                 car.save_trajectory()
-                
+
             if run_type == "collect":
                 for i in range(NUMBER_OF_RULES + 1):
                     print(
@@ -623,7 +670,10 @@ def run_simulation(genomes, config):
                         len(saved_segments[i]) - old_lengths[i],
                         f"SEGMENTS SATISFYING {i} RULES.",
                     )
-                print("TOTAL SEGMENTS COLLECTED SO FAR:", list((f"{i}: {len(seg)}"for i, seg in enumerate(saved_segments))))
+                print(
+                    "TOTAL SEGMENTS COLLECTED SO FAR:",
+                    list((f"{i}: {len(seg)}" for i, seg in enumerate(saved_segments))),
+                )
             break
 
         if not headless:
@@ -694,19 +744,28 @@ def run_simulation(genomes, config):
 def finished_collecting(number_of_pairs):
     return collection_status(number_of_pairs) == [True] * (NUMBER_OF_RULES + 1)
 
-def collection_status(number_of_pairs):  
+
+def collection_status(number_of_pairs):
     rule_finished = [False] * (NUMBER_OF_RULES + 1)
     global saved_segments
     for i in range(NUMBER_OF_RULES + 1):
-        if len(saved_segments[i]) >= number_of_pairs * SEGMENTS_PER_PAIR * SEGMENT_DISTRIBUTION_BY_RULES[i]:
+        if (
+            len(saved_segments[i])
+            >= number_of_pairs * SEGMENTS_PER_PAIR * SEGMENT_DISTRIBUTION_BY_RULES[i]
+        ):
             rule_finished[i] = True
     return rule_finished
+
 
 def trim_segment_counts(number_of_pairs):
     global saved_segments
     for i in range(NUMBER_OF_RULES + 1):
-        while len(saved_segments[i]) > number_of_pairs * SEGMENTS_PER_PAIR * SEGMENT_DISTRIBUTION_BY_RULES[i]:
+        while (
+            len(saved_segments[i])
+            > number_of_pairs * SEGMENTS_PER_PAIR * SEGMENT_DISTRIBUTION_BY_RULES[i]
+        ):
             saved_segments[i].pop()
+
 
 def run_population(
     config_path, max_generations, number_of_pairs, runType, noHead=False
@@ -742,16 +801,13 @@ def run_population(
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
         num_pairs = number_of_pairs
-    
+
         current_generation = 0
         saved_trajectories = []
         generation = 1
         while True:
             population.run(run_simulation, 1)
-            if (
-                run_type == "collect"
-                and finished_collecting(number_of_pairs)
-            ):
+            if run_type == "collect" and finished_collecting(number_of_pairs):
                 print(f"Stopping after {generation} generations.")
                 pygame.display.quit()
                 pygame.quit()
@@ -770,6 +826,7 @@ def run_population(
     except KeyboardInterrupt:
         generate_database(trajectory_path)
 
+
 def check_rules(agent, total_rules):
     rule_counter = 0
     if total_rules >= 1 and agent.speed > 30:
@@ -779,8 +836,9 @@ def check_rules(agent, total_rules):
     right_radar = agent.check_radar(90, game_map)
     if total_rules >= 2 and left_radar > right_radar:
         rule_counter += 1
-    
+
     return rule_counter
+
 
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(description="AI Car Preference Learning")

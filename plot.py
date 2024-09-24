@@ -1,6 +1,6 @@
 import reward
 from reward import TrajectoryRewardNet, prepare_single_trajectory, scaler
-from agent import StateActionPair
+from agent import StateActionPair, NUMBER_OF_RULES
 
 figure_path = reward.figure_path
 
@@ -13,6 +13,7 @@ import random
 import re
 import glob
 from collections import defaultdict
+from rules import check_rules
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -23,6 +24,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 NET_SIZE = 16
 run_wandb = True
 epochs = None
+
 
 class RewardNormalizer:
     def __init__(self, rewards):
@@ -153,6 +155,7 @@ def dist(traj_segment):
     )
     return traj_segment_distance
 
+
 def calculate_new_point(point, distance, angle):
     x0, y0 = point
     # Convert angle from degrees to radians
@@ -162,24 +165,20 @@ def calculate_new_point(point, distance, angle):
     y1 = y0 + distance * math.sin(angle_rad)
     return [x1, y1]
 
-def populate_lists(
-    true_database,
-    trained_database,
-    training_database,
-    model_info
-):
-    
+
+def populate_lists(true_database, trained_database, training_database, model_info):
+
     model_weights = model_info["weights"]
     net = model_info["net"]
     hidden_size = model_info["hidden-size"]
     agents_per_generation = model_info["agents-per-generation"]
 
-    true_agent_distances = []
-    trained_agent_distances = []
+    true_agent_expert_segments = []
+    trained_agent_expert_segments = []
     trained_agent_rewards = []
-    trained_segment_distances = []
+    trained_segment_rules_satisifed = []
     trained_segment_rewards = []
-    training_segment_distances = []
+    training_segment_rules_satisfied = []
     training_segment_rewards = []
     training_segment_starts = set()
     training_segment_ends = set()
@@ -214,33 +213,40 @@ def populate_lists(
         num_true_trajectories = len(true_trajectories)
         count = 0
         while count < num_true_trajectories:
-            gen_true_distances = []
+            gen_true_expert_segments = []
             for _ in range(agents_per_generation // 2):
                 trajectory_pair = true_trajectories[count]
-                gen_true_distances.extend([trajectory_pair.d1, trajectory_pair.d2])
+                gen_true_expert_segments.extend(
+                    [trajectory_pair.e1, trajectory_pair.e2]
+                )
                 count += 1
-            if gen_true_distances:
-                true_agent_distances.append(gen_true_distances)
+            if gen_true_expert_segments:
+                true_agent_expert_segments.append(gen_true_expert_segments)
 
     num_trained_trajectories = len(trained_trajectories)
     count = 0
     while count < num_trained_trajectories:
-        gen_trained_distances = []
+        gen_trained_expert_segments = []
         gen_trained_rewards = []
         for _ in range(agents_per_generation // 2):
             trajectory_pair = trained_trajectories[count]
-            gen_trained_distances.extend([trajectory_pair.d1, trajectory_pair.d2])
+            gen_trained_expert_segments.extend([trajectory_pair.e1, trajectory_pair.e2])
             gen_trained_rewards.extend([trajectory_pair.r1, trajectory_pair.r2])
-            for segment in break_into_segments(trajectory_pair.t1) + break_into_segments(
-                trajectory_pair.t2
-            ):
-                trained_segment_distances.append(dist(segment))
+            for segment in break_into_segments(
+                trajectory_pair.t1
+            ) + break_into_segments(trajectory_pair.t2):
+                trained_segment_rules_satisifed.append(
+                    check_rules(
+                        segment,
+                        NUMBER_OF_RULES,
+                    )[0]
+                )
                 trained_segment_rewards.append(
                     model(prepare_single_trajectory(segment)).item()
                 )
             count += 1
-        if gen_trained_distances:
-            trained_agent_distances.append(gen_trained_distances)
+        if gen_trained_expert_segments:
+            trained_agent_expert_segments.append(gen_trained_expert_segments)
         if gen_trained_rewards:
             trained_agent_rewards.append(gen_trained_rewards)
 
@@ -249,10 +255,11 @@ def populate_lists(
         rounded_x = round(x * 100 / 10) * 10
         rounded_y = round(y * 100 / 10) * 10
         return rounded_x, rounded_y
+
     if training_database:
         for traj1, traj2, _, dist1, dist2 in training_trajectories:
-            training_segment_distances.append(dist1)
-            training_segment_distances.append(dist2)
+            training_segment_rules_satisfied.append(dist1)
+            training_segment_rules_satisfied.append(dist2)
             training_segment_starts.add((round_10_point([traj1[0][6], traj1[0][7]])))
             training_segment_starts.add((round_10_point([traj2[0][6], traj2[0][7]])))
             training_segment_ends.add((round_10_point([traj1[1][6], traj1[1][7]])))
@@ -264,25 +271,23 @@ def populate_lists(
                 model(prepare_single_trajectory(traj2)).item()
             )
 
-    
-
     if replace:
-        true_agent_distances = [
-            [0 for _ in range(len(trained_agent_distances[0]))]
-            for _ in range(len(trained_agent_distances))
+        true_agent_expert_segments = [
+            [0 for _ in range(len(trained_agent_expert_segments[0]))]
+            for _ in range(len(trained_agent_expert_segments))
         ]
 
-    last_distance = true_agent_distances[-1][-1]
-    while len(true_agent_distances) < len(trained_agent_distances):
-        true_agent_distances.append([last_distance * agents_per_generation])
+    last_distance = true_agent_expert_segments[-1][-1]
+    while len(true_agent_expert_segments) < len(trained_agent_expert_segments):
+        true_agent_expert_segments.append([last_distance * agents_per_generation])
 
     return (
-        true_agent_distances,
-        trained_agent_distances,
+        true_agent_expert_segments,
+        trained_agent_expert_segments,
         trained_agent_rewards,
-        trained_segment_distances,
+        trained_segment_rules_satisifed,
         trained_segment_rewards,
-        training_segment_distances,
+        training_segment_rules_satisfied,
         training_segment_rewards,
         list(training_segment_starts),
         list(training_segment_ends),
@@ -335,131 +340,107 @@ def plot_trajectory_order(data, title):
     plt.savefig(f"{figure_path}/{title}.png")
     plt.close()
 
+
 def handle_plotting(
     model_info,
-    true_agent_distances,
-    trained_agent_distances,
+    true_agent_expert_segments,
+    trained_agent_expert_segments,
     trained_agent_rewards,
-    trained_segment_distances,
+    trained_segment_rules_satisifed,
     trained_segment_rewards,
-    training_segment_distances,
+    training_segment_rules_satisfied,
     training_segment_rewards,
     training_segment_starts,
     training_segment_ends,
 ):
-    model_weights = model_info["weights"]  
+    model_weights = model_info["weights"]
     hidden_size = model_info["hidden-size"]
     epochs = model_info["epochs"]
     pairs_learned = model_info["pairs-learned"]
 
-    traj_per_generation = len(true_agent_distances[0])
-    true_reward_averages = [
-        (sum(generation) / traj_per_generation) for generation in true_agent_distances
+    agents_per_generation = len(true_agent_expert_segments[0])
+    # Avg/max number of expert segments per trajectory for each agent over generations
+    trueRF_average_expert_segments = [
+        (sum(generation) / agents_per_generation)
+        for generation in true_agent_expert_segments
     ]
-    true_reward_maxes = [max(generation) for generation in true_agent_distances]
+    trueRF_max_expert_segments = [
+        max(generation) for generation in true_agent_expert_segments
+    ]
 
-    trained_reward_averages = [
-        (sum(generation) / traj_per_generation)
-        for generation in trained_agent_distances
+    # Avg/max number of expert segments per trajectory for each agent over generations
+    trainedRF_average_expert_segments = [
+        (sum(generation) / agents_per_generation)
+        for generation in trained_agent_expert_segments
     ]
+    trainedRF_max_expert_segments = [
+        max(generation) for generation in trained_agent_expert_segments
+    ]
+
+    # Avg/max reward obtained by agents over generations
     trained_agent_reward_averages = [
-        (sum(generation) / traj_per_generation) for generation in trained_agent_rewards
+        (sum(generation) / agents_per_generation)
+        for generation in trained_agent_rewards
     ]
     trained_agent_reward_maxes = [
         max(generation) for generation in trained_agent_rewards
     ]
-    trained_reward_maxes = [max(generation) for generation in trained_agent_distances]
-    graph_avg_max(
-        (true_reward_averages, trained_reward_averages),
-        (true_reward_maxes, trained_reward_maxes),
+
+    graph_expert_segments_over_generations(
+        (trueRF_average_expert_segments, trainedRF_average_expert_segments),
+        (trueRF_max_expert_segments, trainedRF_max_expert_segments),
     )
-    graph_trained_rewards(trained_agent_reward_averages, trained_agent_reward_maxes)
-    graph_death_rates(true_agent_distances, "GT")
-    graph_death_rates(trained_agent_distances, "Trained")
-    graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards)
+    graph_trained_agent_performance(
+        trained_agent_reward_averages, trained_agent_reward_maxes
+    )
 
     graph_segment_distance_vs_reward(
-        "Agent Segment Distance vs Reward",
-        trained_segment_distances,
+        "Agent Segment Rules Satisfied vs Reward",
+        trained_segment_rules_satisifed,
         trained_segment_rewards,
         epochs,
         pairs_learned,
     )
 
     graph_segment_distance_vs_reward(
-        "Training Dataset Distance vs Reward",
-        training_segment_distances,
+        "Training Dataset Rules Satisfied vs Reward",
+        training_segment_rules_satisfied,
         training_segment_rewards,
     )
-
-    # graph_position_rewards(
-    #     training_segment_starts,
-    #     "start",
-    #     model_weights, 
-    #     hidden_size,
-    # )
-    # graph_position_rewards(
-    #     training_segment_ends,
-    #     "end",
-    #     model_weights, 
-    #     hidden_size,
-    # )
 
     graph_variances()
 
 
-def graph_avg_max(averages, maxes):
-    true_reward_averages, trained_reward_averages = averages
-    true_reward_maxes, trained_reward_maxes = maxes
+def graph_expert_segments_over_generations(averages, maxes):
+    trueRF_average_expert_segments, trainedRF_average_expert_segments = averages
+    trueRF_max_expert_segments, trainedRF_max_expert_segments = maxes
 
     os.makedirs("figures", exist_ok=True)
 
-    x_values = range(len(trained_reward_averages))
+    x_values = range(len(trainedRF_average_expert_segments))
 
     plt.figure()
-    plt.plot(x_values, true_reward_averages, label="Ground Truth")
-    plt.plot(x_values, trained_reward_averages, label="Trained Reward")
+    plt.plot(x_values, trueRF_average_expert_segments, label="Ground Truth")
+    plt.plot(x_values, trainedRF_average_expert_segments, label="Trained Reward")
     plt.xlabel("Generation")
     plt.ylabel("Distance")
-    plt.title("Ground Truth vs Trained Reward: Average Distance")
+    plt.title("Ground Truth vs Trained Reward: Average Number of Expert Segments")
     plt.legend()
     plt.savefig("figures/average.png")
     plt.close()
 
     plt.figure()
-    plt.plot(x_values, true_reward_maxes, label="Ground Truth")
-    plt.plot(x_values, trained_reward_maxes, label="Trained Reward")
+    plt.plot(x_values, trueRF_max_expert_segments, label="Ground Truth")
+    plt.plot(x_values, trainedRF_max_expert_segments, label="Trained Reward")
     plt.xlabel("Generation")
     plt.ylabel("Distance")
-    plt.title("Ground Truth vs Trained Reward: Max Distance")
+    plt.title("Ground Truth vs Trained Reward: Max Number of Expert Segments")
     plt.legend()
     plt.savefig("figures/max.png")
     plt.close()
 
-    if run_wandb:
-        wandb.log(
-            {
-                "Wandb Avg Plot": wandb.plot.line_series(
-                    xs=x_values,
-                    ys=[true_reward_averages, trained_reward_averages],
-                    keys=["True Average", "Trained Average"],
-                    title="Ground Truth vs Trained Reward: Average Distance",
-                )
-            }
-        )
-        wandb.log(
-            {
-                "Wandb Max Plot": wandb.plot.line_series(
-                    xs=x_values,
-                    ys=[true_reward_maxes, trained_reward_maxes],
-                    keys=["True Max", "Trained Max"],
-                    title="Ground Truth vs Trained Reward: Max Distance",
-                )
-            }
-        )
 
-
-def graph_trained_rewards(averages, maxes):
+def graph_trained_agent_performance(averages, maxes):
     os.makedirs("figures", exist_ok=True)
 
     x_values = range(len(averages))
@@ -474,173 +455,115 @@ def graph_trained_rewards(averages, maxes):
     plt.savefig("figures/agent_rewards.png")
     plt.close()
 
-    if run_wandb:
-        wandb.log(
-            {
-                "Wandb Avg Plot": wandb.plot.line_series(
-                    xs=x_values,
-                    ys=[averages, maxes],
-                    keys=["Average Reward", "Max Reward"],
-                    title="Reward Obtained by Trained Agents",
-                )
-            }
-        )
+
+# i did a booboo, this can maybe be revived later, its wrong atm
+
+# def graph_rules_satisfied_vs_reward(
+#     trained_segment_rules_satisfied, trained_agent_rewards
+# ):
+#     os.makedirs("figures", exist_ok=True)
+
+#     rewards_for_rules = [[] for _ in range(NUMBER_OF_RULES + 1)]
+#     aggregate_trained_rules_satisfied, aggregate_trained_reward = [], []
+
+#     for i in range(len(trained_segment_rules_satisfied)):
+#         aggregate_trained_rules_satisfied.extend(trained_segment_rules_satisfied[i])
+#         aggregate_trained_reward.extend(trained_agent_rewards[i])
+
+#     for i in range(len(aggregate_trained_rules_satisfied)):
+#         num_rules, reward = (
+#             trained_segment_rules_satisfied[i],
+#             aggregate_trained_reward[i],
+#         )
+#         rewards_for_rules[num_rules].append(reward)
+
+#     segment_rules_achieved = [i for i in range(NUMBER_OF_RULES + 1)]
+#     avg_reward_for_rules_satisfied = []
+#     for i in range(NUMBER_OF_RULES + 1):
+#         if rewards_for_rules[i]:
+#             avg_reward_for_rules_satisfied.append(
+#                 sum(rewards_for_rules[i]) / len(rewards_for_rules[i])
+#             )
+#         else:
+#             segment_rules_achieved.remove(i)
+
+#     os.makedirs("figures", exist_ok=True)
+#     fig = plt.figure()
+#     ax1 = fig.add_subplot(111)
+#     ax1.scatter(
+#         x=aggregate_trained_rules_satisfied,
+#         y=aggregate_trained_reward,
+#         label="Trained Agent",
+#         c="b",
+#         alpha=0.2,
+#     )
+#     ax1.scatter(
+#         x=segment_rules_achieved,
+#         y=avg_reward_for_rules_satisfied,
+#         label="Avg Reward per Trajectory Dist.",
+#         c="r",
+#     )
+#     plt.xlabel("Distance")
+#     plt.ylabel("Reward")
+#     plt.title("Total Reward vs. Total Distance Travelled")
+#     plt.legend()
+#     plt.savefig("figures/agent_distance_vs_reward.png")
+#     plt.close()
 
 
-def graph_death_rates(distances_per_generation, agent_type):
-    fig = plt.figure()
-    generation_graph = fig.add_subplot(projection="3d")
-
-    traj_per_generation = len(distances_per_generation[0])
-    sorted_distances = [sorted(generation) for generation in distances_per_generation]
-
-    xs = []
-    ys = []
-    generations = []
-
-    for generation, distances_in_generation in enumerate(sorted_distances):
-        percent_alive = []
-        distance_travelled = []
-        for number_dead, traj_distance in enumerate(distances_in_generation):
-            percent_alive.append(
-                (traj_per_generation - number_dead - 1) / traj_per_generation * 100
-            )
-            distance_travelled.append(traj_distance)
-        xs.append(distance_travelled)
-        ys.append(percent_alive)
-        generations.append(generation + 1)
-        generation_graph.plot(
-            distance_travelled,
-            percent_alive,
-            zs=generation + 1,
-            zdir="y",
-        )
-
-    generation_graph.set_xlabel("Distance Travelled")
-    generation_graph.set_ylabel("Generation")
-    generation_graph.set_zlabel("Percent Alive")
-    generation_graph.set_yticks(generations)
-    plt.title(f"Survival Rate of {agent_type} Agents vs. Distance")
-    plt.savefig(f"figures/survival_{agent_type}.png")
-    plt.close()
-
-    if run_wandb:
-        wandb.log(
-            {
-                f"Survival Rate of {agent_type} Agents": wandb.plot.line_series(
-                    xs,
-                    ys,
-                    keys=[f"Generation {gen}" for gen in generations],
-                    title="Ground Truth vs Trained Reward: Average Distance",
-                )
-            }
-        )
-
-
-def graph_distance_vs_reward(trained_agent_distances, trained_agent_rewards):
-    os.makedirs("figures", exist_ok=True)
-    aggregate_trained_distance, aggregate_trained_reward = [], []
-    for i in range(len(trained_agent_distances)):
-        aggregate_trained_distance.extend(trained_agent_distances[i])
-        aggregate_trained_reward.extend(trained_agent_rewards[i])
-
-    zipped_distance_reward = list(zip(aggregate_trained_distance, aggregate_trained_reward))
-    distTotal = {}
-    distCount = {}
-    for distance, reward in zipped_distance_reward:
-        rounded_distance = round(distance, 1)
-        distCount[rounded_distance] = 1 + distCount.get(rounded_distance, 0)
-        distTotal[rounded_distance] = reward + distTotal.get(rounded_distance, 0)
-
-    rounded_distances = list(distCount.keys())
-    rounded_distances = [rounded_distances[i] for i in range(0, len(rounded_distances), 5)]
-    avg_reward_for_distances = []
-    for rounded_distance in rounded_distances:
-        avg_reward_for_distances.append(
-            distTotal[rounded_distance] / distCount[rounded_distance]
-        )
-
-    os.makedirs("figures", exist_ok=True)
-    fig = plt.figure()
-    ax1 = fig.add_subplot(111)
-    ax1.scatter(
-        x=aggregate_trained_distance,
-        y=aggregate_trained_reward,
-        label="Trained Agent",
-        c="b",
-        alpha=0.2,
-    )
-    ax1.scatter(
-        x=rounded_distances,
-        y=avg_reward_for_distances,
-        label="Avg Reward per Trajectory Dist.",
-        c="r",
-    )
-    plt.xlabel("Distance")
-    plt.ylabel("Reward")
-    plt.title("Total Reward vs. Total Distance Travelled")
-    plt.legend()
-    plt.savefig("figures/agent_distance_vs_reward.png")
-    plt.close()
-
-    if run_wandb:
-        wandb.log(
-            {
-                "Wandb Avg Plot": wandb.plot.line_series(
-                    xs=aggregate_trained_distance,
-                    ys=[aggregate_trained_reward],
-                    keys=["Trained Agent"],
-                    title="Reward vs. Distance Travelled",
-                )
-            }
-        )
-
-
-def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards, epochs=None, pairs_learned=None):
-    if not segment_distances or not segment_rewards:
+def graph_segment_distance_vs_reward(
+    title, segment_rules_satisfied, segment_rewards, epochs=None, pairs_learned=None
+):
+    if not segment_rules_satisfied or not segment_rewards:
         return
 
-    zipped_distance_reward = list(zip(segment_distances, segment_rewards))
-    distRewards = defaultdict(list)
-    for distance, reward in zipped_distance_reward:
-        rounded_distance = round(distance, 1)
-        distRewards[rounded_distance].append(reward)
+    if len(segment_rules_satisfied) != len(segment_rewards):
+        print(
+            "Graphing Segment Distance vs. Reward Error: Sizes of input lists do not match!"
+        )
+        return
+
+    rewards_for_rules = [[] for _ in range(NUMBER_OF_RULES + 1)]
+
+    for i in range(segment_rules_satisfied):
+        num_rules, reward = (
+            segment_rules_satisfied[i],
+            segment_rewards[i],
+        )
+        rewards_for_rules[num_rules].append(reward)
 
     print(title)
-    sorted_distances = sorted(list(distRewards.keys()))
-    # for sorted_distance in sorted_distances:
-    #     print("DISTANCE:", sorted_distance, "| COUNT:", len(distRewards[sorted_distance]))
+    for i in range(NUMBER_OF_RULES + 1):
+        print("Rules Satisfied:", i, "| COUNT:", len(rewards_for_rules[i]))
 
-    avg_reward_for_distances = []
-    variances = {}
-    for dist in sorted_distances:
-        if len(distRewards[dist]) < 2:
-            del distRewards[dist]
-            sorted_distances.remove(dist)
-    
-    for rounded_distance in sorted_distances:
-        avg_reward_for_distances.append(
-            statistics.mean(distRewards[rounded_distance])
-        )
-        variances[rounded_distance] = statistics.variance(distRewards[rounded_distance])
+    avg_reward_for_rules = []
+    variances = []
+
+    for i in range(NUMBER_OF_RULES + 1):
+        if len(rewards_for_rules[i]) > 0:
+            avg_reward_for_rules.append(statistics.mean(rewards_for_rules[i]))
+            if len(rewards_for_rules[i]) > 1:
+                variances.append(statistics.variance(rewards_for_rules[i]))
 
     if epochs and pairs_learned:
-        with open(f"output_data/variances_{epochs}_epochs_{pairs_learned}_pairs.pkl", 'wb') as file:
+        with open(
+            f"output_data/variances_{epochs}_epochs_{pairs_learned}_pairs.pkl", "wb"
+        ) as file:
             pickle.dump(variances, file)
 
     os.makedirs("figures", exist_ok=True)
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
     ax1.scatter(
-        x=segment_distances,
+        x=segment_rules_satisfied,
         y=segment_rewards,
         label="All Traj Segments",
         c="b",
         alpha=0.2,
     )
     ax1.scatter(
-        x=sorted_distances,
-        y=avg_reward_for_distances,
+        x=[i for i in range(NUMBER_OF_RULES + 1) if len(rewards_for_rules[i]) > 0],
+        y=avg_reward_for_rules,
         label="Avg Reward per Traj Segment Dist.",
         c="r",
     )
@@ -651,7 +574,7 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards, 
     plt.savefig(f"figures/{title}.png")
     plt.close()
 
-    zipped_distance_reward = list(zip(segment_distances, segment_rewards))
+    zipped_distance_reward = list(zip(segment_rules_satisfied, segment_rewards))
     random.shuffle(zipped_distance_reward)
     if len(zipped_distance_reward) % 2 != 0:
         zipped_distance_reward.pop()
@@ -689,7 +612,7 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards, 
     acc /= num_segments
     reacc /= num_segments
     print("ACCURACY", acc)
-    print("ACCURACY W/O SAME DIST PAIRS", reacc)
+    print("ACCURACY W/O SAME REWARD PAIRS", reacc)
     print("WRONG:")
     # count = 0
     # for zip1, zip2 in wrong:
@@ -700,6 +623,7 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards, 
     #     if count > 100:
     #         break
     # print("------------------------------------------------------------------\n")
+
 
 def graph_position_rewards(positions, type, model_weights, hidden_size):
     title = ""
@@ -717,41 +641,35 @@ def graph_position_rewards(positions, type, model_weights, hidden_size):
         xs.append(position[0])
         ys.append(position[1])
     print("POINTS:", len(positions))
-    min_rew = float('inf')
+    min_rew = float("inf")
     for idx in range(len(positions)):
         point = [xs[idx], ys[idx]]
         # print(point)
         avg_reward = 0
         for i in range(0, 100, 5):
             new_point = calculate_new_point(point, i, random.randint(0, 365))
-            new_segment = [
-                    point,
-                    new_point
-                ] if type == "start" else [
-                    new_point,
-                    point
-                ]
+            new_segment = [point, new_point] if type == "start" else [new_point, point]
             avg_reward += model(prepare_single_trajectory(new_segment)).item() / 100
             min_rew = min(min_rew, avg_reward)
         rewards.append(avg_reward)
     offset = abs(min_rew) + 1
     scaled_rewards = [r + offset for r in rewards]
     print("plotting...")
-    plt.scatter(xs, ys, s=scaled_rewards, c=rewards, cmap='viridis', alpha=0.6)
-    plt.colorbar(label='Rewards')
-    plt.xlabel('x')
-    plt.ylabel('y')
+    plt.scatter(xs, ys, s=scaled_rewards, c=rewards, cmap="viridis", alpha=0.6)
+    plt.colorbar(label="Rewards")
+    plt.xlabel("x")
+    plt.ylabel("y")
     plt.title(title)
     plt.savefig(f"{figure_path}/{title}.png")
     plt.close()
 
-        
+
 def graph_variances():
     variance_data = {}
     variance_files = glob.glob("output_data/variances*")
     for variance_file in variance_files:
-        epochs = variance_file.split('_')[2]
-        pairs_learned = variance_file.split('_')[4]
+        epochs = variance_file.split("_")[2]
+        pairs_learned = variance_file.split("_")[4]
         with open(variance_file, "rb") as file:
             variance_data[(epochs, pairs_learned)] = pickle.load(file)
 
@@ -760,7 +678,10 @@ def graph_variances():
 
     for epochs, pairs_learned in variance_data.keys():
         rounded_distances = sorted(variance_data[(epochs, pairs_learned)].keys())
-        variances = [variance_data[(epochs, pairs_learned)][rounded_distance] for rounded_distance in rounded_distances]
+        variances = [
+            variance_data[(epochs, pairs_learned)][rounded_distance]
+            for rounded_distance in rounded_distances
+        ]
 
         plt.scatter(
             x=rounded_distances,
@@ -814,8 +735,7 @@ if __name__ == "__main__":
                 true_database = args.database[1]
             if len(database) > 2:
                 training_database = args.database[2]
-                num_pairs_learned = training_database.split('_')[1].split('.')[0]
-
+                num_pairs_learned = training_database.split("_")[1].split(".")[0]
 
         except Exception as e:
             pass
@@ -824,7 +744,7 @@ if __name__ == "__main__":
         # with open("scaler.pkl", "rb") as f:
         #     reward.scaler = pickle.load(f)
         reward = args.reward
-        epochs = reward.split('_')[1].split('.')[0]
+        epochs = reward.split("_")[1].split(".")[0]
 
     # bt, bt_, bt_delta, ordered_trajectories = prepare_data(
     #     trained_database, reward, hidden_size=311
@@ -834,21 +754,21 @@ if __name__ == "__main__":
     # plot_trajectory_order(ordered_trajectories, "Trajectory Order")
 
     model_info = {
-        "weights" : reward, 
-        "net" : None,
-        "hidden-size" : 558, 
-        "epochs": epochs, 
-        "pairs-learned" : num_pairs_learned, 
-        "agents-per-generation" : 20
+        "weights": reward,
+        "net": None,
+        "hidden-size": 558,
+        "epochs": epochs,
+        "pairs-learned": num_pairs_learned,
+        "agents-per-generation": 20,
     }
 
     (
-        true_agent_distances,
-        trained_agent_distances,
+        true_agent_expert_segments,
+        trained_agent_expert_segments,
         trained_agent_rewards,
-        trained_segment_distances,
+        trained_segment_rules_satisifed,
         trained_segment_rewards,
-        training_segment_distances,
+        training_segment_rules_satisfied,
         training_segment_rewards,
         training_segment_starts,
         training_segment_ends,
@@ -861,12 +781,12 @@ if __name__ == "__main__":
 
     handle_plotting(
         model_info,
-        true_agent_distances,
-        trained_agent_distances,
+        true_agent_expert_segments,
+        trained_agent_expert_segments,
         trained_agent_rewards,
-        trained_segment_distances,
+        trained_segment_rules_satisifed,
         trained_segment_rewards,
-        training_segment_distances,
+        training_segment_rules_satisfied,
         training_segment_rewards,
         training_segment_starts,
         training_segment_ends,
