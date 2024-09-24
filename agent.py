@@ -16,7 +16,9 @@ import torch
 import yaml
 
 import reward
-from reward import TrajectoryRewardNet, prepare_single_trajectory, scaler
+from reward import TrajectoryRewardNet, prepare_single_trajectory
+
+import rules
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 trajectories_path = "trajectories/"
@@ -82,7 +84,7 @@ class StateActionPair:
             raise IndexError("Index out of range")
 
     def __repr__(self):
-        return "<Radars: " + str([radar for radar in self.radars]) + ", Action: " + self.action + " ,Position: " + str(self.position) + ">"
+        return "<Radars: " + str([radar for radar in self.radars]) + ", Action: " + str(self.action) + " ,Position: " + str(self.position) + ">"
     
     def __len__(self):
         return 8
@@ -329,7 +331,6 @@ def break_into_segments(trajectory, rules_per_step, done):
     while curr < len(trajectory):
         rules_satisfied = rules_per_step[curr]
         segment = [trajectory[prev], trajectory[curr]]
-    
         trajectory_segments[rules_satisfied].append(segment)
         prev += 1
         curr += 1
@@ -412,16 +413,16 @@ def generate_database(trajectory_path):
             random.shuffle(trajectory_segments)
             close_distance = []
             for i in range(0, len(trajectory_segments), 2):
-                distance_1 = dist(trajectory_segments[i])
-                distance_2 = dist(trajectory_segments[i + 1])
-                if abs(distance_1 - distance_2) < 0.001:
+                _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
+                _, reward_2 = rules.check_rules(trajectory_segments[i+1], NUMBER_OF_RULES)
+                if abs(reward_1 - reward_2) < 0.001:
                     close_distance.append(
                         (
                             list(trajectory_segments[i]),
                             list(trajectory_segments[i + 1]),
-                            0 if distance_1 < distance_2 else 1,
-                            distance_1,
-                            distance_2,
+                            0 if reward_1 < reward_2 else 1,
+                            reward_1,
+                            reward_2,
                         )
                     )
                 else:
@@ -429,9 +430,9 @@ def generate_database(trajectory_path):
                         (
                             list(trajectory_segments[i]),
                             list(trajectory_segments[i + 1]),
-                            0 if distance_1 < distance_2 else 1,
-                            distance_1,
-                            distance_2,
+                            0 if reward_1 < reward_2 else 1,
+                            reward_1,
+                            reward_2,
                         )
                     )
             random.shuffle(close_distance)
@@ -458,17 +459,17 @@ def generate_database(trajectory_path):
                     )
             random.shuffle(trajectory_segments)
             for i in range(0, len(trajectory_segments), 2):
-                distance_1 = dist(trajectory_segments[i])
-                distance_2 = dist(trajectory_segments[i + 1])
-                if abs(distance_1 - distance_2) < 0.01:
+                _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
+                _, reward_2 = rules.check_rules(trajectory_segments[i+1], NUMBER_OF_RULES)
+                if abs(reward_1 - reward_2) < 0.01:
                     continue
                 trajectory_pairs.append(
                     (
                         trajectory_segments[i],
                         trajectory_segments[i + 1],
-                        0 if distance_1 > distance_2 else 1,
-                        distance_1,
-                        distance_2,
+                        0 if reward_1 > reward_2 else 1,
+                        reward_1,
+                        reward_2,
                     )
                 )
 
