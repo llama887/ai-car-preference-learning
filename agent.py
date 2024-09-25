@@ -319,7 +319,9 @@ class Car:
             global num_pairs
             status = collection_status(num_pairs)
             for i in range(NUMBER_OF_RULES + 1):
-                new_segments = break_into_segments(self.trajectory, status)
+                new_segments = break_into_segments(
+                    self.trajectory, self.rules_per_step, status
+                )
                 saved_segments[i].extend(new_segments[i])
         else:
             saved_trajectories.append((self.distance, self.trajectory, self.reward))
@@ -491,18 +493,13 @@ def generate_database(trajectory_path):
             trajectory_pairs.append(
                 new_pair
             )
-    # print(trajectory_pairs)
     print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
-    # Delete all trajectories
-    print("Removing saved trajectories...")
     old_trajectories = glob.glob(trajectory_path + "trajectory*")
     for f in old_trajectories:
         os.remove(f)
 
     prefix = "database" if run_type == "collect" else run_type
-    # Delete old database if it is redundant (same size)
-    print("Removing old database...")
     old_trajectories = glob.glob(
         trajectory_path + f"{prefix}_{len(trajectory_pairs)}.pkl"
     )
@@ -512,8 +509,6 @@ def generate_database(trajectory_path):
     # Save To Database
     with open(trajectory_path + f"{prefix}_{len(trajectory_pairs)}.pkl", "wb") as f:
         pickle.dump(trajectory_pairs, f)
-
-    # print("Done saving to database...")
     return len(trajectory_pairs)
 
 
@@ -688,7 +683,6 @@ def run_simulation(genomes, config):
 
             pygame.display.flip()
         clock.tick(60)  # 60 FPS
-    print("GET REWARD CALLED:", reward_count, "TIMES THIS GENERATION.")
 
 
 def finished_collecting(number_of_pairs):

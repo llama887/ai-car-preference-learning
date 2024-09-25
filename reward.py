@@ -153,13 +153,13 @@ class TrajectoryDataset(Dataset):
         self.score1 = torch.tensor(self.score1, dtype=torch.float32).to(device)
         self.score2 = torch.tensor(self.score2, dtype=torch.float32).to(device)
 
-        for i in range(100):
-            print(self.first_trajectories[i])
-            print(self.second_trajectories[i])
-            print(self.labels[i])
-            print(self.score1[i])
-            print(self.score2[i])
-            print()
+        # for i in range(100):
+        #     print(self.first_trajectories[i])
+        #     print(self.second_trajectories[i])
+        #     print(self.labels[i])
+        #     print(self.score1[i])
+        #     print(self.score2[i])
+        #     print()
 
     def __getitem__(self, idx):
         traj1 = self.first_trajectories[idx]
@@ -181,7 +181,10 @@ def bradley_terry_model(r1, r2):
 
 
 def preference_loss(predicted_probabilities, true_preferences):
-    return F.binary_cross_entropy(predicted_probabilities, true_preferences)
+    try:
+        return F.binary_cross_entropy(predicted_probabilities, true_preferences)
+    except:
+        import ipdb; ipdb.set_trace()
 
 
 def prepare_single_trajectory(trajectory, max_length=2):
