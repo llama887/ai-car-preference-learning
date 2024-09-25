@@ -301,7 +301,6 @@ class Car:
             trajectory_tensor = prepare_single_trajectory(self.trajectory)
             reward = reward_network(trajectory_tensor)
             return reward.item()
-        print(self.trajectory)
         self.rules_per_step.append(rules.check_rules(self.trajectory[-2:], NUMBER_OF_RULES)[0]) 
         return self.rules_per_step[-1] == NUMBER_OF_RULES
 
@@ -596,7 +595,6 @@ def run_simulation(genomes, config):
         for i, car in enumerate(cars):
             if car.is_alive():
                 still_alive += 1
-
             reward_count += 1
             car_reward = car.get_reward()
             speeds.append(car.speed)
@@ -771,18 +769,6 @@ def run_population(
         return numTrajPairs
     except KeyboardInterrupt:
         generate_database(trajectory_path)
-
-def check_rules(agent, total_rules):
-    rule_counter = 0
-    if total_rules >= 1 and agent.speed > 30:
-        rule_counter += 1
-
-    left_radar = agent.check_radar(-90, game_map)
-    right_radar = agent.check_radar(90, game_map)
-    if total_rules >= 2 and left_radar > right_radar:
-        rule_counter += 1
-    
-    return rule_counter
 
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(description="AI Car Preference Learning")
