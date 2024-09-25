@@ -2,6 +2,7 @@
 import math
 
 def check_rules(segment, total_rules):
+    print(segment)
     rule_counter = 0
     point1 = segment[0].position
     point2 = segment[1].position

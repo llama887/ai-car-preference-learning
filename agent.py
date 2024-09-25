@@ -42,8 +42,9 @@ DEFAULT_MAX_GENERATIONS = 1000
 SEGMENTS_PER_PAIR = 5
 
 NUMBER_OF_RULES = 1
-SEGMENT_DISTRIBUTION_BY_RULES = [0.5, 0.5]
+SEGMENT_DISTRIBUTION_BY_RULES = [0, 1]
 assert len(SEGMENT_DISTRIBUTION_BY_RULES) == NUMBER_OF_RULES+1, f"SEGMENT_DISTRIBUTION_BY_RULES: {SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {NUMBER_OF_RULES}"
+
 
 current_generation = 0  # Generation counter
 trajectory_path = "./trajectories/"
@@ -294,13 +295,14 @@ class Car:
         return self.alive
 
     def get_reward(self):
+        if len(self.trajectory) < 2:
+            return 0
         if reward_network is not None:
-            if len(self.trajectory) < 2:
-                return 0
             trajectory_tensor = prepare_single_trajectory(self.trajectory)
             reward = reward_network(trajectory_tensor)
             return reward.item()
-        self.rules_per_step.append(check_rules(self, NUMBER_OF_RULES)) 
+        print(self.trajectory)
+        self.rules_per_step.append(rules.check_rules(self.trajectory[-2:], NUMBER_OF_RULES)[0]) 
         return self.rules_per_step[-1] == NUMBER_OF_RULES
 
     def rotate_center(self, image, angle):
@@ -318,7 +320,7 @@ class Car:
             global num_pairs
             status = collection_status(num_pairs)
             for i in range(NUMBER_OF_RULES + 1):
-                new_segments = break_into_segments(self.trajectory, self.rules_per_step, status)
+                new_segments = break_into_segments(self.trajectory, status)
                 saved_segments[i].extend(new_segments[i])
         else:
             saved_trajectories.append((self.distance, self.trajectory, self.reward))
