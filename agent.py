@@ -328,13 +328,15 @@ class Car:
         return self.alive
 
     def get_reward(self):
+        if len(self.trajectory) < 2:
+            return 0
         if reward_network is not None:
-            if len(self.trajectory) < 2:
-                return 0
             trajectory_tensor = prepare_single_trajectory(self.trajectory)
             reward = reward_network(trajectory_tensor)
             return reward.item()
-        self.rules_per_step.append(check_rules(self, NUMBER_OF_RULES)[0])
+        self.rules_per_step.append(
+            rules.check_rules(self.trajectory[-2:], NUMBER_OF_RULES)[0]
+        )
         is_segment_expert = self.rules_per_step[-1] == NUMBER_OF_RULES
         self.expert_segments += is_segment_expert
         return is_segment_expert
@@ -425,43 +427,70 @@ def calculate_new_point(point, distance, angle):
     return [x1, y1]
 
 
+def trim_excess_segments():
+    global saved_segments, number_of_pairs
+    for i in range(NUMBER_OF_RULES + 1):
+        segments_needed = int(
+            number_of_pairs * SEGMENTS_PER_PAIR * SEGMENT_DISTRIBUTION_BY_RULES[i]
+        )
+        if len(saved_segments[i]) >= segments_needed:
+            saved_segments[i] = saved_segments[i][:segments_needed]
+
+
 def generate_database(trajectory_path):
     trajectory_pairs = []
+
     global run_type, saved_segments, number_of_pairs, saved_trajectories
-
-    def shuffle(trajectory_pairs):
-        random.shuffle(trajectory_pairs)
-        for i in range(len(trajectory_pairs)):
-            swap = random.randint(0, 1)
-            if swap:
-                trajectory_pairs[i] = (
-                    trajectory_pairs[i][1],
-                    trajectory_pairs[i][0],
-                    (trajectory_pairs[i][2] + 1) % 2,
-                    trajectory_pairs[i][4],
-                    trajectory_pairs[i][3],
-                )
-
-    # Break trajectories into trajectory segments
-    trajectory_segments = []
-    for i in range(NUMBER_OF_RULES + 1):
-        trajectory_segments.extend(saved_segments[i])
-
-    if len(trajectory_segments) % 2 != 0:
-        trajectory_segments.pop()
-
     if run_type == "collect":
+        # Break trajectories into trajectory segments
+        trajectory_segments = []
+
+        trim_excess_segments()
+        print(
+            "SEGMENT POOL FOR DATA COLLECTION:",
+            list((f"{i}: {len(seg)}" for i, seg in enumerate(saved_segments))),
+        )
+
+        for i in range(NUMBER_OF_RULES + 1):
+            trajectory_segments.extend(saved_segments[i])
+
+        if len(trajectory_segments) % 2 != 0:
+            trajectory_segments.pop()
+
         segment_generation_mode = "random"
         if segment_generation_mode == "random":
             random.shuffle(trajectory_segments)
-            close_distance = []
+            for i in range(0, number_of_pairs * 2, 2):
+                _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
+                _, reward_2 = rules.check_rules(
+                    trajectory_segments[i + 1], NUMBER_OF_RULES
+                )
+                trajectory_pairs.append(
+                    (
+                        list(trajectory_segments[i]),
+                        list(trajectory_segments[i + 1]),
+                        0 if reward_1 < reward_2 else 1,
+                        reward_1,
+                        reward_2,
+                    )
+                )
+
+            n = len(trajectory_pairs)
+            if n > number_of_pairs:
+                print("soemthing is wrong unlucky pepperoni (too many pairs!)")
+                for i in range(n - number_of_pairs):
+                    trajectory_pairs.pop()
+
+        elif segment_generation_mode == "distribution":
+            random.shuffle(trajectory_segments)
+            same_reward = []
             for i in range(0, len(trajectory_segments), 2):
                 _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
                 _, reward_2 = rules.check_rules(
                     trajectory_segments[i + 1], NUMBER_OF_RULES
                 )
-                if abs(reward_1 - reward_2) < 0.001:
-                    close_distance.append(
+                if reward_1 == reward_2:
+                    same_reward.append(
                         (
                             list(trajectory_segments[i]),
                             list(trajectory_segments[i + 1]),
@@ -480,47 +509,14 @@ def generate_database(trajectory_path):
                             reward_2,
                         )
                     )
-            random.shuffle(close_distance)
+            random.shuffle(same_reward)
+
             n = len(trajectory_pairs)
             for i in range(n - number_of_pairs):
                 trajectory_pairs.pop()
-            fill = min(number_of_pairs - n, len(close_distance))
+            fill = min(number_of_pairs - n, len(same_reward))
             for i in range(fill):
-                trajectory_pairs.append(close_distance[i])
-
-        elif segment_generation_mode == "artificial":
-            n = 100
-            trajectory_segments = []
-            start_points = [
-                [random.randint(-50, 50), random.randint(-50, 50)] for _ in range(100)
-            ]
-            for start in start_points:
-                for i in range(100):
-                    trajectory_segments.append(
-                        [
-                            start,
-                            calculate_new_point(start, i, random.randint(0, 365)),
-                        ]
-                    )
-            random.shuffle(trajectory_segments)
-            for i in range(0, len(trajectory_segments), 2):
-                _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
-                _, reward_2 = rules.check_rules(
-                    trajectory_segments[i + 1], NUMBER_OF_RULES
-                )
-                if abs(reward_1 - reward_2) < 0.01:
-                    continue
-                trajectory_pairs.append(
-                    (
-                        trajectory_segments[i],
-                        trajectory_segments[i + 1],
-                        0 if reward_1 > reward_2 else 1,
-                        reward_1,
-                        reward_2,
-                    )
-                )
-
-        shuffle(trajectory_pairs)
+                trajectory_pairs.append(same_reward[i])
     else:
         trajectories = saved_trajectories
         if len(trajectories) % 2 != 0:
@@ -825,19 +821,6 @@ def run_population(
         return numTrajPairs
     except KeyboardInterrupt:
         generate_database(trajectory_path)
-
-
-def check_rules(agent, total_rules):
-    rule_counter = 0
-    if total_rules >= 1 and agent.speed > 30:
-        rule_counter += 1
-
-    left_radar = agent.check_radar(-90, game_map)
-    right_radar = agent.check_radar(90, game_map)
-    if total_rules >= 2 and left_radar > right_radar:
-        rule_counter += 1
-
-    return rule_counter
 
 
 if __name__ == "__main__":

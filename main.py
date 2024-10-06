@@ -99,7 +99,7 @@ if __name__ == "__main__":
         database_path = f"trajectories/database_{args.trajectories[0]}.pkl"
     else:
         database_path = args.database
-        num_pairs = database_path.split('_')[1].split('.')[0]
+        num_pairs = database_path.split("_")[1].split(".")[0]
         args.trajectories[0] = num_pairs
 
     model_weights = ""
@@ -160,12 +160,12 @@ if __name__ == "__main__":
     )
 
     model_info = {
-        "weights" : model_weights, 
-        "net" : None,
-        "hidden-size" : 558, 
-        "epochs": args.epochs[0], 
-        "pairs-learned" : args.trajectories[0], 
-        "agents-per-generation" : 20
+        "weights": model_weights,
+        "net": None,
+        "hidden-size": 558,
+        "epochs": args.epochs[0],
+        "pairs-learned": args.trajectories[0],
+        "agents-per-generation": 20,
     }
 
     true_database = trajectory_path + f"trueRF_{truePairs}.pkl"
@@ -178,8 +178,6 @@ if __name__ == "__main__":
         trained_segment_rewards,
         training_segment_distances,
         training_segment_rewards,
-        training_segment_starts,
-        training_segment_ends,
     ) = populate_lists(
         true_database,
         trained_database,
@@ -197,8 +195,6 @@ if __name__ == "__main__":
         trained_segment_rewards,
         training_segment_distances,
         training_segment_rewards,
-        training_segment_starts,
-        training_segment_ends,
     )
 
     # bt, bt_, bt_delta, ordered_trajectories = prepare_data(
