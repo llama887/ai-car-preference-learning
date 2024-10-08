@@ -2,26 +2,22 @@ import argparse
 import glob
 import os
 import pickle
+from collections import defaultdict
 
-import ipdb
 import matplotlib.pyplot as plt
 import numpy as np
 import optuna
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 import yaml
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader, Dataset, random_split
-from collections import defaultdict 
 
 import wandb
 
-os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 os.environ["WANDB_SILENT"] = "true"
 INPUT_SIZE = 8 * 2
 
@@ -59,24 +55,26 @@ class TrajectoryRewardNet(nn.Module):
         def get_activation(name):
             def hook(model, input, output):
                 self.activations[name].append(output.detach())
+
             return hook
 
         def get_gradient(name):
             def hook(model, grad_input, grad_output):
                 self.gradients[name].append(grad_output[0].detach())
+
             return hook
 
-        self.fc1.register_forward_hook(get_activation('fc1'))
-        self.fc2.register_forward_hook(get_activation('fc2'))
-        self.fc3.register_forward_hook(get_activation('fc3'))
-        self.fc4.register_forward_hook(get_activation('fc4'))
-        self.fc5.register_forward_hook(get_activation('fc5'))
+        self.fc1.register_forward_hook(get_activation("fc1"))
+        self.fc2.register_forward_hook(get_activation("fc2"))
+        self.fc3.register_forward_hook(get_activation("fc3"))
+        self.fc4.register_forward_hook(get_activation("fc4"))
+        self.fc5.register_forward_hook(get_activation("fc5"))
 
-        self.fc1.register_backward_hook(get_gradient('fc1'))
-        self.fc2.register_backward_hook(get_gradient('fc2'))
-        self.fc3.register_backward_hook(get_gradient('fc3'))
-        self.fc4.register_backward_hook(get_gradient('fc4'))
-        self.fc5.register_backward_hook(get_gradient('fc5'))
+        self.fc1.register_backward_hook(get_gradient("fc1"))
+        self.fc2.register_backward_hook(get_gradient("fc2"))
+        self.fc3.register_backward_hook(get_gradient("fc3"))
+        self.fc4.register_backward_hook(get_gradient("fc4"))
+        self.fc5.register_backward_hook(get_gradient("fc5"))
 
     def forward(self, x):
         # print("Before Layers:", x)
@@ -95,24 +93,26 @@ class TrajectoryRewardNet(nn.Module):
         x = self.fc5(x)
         return x
 
+
 def plot_activations_and_gradients(model):
     for i in range(1, 6):
-        layer_name = f'fc{i}'
+        layer_name = f"fc{i}"
         activations = torch.cat(model.activations[layer_name]).cpu().numpy()
         gradients = torch.cat(model.gradients[layer_name]).cpu().numpy()
 
         plt.figure(figsize=(12, 5))
 
         plt.subplot(1, 2, 1)
-        plt.title(f'Activations at {layer_name}')
+        plt.title(f"Activations at {layer_name}")
         plt.hist(activations.flatten(), bins=100)
 
         plt.subplot(1, 2, 2)
-        plt.title(f'Gradients at {layer_name}')
+        plt.title(f"Gradients at {layer_name}")
         plt.hist(gradients.flatten(), bins=100)
 
         plt.savefig(f"{figure_path}activation_{i}.png")
         plt.close()
+
 
 class TrajectoryDataset(Dataset):
     def __init__(self, file_path):
@@ -145,9 +145,13 @@ class TrajectoryDataset(Dataset):
         # scaler.fit(all_data)
         # self.first_trajectories = torch.tensor([scaler.transform(trajectory1_flat) for trajectory1_flat in self.first_trajectories], dtype=torch.float32).to(device)
         # self.second_trajectories = torch.tensor([scaler.transform(trajectory2_flat) for trajectory2_flat in self.second_trajectories], dtype=torch.float32).to(device)
-        
-        self.first_trajectories = torch.tensor(self.first_trajectories, dtype=torch.float32).to(device)
-        self.second_trajectories = torch.tensor(self.second_trajectories, dtype=torch.float32).to(device)
+
+        self.first_trajectories = torch.tensor(
+            self.first_trajectories, dtype=torch.float32
+        ).to(device)
+        self.second_trajectories = torch.tensor(
+            self.second_trajectories, dtype=torch.float32
+        ).to(device)
 
         self.labels = torch.tensor(self.labels, dtype=torch.float32).to(device)
         self.score1 = torch.tensor(self.score1, dtype=torch.float32).to(device)
@@ -184,7 +188,18 @@ def preference_loss(predicted_probabilities, true_preferences):
     try:
         return F.binary_cross_entropy(predicted_probabilities, true_preferences)
     except:
-        import ipdb; ipdb.set_trace()
+        # Assert that predicted probabilities are between 0 and 1
+        assert torch.all(predicted_probabilities >= 0) and torch.all(
+            predicted_probabilities <= 1
+        ), "Predicted probabilities are not between 0 and 1."
+
+        # Assert that true preferences are between 0 and 1
+        assert torch.all(true_preferences >= 0) and torch.all(
+            true_preferences <= 1
+        ), "True preferences are not between 0 and 1."
+        import sys
+
+        sys.exit(1)
 
 
 def prepare_single_trajectory(trajectory, max_length=2):
@@ -379,7 +394,6 @@ def train_model(
     except:
         torch.save(net.state_dict(), f"model_{epoch}.pth")
 
-
     plt.figure()
     plt.plot(training_losses, label="Train Loss")
     plt.plot(validation_losses, label="Validation Loss")
@@ -466,7 +480,6 @@ def train_reward_function(trajectories_file_path, epochs, parameters_path=None):
             torch.save(net.state_dict(), f"model_{epochs}.pth")
             # plot_activations_and_gradients(net)
         return best_loss
-
 
 
 def objective(trial):
