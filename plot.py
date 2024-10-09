@@ -17,6 +17,7 @@ from rules import check_rules
 
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
 import torch
 import wandb
 
@@ -250,9 +251,9 @@ def populate_lists(true_database, trained_database, training_database, model_inf
             trained_agent_rewards.append(gen_trained_rewards)
 
     if training_database:
-        for traj1, traj2, _, dist1, dist2 in training_trajectories:
-            training_segment_rules_satisfied.append(dist1)
-            training_segment_rules_satisfied.append(dist2)
+        for traj1, traj2, _, reward1, reward2 in training_trajectories:
+            training_segment_rules_satisfied.append(reward1)
+            training_segment_rules_satisfied.append(reward2)
             training_segment_rewards.append(
                 model(prepare_single_trajectory(traj1)).item()
             )
@@ -602,55 +603,15 @@ def graph_segment_distance_vs_reward(
     print("ACCURACY", acc)
     print("ACCURACY W/O SAME REWARD PAIRS", reacc)
     print("WRONG:")
-    # count = 0
-    # for zip1, zip2 in wrong:
-    #     count += 1
-    #     print(
-    #         f"DISTANCES: {zip1[0]:11.8f}, {zip2[0]:11.8f} | REWARDS: {zip1[1]:11.8f}, {zip2[1]:11.8f}"
-    #     )
-    #     if count > 100:
-    #         break
-    # print("------------------------------------------------------------------\n")
-
-
-def graph_position_rewards(positions, type, model_weights, hidden_size):
-    title = ""
-    if type == "start":
-        title = "Segment Starts"
-    else:
-        title = "Segment Ends"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = TrajectoryRewardNet(NET_SIZE, hidden_size=int(hidden_size)).to(device)
-    model.load_state_dict(torch.load(model_weights, map_location=device))
-    xs = []
-    ys = []
-    rewards = []
-    for position in positions:
-        xs.append(position[0])
-        ys.append(position[1])
-    print("POINTS:", len(positions))
-    min_rew = float("inf")
-    for idx in range(len(positions)):
-        point = [xs[idx], ys[idx]]
-        # print(point)
-        avg_reward = 0
-        for i in range(0, 100, 5):
-            new_point = calculate_new_point(point, i, random.randint(0, 365))
-            new_segment = [point, new_point] if type == "start" else [new_point, point]
-            avg_reward += model(prepare_single_trajectory(new_segment)).item() / 100
-            min_rew = min(min_rew, avg_reward)
-        rewards.append(avg_reward)
-    offset = abs(min_rew) + 1
-    scaled_rewards = [r + offset for r in rewards]
-    print("plotting...")
-    plt.scatter(xs, ys, s=scaled_rewards, c=rewards, cmap="viridis", alpha=0.6)
-    plt.colorbar(label="Rewards")
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.title(title)
-    plt.savefig(f"{figure_path}/{title}.png")
-    plt.close()
-
+    count = 0
+    for zip1, zip2 in wrong:
+        count += 1
+        print(
+            f"DISTANCES: {zip1[0]:11.8f}, {zip2[0]:11.8f} | REWARDS: {zip1[1]:11.8f}, {zip2[1]:11.8f}"
+        )
+        if count > 100:
+            break
+    print("------------------------------------------------------------------\n")
 
 def graph_variances():
     variance_data = {}

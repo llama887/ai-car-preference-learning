@@ -314,6 +314,10 @@ class Car:
         )
         self.trajectory.append(next_state_action)
 
+        rules_satisfied, is_expert = rules.check_rules(self.trajectory[-2:], NUMBER_OF_RULES)
+        self.rules_per_step.append(rules_satisfied)
+        self.expert_segments += is_expert
+
     def get_data(self):
         # Get Distances To Border
         radars = self.radars
@@ -334,12 +338,7 @@ class Car:
             trajectory_tensor = prepare_single_trajectory(self.trajectory)
             reward = reward_network(trajectory_tensor)
             return reward.item()
-        self.rules_per_step.append(
-            rules.check_rules(self.trajectory[-2:], NUMBER_OF_RULES)[0]
-        )
-        is_segment_expert = self.rules_per_step[-1] == NUMBER_OF_RULES
-        self.expert_segments += is_segment_expert
-        return is_segment_expert
+        return rules.check_rules(self.trajectory[-2:], NUMBER_OF_RULES)[1]
 
     def rotate_center(self, image, angle):
         # Rotate The Rectangle
@@ -355,10 +354,10 @@ class Car:
         if run_type == "collect":
             global num_pairs
             status = collection_status(num_pairs)
+            new_segments = break_into_segments(
+                self.trajectory, self.rules_per_step, status
+            )
             for i in range(NUMBER_OF_RULES + 1):
-                new_segments = break_into_segments(
-                    self.trajectory, self.rules_per_step, status
-                )
                 saved_segments[i].extend(new_segments[i])
         else:
             saved_trajectories.append(
@@ -371,7 +370,7 @@ def break_into_segments(trajectory, rules_per_step, done):
     prev = 0
     curr = 1
     while curr < len(trajectory):
-        rules_satisfied = rules_per_step[curr]
+        rules_satisfied = rules_per_step[prev]
         segment = [trajectory[prev], trajectory[curr]]
         trajectory_segments[rules_satisfied].append(segment)
         prev += 1
@@ -453,18 +452,17 @@ def generate_database(trajectory_path):
 
         for i in range(NUMBER_OF_RULES + 1):
             trajectory_segments.extend(saved_segments[i])
-
+   
         if len(trajectory_segments) % 2 != 0:
             trajectory_segments.pop()
 
         segment_generation_mode = "random"
         if segment_generation_mode == "random":
             random.shuffle(trajectory_segments)
+
             for i in range(0, number_of_pairs * 2, 2):
                 _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
-                _, reward_2 = rules.check_rules(
-                    trajectory_segments[i + 1], NUMBER_OF_RULES
-                )
+                _, reward_2 = rules.check_rules(trajectory_segments[i + 1], NUMBER_OF_RULES)
                 trajectory_pairs.append(
                     (
                         list(trajectory_segments[i]),
@@ -533,7 +531,7 @@ def generate_database(trajectory_path):
                 r2=trajectories[i + 1][2],
             )
             trajectory_pairs.append(new_pair)
-    # print(trajectory_pairs)
+
     print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
     # Delete all trajectories
