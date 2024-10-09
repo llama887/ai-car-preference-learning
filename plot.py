@@ -179,8 +179,10 @@ def populate_lists(true_database, trained_database, training_database, model_inf
     trained_agent_rewards = []
     trained_segment_rules_satisifed = []
     trained_segment_rewards = []
+    trained_segment_distances = []
     training_segment_rules_satisfied = []
     training_segment_rewards = []
+    training_segment_distances = []
 
     replace = False
     if true_database == "blank":
@@ -244,6 +246,9 @@ def populate_lists(true_database, trained_database, training_database, model_inf
                 trained_segment_rewards.append(
                     model(prepare_single_trajectory(segment)).item()
                 )
+                trained_segment_distances.append(
+                    dist(segment)
+                )
             count += 1
         if gen_trained_expert_segments:
             trained_agent_expert_segments.append(gen_trained_expert_segments)
@@ -260,6 +265,8 @@ def populate_lists(true_database, trained_database, training_database, model_inf
             training_segment_rewards.append(
                 model(prepare_single_trajectory(traj2)).item()
             )
+            training_segment_distances.append(dist(traj1))
+            training_segment_distances.append(dist(traj2))
 
     if replace:
         true_agent_expert_segments = [
@@ -277,8 +284,10 @@ def populate_lists(true_database, trained_database, training_database, model_inf
         trained_agent_rewards,
         trained_segment_rules_satisifed,
         trained_segment_rewards,
+        trained_segment_distances,
         training_segment_rules_satisfied,
         training_segment_rewards,
+        training_segment_distances
     )
 
 
@@ -336,8 +345,10 @@ def handle_plotting(
     trained_agent_rewards,
     trained_segment_rules_satisifed,
     trained_segment_rewards,
+    trained_segment_distances,
     training_segment_rules_satisfied,
     training_segment_rewards,
+    training_segment_distances,
 ):
     model_weights = model_info["weights"]
     hidden_size = model_info["hidden-size"]
@@ -380,7 +391,7 @@ def handle_plotting(
         trained_agent_reward_averages, trained_agent_reward_maxes
     )
 
-    graph_segment_distance_vs_reward(
+    graph_segment_rules_vs_reward(
         "Agent Segment Rules Satisfied vs Reward",
         trained_segment_rules_satisifed,
         trained_segment_rewards,
@@ -388,13 +399,25 @@ def handle_plotting(
         pairs_learned,
     )
 
-    graph_segment_distance_vs_reward(
+    graph_segment_rules_vs_reward(
         "Training Dataset Rules Satisfied vs Reward",
         training_segment_rules_satisfied,
         training_segment_rewards,
     )
 
-    graph_variances()
+    graph_segment_distance_vs_reward(
+        "Agent Segment Distance vs Reward",
+        trained_segment_distances,
+        trained_segment_rewards,
+        epochs,
+        pairs_learned,
+    )
+
+    graph_segment_distance_vs_reward(
+        "Training Dataset Distance vs Reward",
+        training_segment_distances,
+        training_segment_rewards,
+    )
 
 
 def graph_expert_segments_over_generations(averages, maxes):
@@ -441,63 +464,7 @@ def graph_trained_agent_performance(averages, maxes):
     plt.savefig("figures/agent_rewards.png")
     plt.close()
 
-
-# i did a booboo, this can maybe be revived later, its wrong atm
-
-# def graph_rules_satisfied_vs_reward(
-#     trained_segment_rules_satisfied, trained_agent_rewards
-# ):
-#     os.makedirs("figures", exist_ok=True)
-
-#     rewards_for_rules = [[] for _ in range(NUMBER_OF_RULES + 1)]
-#     aggregate_trained_rules_satisfied, aggregate_trained_reward = [], []
-
-#     for i in range(len(trained_segment_rules_satisfied)):
-#         aggregate_trained_rules_satisfied.extend(trained_segment_rules_satisfied[i])
-#         aggregate_trained_reward.extend(trained_agent_rewards[i])
-
-#     for i in range(len(aggregate_trained_rules_satisfied)):
-#         num_rules, reward = (
-#             trained_segment_rules_satisfied[i],
-#             aggregate_trained_reward[i],
-#         )
-#         rewards_for_rules[num_rules].append(reward)
-
-#     segment_rules_achieved = [i for i in range(NUMBER_OF_RULES + 1)]
-#     avg_reward_for_rules_satisfied = []
-#     for i in range(NUMBER_OF_RULES + 1):
-#         if rewards_for_rules[i]:
-#             avg_reward_for_rules_satisfied.append(
-#                 sum(rewards_for_rules[i]) / len(rewards_for_rules[i])
-#             )
-#         else:
-#             segment_rules_achieved.remove(i)
-
-#     os.makedirs("figures", exist_ok=True)
-#     fig = plt.figure()
-#     ax1 = fig.add_subplot(111)
-#     ax1.scatter(
-#         x=aggregate_trained_rules_satisfied,
-#         y=aggregate_trained_reward,
-#         label="Trained Agent",
-#         c="b",
-#         alpha=0.2,
-#     )
-#     ax1.scatter(
-#         x=segment_rules_achieved,
-#         y=avg_reward_for_rules_satisfied,
-#         label="Avg Reward per Trajectory Dist.",
-#         c="r",
-#     )
-#     plt.xlabel("Distance")
-#     plt.ylabel("Reward")
-#     plt.title("Total Reward vs. Total Distance Travelled")
-#     plt.legend()
-#     plt.savefig("figures/agent_distance_vs_reward.png")
-#     plt.close()
-
-
-def graph_segment_distance_vs_reward(
+def graph_segment_rules_vs_reward(
     title, segment_rules_satisfied, segment_rewards, epochs=None, pairs_learned=None
 ):
     if not segment_rules_satisfied or not segment_rewards:
@@ -505,7 +472,7 @@ def graph_segment_distance_vs_reward(
 
     if len(segment_rules_satisfied) != len(segment_rewards):
         print(
-            "Graphing Segment Distance vs. Reward Error: Sizes of input lists do not match!"
+            "Graphing Segment Rules vs. Reward Error: Sizes of input lists do not match!"
         )
         return
 
@@ -522,58 +489,31 @@ def graph_segment_distance_vs_reward(
     for i in range(NUMBER_OF_RULES + 1):
         print("Rules Satisfied:", i, "| COUNT:", len(rewards_for_rules[i]))
 
-    avg_reward_for_rules = []
-    variances = []
-    variance_dict = {}
+    df = pd.DataFrame({
+        'Rules Satisfied': segment_rules_satisfied,
+        'Reward of Trajectory Segment': segment_rewards
+    })
 
-    for i in range(NUMBER_OF_RULES + 1):
-        if len(rewards_for_rules[i]) > 0:
-            avg_reward_for_rules.append(statistics.mean(rewards_for_rules[i]))
-        if len(rewards_for_rules[i]) > 1:
-            variances.append(statistics.variance(rewards_for_rules[i]))
-            variance_dict[i] = statistics.variance(rewards_for_rules[i])
-
-    if epochs and pairs_learned:
-        with open(
-            f"output_data/variances_{epochs}_epochs_{pairs_learned}_pairs.pkl", "wb"
-        ) as file:
-            pickle.dump(variance_dict, file)
-
-    os.makedirs("figures", exist_ok=True)
-    fig = plt.figure()
-    ax1 = fig.add_subplot(111)
-    ax1.set_xticks([i for i in range(NUMBER_OF_RULES + 1)])
-    ax1.scatter(
-        x=segment_rules_satisfied,
-        y=segment_rewards,
-        label="All Traj Segments",
-        c="b",
-        alpha=0.2,
-    )
-    ax1.scatter(
-        x=[i for i in range(NUMBER_OF_RULES + 1) if len(rewards_for_rules[i]) > 0],
-        y=avg_reward_for_rules,
-        label="Avg Reward per Traj Segment Dist.",
-        c="r",
-    )
-    plt.xlabel("Rules Satisfied")
-    plt.ylabel("Reward of Trajectory Segment")
+    sns.violinplot(x='Rules Satisfied', y='Reward of Trajectory Segment', data=df)
     plt.title(title)
     plt.legend()
     plt.savefig(f"figures/{title}.png")
     plt.close()
+    
+    log_wrong(segment_rules_satisfied, segment_rewards)
 
-    zipped_distance_reward = list(zip(segment_rules_satisfied, segment_rewards))
-    random.shuffle(zipped_distance_reward)
-    if len(zipped_distance_reward) % 2 != 0:
-        zipped_distance_reward.pop()
+def log_wrong(segment_rules_satisfied, segment_rewards):
+    zipped_rules_reward = list(zip(segment_rules_satisfied, segment_rewards))
+    random.shuffle(zipped_rules_reward)
+    if len(zipped_rules_reward) % 2 != 0:
+        zipped_rules_reward.pop()
     pairs_of_zips = [
         (
-            zipped_distance_reward[i],
-            zipped_distance_reward[i + 1],
-            zipped_distance_reward[i][0] < zipped_distance_reward[i + 1][0],
+            zipped_rules_reward[i],
+            zipped_rules_reward[i + 1],
+            zipped_rules_reward[i][0] < zipped_rules_reward[i + 1][0],
         )
-        for i in range(0, len(zipped_distance_reward), 2)
+        for i in range(0, len(zipped_rules_reward), 2)
     ]
     num_segments = len(pairs_of_zips)
 
@@ -598,6 +538,7 @@ def graph_segment_distance_vs_reward(
             reacc += 1
         else:
             wrong.append((zip1, zip2))
+
     acc /= num_segments
     reacc /= num_segments
     print("ACCURACY", acc)
@@ -613,36 +554,60 @@ def graph_segment_distance_vs_reward(
             break
     print("------------------------------------------------------------------\n")
 
-def graph_variances():
-    variance_data = {}
-    variance_files = glob.glob("output_data/variances*")
-    for variance_file in variance_files:
-        epochs = variance_file.split("_")[2]
-        pairs_learned = variance_file.split("_")[4]
-        with open(variance_file, "rb") as file:
-            variance_data[(epochs, pairs_learned)] = pickle.load(file)
+def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards, epochs=None, pairs_learned=None):
+    if not segment_distances or not segment_rewards:
+        return
+
+    zipped_distance_reward = list(zip(segment_distances, segment_rewards))
+    distRewards = defaultdict(list)
+    for distance, reward in zipped_distance_reward:
+        rounded_distance = round(distance, 1)
+        distRewards[rounded_distance].append(reward)
+
+    print(title)
+    sorted_distances = sorted(list(distRewards.keys()))
+    for sorted_distance in sorted_distances:
+        print("DISTANCE:", sorted_distance, "| COUNT:", len(distRewards[sorted_distance]))
+
+    avg_reward_for_distances = []
+    variances = {}
+    for dist in sorted_distances:
+        if len(distRewards[dist]) < 2:
+            del distRewards[dist]
+            sorted_distances.remove(dist)
+    
+    for rounded_distance in sorted_distances:
+        avg_reward_for_distances.append(
+            statistics.mean(distRewards[rounded_distance])
+        )
+        variances[rounded_distance] = statistics.variance(distRewards[rounded_distance])
+
+    if epochs and pairs_learned:
+        with open(f"output_data/variances_{epochs}_epochs_{pairs_learned}_pairs.pkl", 'wb') as file:
+            pickle.dump(variances, file)
 
     os.makedirs("figures", exist_ok=True)
-    plt.figure()
-
-    for epochs, pairs_learned in variance_data.keys():
-        rule_numbers = sorted(variance_data[(epochs, pairs_learned)].keys())
-        variances = [variance_data[(epochs, pairs_learned)][i] for i in rule_numbers]
-
-        plt.scatter(
-            x=rule_numbers,
-            y=variances,
-            label=f"{epochs} Epochs, {pairs_learned} Pairs",
-            alpha=0.5,
-        )
-
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    ax1.scatter(
+        x=segment_distances,
+        y=segment_rewards,
+        label="All Traj Segments",
+        c="b",
+        alpha=0.2,
+    )
+    ax1.scatter(
+        x=sorted_distances,
+        y=avg_reward_for_distances,
+        label="Avg Reward per Traj Segment Dist.",
+        c="r",
+    )
     plt.xlabel("Distance of Trajectory Segment")
-    plt.ylabel("Variance of Reward")
-    plt.title("Variances for Different Model Parameters")
+    plt.ylabel("Reward of Trajectory Segment")
+    plt.title(title)
     plt.legend()
-    plt.savefig(f"figures/variances.png")
+    plt.savefig(f"figures/{title}.png")
     plt.close()
-
 
 if __name__ == "__main__":
     run_wandb = False
@@ -714,8 +679,10 @@ if __name__ == "__main__":
         trained_agent_rewards,
         trained_segment_rules_satisifed,
         trained_segment_rewards,
+        trained_segment_distances,
         training_segment_rules_satisfied,
         training_segment_rewards,
+        training_segment_distances,
     ) = populate_lists(
         true_database,
         trained_database,
@@ -730,6 +697,8 @@ if __name__ == "__main__":
         trained_agent_rewards,
         trained_segment_rules_satisifed,
         trained_segment_rewards,
+        trained_segment_distances,
         training_segment_rules_satisfied,
         training_segment_rewards,
+        training_segment_distances,
     )

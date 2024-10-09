@@ -14,4 +14,4 @@ def check_rules(segment, total_rules):
     if total_rules >= 2 and left_radar > right_radar:
         rule_counter += 1
     
-    return rule_counter, rule_counter == total_rules
+    return rule_counter, int(rule_counter == total_rules)

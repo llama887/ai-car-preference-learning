@@ -171,13 +171,15 @@ if __name__ == "__main__":
     true_database = trajectory_path + f"trueRF_{truePairs}.pkl"
     trained_database = trajectory_path + f"trainedRF_{trainedPairs}.pkl"
     (
-        true_agent_distances,
-        trained_agent_distances,
+        true_agent_expert_segments,
+        trained_agent_expert_segments,
         trained_agent_rewards,
-        trained_segment_distances,
+        trained_segment_rules_satisifed,
         trained_segment_rewards,
-        training_segment_distances,
+        trained_segment_distances,
+        training_segment_rules_satisfied,
         training_segment_rewards,
+        training_segment_distances,
     ) = populate_lists(
         true_database,
         trained_database,
@@ -188,13 +190,15 @@ if __name__ == "__main__":
     print("PLOTTING...")
     handle_plotting(
         model_info,
-        true_agent_distances,
-        trained_agent_distances,
+        true_agent_expert_segments,
+        trained_agent_expert_segments,
         trained_agent_rewards,
-        trained_segment_distances,
+        trained_segment_rules_satisifed,
         trained_segment_rewards,
-        training_segment_distances,
+        trained_segment_distances,
+        training_segment_rules_satisfied,
         training_segment_rewards,
+        training_segment_distances,
     )
 
     # bt, bt_, bt_delta, ordered_trajectories = prepare_data(
