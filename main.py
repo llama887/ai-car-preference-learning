@@ -1,23 +1,16 @@
 import argparse
 import glob
 import os
-import random
-import re
 import sys
 
-import matplotlib.pyplot as plt
 import torch
 import yaml
 
 import agent
-import wandb
 from agent import STATE_ACTION_SIZE, run_population, trajectory_path
 from plot import (
     handle_plotting,
-    plot_bradley_terry,
-    plot_trajectory_order,
     populate_lists,
-    prepare_data,
 )
 from reward import TrajectoryRewardNet, train_reward_function
 
@@ -139,8 +132,9 @@ if __name__ == "__main__":
         "trueRF",
         False,
     )
-
-    with open("best_params.yaml", "r") as file:
+    with open(
+        args.parameters if args.parameters is not None else "best_params.yaml", "r"
+    ) as file:
         data = yaml.safe_load(file)
         hidden_size = data["hidden_size"]
 

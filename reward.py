@@ -2,22 +2,18 @@ import argparse
 import glob
 import os
 import pickle
+from collections import defaultdict
 
-import ipdb
 import matplotlib.pyplot as plt
 import numpy as np
 import optuna
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 import yaml
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader, Dataset, random_split
-from collections import defaultdict
 
 import wandb
 
@@ -42,18 +38,22 @@ class TrajectoryRewardNet(nn.Module):
         self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.ln2 = nn.LayerNorm(hidden_size)
         self.dropout2 = nn.Dropout(dropout_prob)
-        self.fc3 = nn.Linear(hidden_size, hidden_size // 2)
-        self.ln3 = nn.LayerNorm(hidden_size // 2)
+        self.fc3 = nn.Linear(hidden_size, hidden_size)
+        self.ln3 = nn.LayerNorm(hidden_size)
         self.dropout3 = nn.Dropout(dropout_prob)
-        self.fc4 = nn.Linear(hidden_size // 2, hidden_size // 4)
-        self.ln4 = nn.LayerNorm(hidden_size // 4)
+        self.fc4 = nn.Linear(hidden_size, hidden_size)
+        self.ln4 = nn.LayerNorm(hidden_size)
         self.dropout4 = nn.Dropout(dropout_prob)
-        self.fc5 = nn.Linear(hidden_size // 4, 1)
-        # self.init_weights()
+        self.fc5 = nn.Linear(hidden_size, hidden_size // 2)
+        self.ln5 = nn.LayerNorm(hidden_size // 2)
+        self.dropout5 = nn.Dropout(dropout_prob)
+        self.fc6 = nn.Linear(hidden_size // 2, hidden_size // 4)
+        self.ln6 = nn.LayerNorm(hidden_size // 4)
+        self.dropout6 = nn.Dropout(dropout_prob)
+        self.fc7 = nn.Linear(hidden_size // 4, 1)
 
         self.activations = defaultdict(list)
         self.gradients = defaultdict(list)
-        # self.register_hooks()
 
     def register_hooks(self):
         def get_activation(name):
@@ -73,28 +73,31 @@ class TrajectoryRewardNet(nn.Module):
         self.fc3.register_forward_hook(get_activation("fc3"))
         self.fc4.register_forward_hook(get_activation("fc4"))
         self.fc5.register_forward_hook(get_activation("fc5"))
+        self.fc6.register_forward_hook(get_activation("fc6"))
+        self.fc7.register_forward_hook(get_activation("fc7"))
 
         self.fc1.register_backward_hook(get_gradient("fc1"))
         self.fc2.register_backward_hook(get_gradient("fc2"))
         self.fc3.register_backward_hook(get_gradient("fc3"))
         self.fc4.register_backward_hook(get_gradient("fc4"))
         self.fc5.register_backward_hook(get_gradient("fc5"))
+        self.fc6.register_backward_hook(get_gradient("fc6"))
+        self.fc7.register_backward_hook(get_gradient("fc7"))
 
     def forward(self, x):
-        # print("Before Layers:", x)
         x = F.relu(self.ln1(self.fc1(x)))
-        # print("After fc1:", x)
         x = self.dropout1(x)
         x = F.relu(self.ln2(self.fc2(x)))
-        # print("After fc2:", x)
         x = self.dropout2(x)
         x = F.relu(self.ln3(self.fc3(x)))
-        # print("After fc3:", x)
         x = self.dropout3(x)
         x = F.relu(self.ln4(self.fc4(x)))
-        # print("After fc4:", x)
         x = self.dropout4(x)
-        x = self.fc5(x)
+        x = F.relu(self.ln5(self.fc5(x)))
+        x = self.dropout5(x)
+        x = F.relu(self.ln6(self.fc6(x)))
+        x = self.dropout6(x)
+        x = self.fc7(x)
         return x
 
 

@@ -16,9 +16,9 @@ import torch
 import yaml
 
 import reward
-from reward import TrajectoryRewardNet, prepare_single_trajectory
-
 import rules
+from reward import TrajectoryRewardNet, prepare_single_trajectory
+from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 trajectories_path = "trajectories/"
@@ -315,7 +315,9 @@ class Car:
         )
         self.trajectory.append(next_state_action)
 
-        rules_satisfied, is_expert = rules.check_rules(self.trajectory[-2:], NUMBER_OF_RULES)
+        rules_satisfied, is_expert = rules.check_rules(
+            self.trajectory[-2:], NUMBER_OF_RULES
+        )
         self.rules_per_step.append(rules_satisfied)
         self.expert_segments += is_expert
 
@@ -453,7 +455,7 @@ def generate_database(trajectory_path):
 
         for i in range(NUMBER_OF_RULES + 1):
             trajectory_segments.extend(saved_segments[i])
-   
+
         if len(trajectory_segments) % 2 != 0:
             trajectory_segments.pop()
 
@@ -796,7 +798,12 @@ def run_population(
             pass
 
         # Create Population And Add Reporters
-        global current_generation, population, saved_segments, saved_trajectories, num_pairs
+        global \
+            current_generation, \
+            population, \
+            saved_segments, \
+            saved_trajectories, \
+            num_pairs
         population = neat.Population(config)
         population.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
