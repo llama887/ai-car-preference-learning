@@ -16,9 +16,9 @@ import torch
 import yaml
 
 import reward
-from reward import TrajectoryRewardNet, prepare_single_trajectory
-
 import rules
+from reward import TrajectoryRewardNet, prepare_single_trajectory
+from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 trajectories_path = "trajectories/"
@@ -40,12 +40,6 @@ STATE_ACTION_SIZE = 8
 
 DEFAULT_MAX_GENERATIONS = 1000
 SEGMENTS_PER_PAIR = 5
-
-NUMBER_OF_RULES = 1
-SEGMENT_DISTRIBUTION_BY_RULES = [0.5, 0.5]
-assert (
-    len(SEGMENT_DISTRIBUTION_BY_RULES) == NUMBER_OF_RULES + 1
-), f"SEGMENT_DISTRIBUTION_BY_RULES: {SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {NUMBER_OF_RULES}"
 
 current_generation = 0  # Generation counter
 trajectory_path = "./trajectories/"
@@ -314,7 +308,9 @@ class Car:
         )
         self.trajectory.append(next_state_action)
 
-        rules_satisfied, is_expert = rules.check_rules(self.trajectory[-2:], NUMBER_OF_RULES)
+        rules_satisfied, is_expert = rules.check_rules(
+            self.trajectory[-2:], NUMBER_OF_RULES
+        )
         self.rules_per_step.append(rules_satisfied)
         self.expert_segments += is_expert
 
@@ -452,7 +448,7 @@ def generate_database(trajectory_path):
 
         for i in range(NUMBER_OF_RULES + 1):
             trajectory_segments.extend(saved_segments[i])
-   
+
         if len(trajectory_segments) % 2 != 0:
             trajectory_segments.pop()
 
@@ -462,7 +458,9 @@ def generate_database(trajectory_path):
 
             for i in range(0, number_of_pairs * 2, 2):
                 _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
-                _, reward_2 = rules.check_rules(trajectory_segments[i + 1], NUMBER_OF_RULES)
+                _, reward_2 = rules.check_rules(
+                    trajectory_segments[i + 1], NUMBER_OF_RULES
+                )
                 trajectory_pairs.append(
                     (
                         list(trajectory_segments[i]),
@@ -789,7 +787,12 @@ def run_population(
             pass
 
         # Create Population And Add Reporters
-        global current_generation, population, saved_segments, saved_trajectories, num_pairs
+        global \
+            current_generation, \
+            population, \
+            saved_segments, \
+            saved_trajectories, \
+            num_pairs
         population = neat.Population(config)
         population.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()

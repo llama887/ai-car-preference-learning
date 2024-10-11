@@ -1,25 +1,24 @@
-import reward
-from reward import TrajectoryRewardNet, prepare_single_trajectory, scaler
-from agent import StateActionPair, NUMBER_OF_RULES
-
-figure_path = reward.figure_path
-
 import argparse
 import math
-import statistics
 import os
 import pickle
 import random
-import re
-import glob
+import statistics
 from collections import defaultdict
-from rules import check_rules
 
 import matplotlib.pyplot as plt
-import seaborn as sns
 import pandas as pd
+import seaborn as sns
 import torch
-import wandb
+import yaml
+
+import reward
+from agent import NUMBER_OF_RULES
+from reward import TrajectoryRewardNet, prepare_single_trajectory
+from rules import check_rules
+
+figure_path = reward.figure_path
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 NET_SIZE = 16
@@ -168,7 +167,6 @@ def calculate_new_point(point, distance, angle):
 
 
 def populate_lists(true_database, trained_database, training_database, model_info):
-
     model_weights = model_info["weights"]
     net = model_info["net"]
     hidden_size = model_info["hidden-size"]
@@ -246,9 +244,7 @@ def populate_lists(true_database, trained_database, training_database, model_inf
                 trained_segment_rewards.append(
                     model(prepare_single_trajectory(segment)).item()
                 )
-                trained_segment_distances.append(
-                    dist(segment)
-                )
+                trained_segment_distances.append(dist(segment))
             count += 1
         if gen_trained_expert_segments:
             trained_agent_expert_segments.append(gen_trained_expert_segments)
@@ -287,7 +283,7 @@ def populate_lists(true_database, trained_database, training_database, model_inf
         trained_segment_distances,
         training_segment_rules_satisfied,
         training_segment_rewards,
-        training_segment_distances
+        training_segment_distances,
     )
 
 
@@ -464,6 +460,7 @@ def graph_trained_agent_performance(averages, maxes):
     plt.savefig("figures/agent_rewards.png")
     plt.close()
 
+
 def graph_segment_rules_vs_reward(
     title, segment_rules_satisfied, segment_rewards, epochs=None, pairs_learned=None
 ):
@@ -489,18 +486,21 @@ def graph_segment_rules_vs_reward(
     for i in range(NUMBER_OF_RULES + 1):
         print("Rules Satisfied:", i, "| COUNT:", len(rewards_for_rules[i]))
 
-    df = pd.DataFrame({
-        'Rules Satisfied': segment_rules_satisfied,
-        'Reward of Trajectory Segment': segment_rewards
-    })
+    df = pd.DataFrame(
+        {
+            "Rules Satisfied": segment_rules_satisfied,
+            "Reward of Trajectory Segment": segment_rewards,
+        }
+    )
 
-    sns.violinplot(x='Rules Satisfied', y='Reward of Trajectory Segment', data=df)
+    sns.violinplot(x="Rules Satisfied", y="Reward of Trajectory Segment", data=df)
     plt.title(title)
     plt.legend()
     plt.savefig(f"figures/{title}.png")
     plt.close()
-    
+
     log_wrong(segment_rules_satisfied, segment_rewards)
+
 
 def log_wrong(segment_rules_satisfied, segment_rewards):
     zipped_rules_reward = list(zip(segment_rules_satisfied, segment_rewards))
@@ -554,7 +554,10 @@ def log_wrong(segment_rules_satisfied, segment_rewards):
             break
     print("------------------------------------------------------------------\n")
 
-def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards, epochs=None, pairs_learned=None):
+
+def graph_segment_distance_vs_reward(
+    title, segment_distances, segment_rewards, epochs=None, pairs_learned=None
+):
     if not segment_distances or not segment_rewards:
         return
 
@@ -567,7 +570,9 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards, 
     print(title)
     sorted_distances = sorted(list(distRewards.keys()))
     for sorted_distance in sorted_distances:
-        print("DISTANCE:", sorted_distance, "| COUNT:", len(distRewards[sorted_distance]))
+        print(
+            "DISTANCE:", sorted_distance, "| COUNT:", len(distRewards[sorted_distance])
+        )
 
     avg_reward_for_distances = []
     variances = {}
@@ -575,15 +580,15 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards, 
         if len(distRewards[dist]) < 2:
             del distRewards[dist]
             sorted_distances.remove(dist)
-    
+
     for rounded_distance in sorted_distances:
-        avg_reward_for_distances.append(
-            statistics.mean(distRewards[rounded_distance])
-        )
+        avg_reward_for_distances.append(statistics.mean(distRewards[rounded_distance]))
         variances[rounded_distance] = statistics.variance(distRewards[rounded_distance])
 
     if epochs and pairs_learned:
-        with open(f"output_data/variances_{epochs}_epochs_{pairs_learned}_pairs.pkl", 'wb') as file:
+        with open(
+            f"output_data/variances_{epochs}_epochs_{pairs_learned}_pairs.pkl", "wb"
+        ) as file:
             pickle.dump(variances, file)
 
     os.makedirs("figures", exist_ok=True)
@@ -609,9 +614,10 @@ def graph_segment_distance_vs_reward(title, segment_distances, segment_rewards, 
     plt.savefig(f"figures/{title}.png")
     plt.close()
 
+
 if __name__ == "__main__":
     run_wandb = False
-    parse = argparse.ArgumentParser(description="Generatig Plots for trained model")
+    parse = argparse.ArgumentParser(description="Generating Plots for trained model")
     parse.add_argument(
         "-d",
         "--database",
@@ -626,10 +632,10 @@ if __name__ == "__main__":
         help="Directory to reward function weights",
     )
     parse.add_argument(
-        "-hs",
-        "--hidden_size",
-        type=int,
-        help="Hidden size of the model",
+        "-p",
+        "--parameters",
+        type=str,
+        help="Directory to hyperparameter yaml file",
     )
 
     args = parse.parse_args()
@@ -648,26 +654,23 @@ if __name__ == "__main__":
                 training_database = args.database[2]
                 num_pairs_learned = training_database.split("_")[1].split(".")[0]
 
-        except Exception as e:
+        except Exception:
             pass
     epochs = None
     if args.reward:
-        # with open("scaler.pkl", "rb") as f:
-        #     reward.scaler = pickle.load(f)
         reward = args.reward
         epochs = reward.split("_")[1].split(".")[0]
 
-    # bt, bt_, bt_delta, ordered_trajectories = prepare_data(
-    #     trained_database, reward, hidden_size=311
-    # )
-    # plot_bradley_terry(bt, "False Bradley Terry", bt_)
-    # plot_bradley_terry(bt_delta, "Bradley Terry Difference")
-    # plot_trajectory_order(ordered_trajectories, "Trajectory Order")
+    with open(
+        args.parameters if args.parameters is not None else "best_params.yaml", "r"
+    ) as file:
+        data = yaml.safe_load(file)
+        hidden_size = data["hidden_size"]
 
     model_info = {
         "weights": reward,
         "net": None,
-        "hidden-size": 558,
+        "hidden-size": hidden_size,
         "epochs": epochs,
         "pairs-learned": num_pairs_learned,
         "agents-per-generation": 20,
