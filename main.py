@@ -162,7 +162,7 @@ if __name__ == "__main__":
     model_info = {
         "weights": model_weights,
         "net": None,
-        "hidden-size": 558,
+        "hidden-size": hidden_size,
         "epochs": args.epochs[0],
         "pairs-learned": args.trajectories[0],
         "agents-per-generation": 20,

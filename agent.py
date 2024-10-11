@@ -43,6 +43,7 @@ SEGMENTS_PER_PAIR = 5
 
 NUMBER_OF_RULES = 1
 SEGMENT_DISTRIBUTION_BY_RULES = [0.5, 0.5]
+
 assert (
     len(SEGMENT_DISTRIBUTION_BY_RULES) == NUMBER_OF_RULES + 1
 ), f"SEGMENT_DISTRIBUTION_BY_RULES: {SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {NUMBER_OF_RULES}"
@@ -459,10 +460,12 @@ def generate_database(trajectory_path):
         segment_generation_mode = "random"
         if segment_generation_mode == "random":
             random.shuffle(trajectory_segments)
-
+            same_reward = 0
             for i in range(0, number_of_pairs * 2, 2):
                 _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
                 _, reward_2 = rules.check_rules(trajectory_segments[i + 1], NUMBER_OF_RULES)
+                if reward_1 == reward_2:
+                    same_reward += 1
                 trajectory_pairs.append(
                     (
                         list(trajectory_segments[i]),
@@ -474,12 +477,14 @@ def generate_database(trajectory_path):
                 )
 
             n = len(trajectory_pairs)
+            print("Generated", n - same_reward, f"pairs with different rewards ({(n-same_reward)/n}%)")
+            
             if n > number_of_pairs:
                 print("soemthing is wrong unlucky pepperoni (too many pairs!)")
                 for i in range(n - number_of_pairs):
                     trajectory_pairs.pop()
 
-        elif segment_generation_mode == "distribution":
+        elif segment_generation_mode == "different":
             random.shuffle(trajectory_segments)
             same_reward = []
             for i in range(0, len(trajectory_segments), 2):
@@ -510,9 +515,11 @@ def generate_database(trajectory_path):
             random.shuffle(same_reward)
 
             n = len(trajectory_pairs)
+            print("Generated", n, "pairs with different reward.")
             for i in range(n - number_of_pairs):
                 trajectory_pairs.pop()
             fill = min(number_of_pairs - n, len(same_reward))
+            print("Remaining", fill, "pairs are between segments with same reward.")
             for i in range(fill):
                 trajectory_pairs.append(same_reward[i])
     else:
