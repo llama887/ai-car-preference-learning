@@ -253,8 +253,18 @@ def populate_lists(true_database, trained_database, training_database, model_inf
 
     if training_database:
         for traj1, traj2, _, reward1, reward2 in training_trajectories:
-            training_segment_rules_satisfied.append(reward1)
-            training_segment_rules_satisfied.append(reward2)
+            training_segment_rules_satisfied.append(
+                check_rules(
+                    traj1,
+                    NUMBER_OF_RULES,
+                )[0]
+            )
+            training_segment_rules_satisfied.append(
+                check_rules(
+                    traj2,
+                    NUMBER_OF_RULES,
+                )[0]
+            )
             training_segment_rewards.append(
                 model(prepare_single_trajectory(traj1)).item()
             )
@@ -493,7 +503,7 @@ def graph_segment_rules_vs_reward(
         }
     )
 
-    sns.violinplot(x="Rules Satisfied", y="Reward of Trajectory Segment", data=df)
+    sns.violinplot(x='Rules Satisfied', y='Reward of Trajectory Segment', data=df, inner='box', palette='muted', alpha=0.55)
     plt.title(title)
     plt.legend()
     plt.savefig(f"figures/{title}.png")
@@ -511,44 +521,34 @@ def log_wrong(segment_rules_satisfied, segment_rewards):
         (
             zipped_rules_reward[i],
             zipped_rules_reward[i + 1],
-            zipped_rules_reward[i][0] < zipped_rules_reward[i + 1][0],
+            (zipped_rules_reward[i][0] == NUMBER_OF_RULES) < (zipped_rules_reward[i + 1][0] == NUMBER_OF_RULES),
         )
         for i in range(0, len(zipped_rules_reward), 2)
     ]
-    num_segments = len(pairs_of_zips)
 
     wrong = []
-    acc = 0
-    reacc = 0
+    total_correct, total_different = 0, 0
+    total_correct_and_different = 0
     for zip1, zip2, label in pairs_of_zips:
-        if (
-            (zip1[1] < zip2[1] and label)
-            or (zip1[1] > zip2[1] and not label)
-            or not zip1[0]
-            or not zip2[0]
-        ):
-            acc += 1
-        if (
-            (zip1[1] < zip2[1] and label)
-            or (zip1[1] > zip2[1] and not label)
-            or not zip1[0]
-            or not zip2[0]
-            or abs(zip1[0] - zip2[0]) < 0.01
-        ):
-            reacc += 1
-        else:
+        correct, different = bool(zip1[1] < zip2[1]) == bool(label), zip1[0] != zip2[0]
+        if not correct and different:
             wrong.append((zip1, zip2))
+        if correct and different:
+            total_correct_and_different += 1
+        total_correct += correct
+        total_different += different
 
-    acc /= num_segments
-    reacc /= num_segments
+    acc = total_correct / len(pairs_of_zips)
+    reacc = total_correct_and_different / (total_different)
+
     print("ACCURACY", acc)
     print("ACCURACY W/O SAME REWARD PAIRS", reacc)
-    print("WRONG:")
+    print("Wrong when Different Reward:")
     count = 0
     for zip1, zip2 in wrong:
         count += 1
         print(
-            f"DISTANCES: {zip1[0]:11.8f}, {zip2[0]:11.8f} | REWARDS: {zip1[1]:11.8f}, {zip2[1]:11.8f}"
+            f"TRUE REWARDS: {zip1[0]:11.8f}, {zip2[0]:11.8f} | MODEL REWARDS: {zip1[1]:11.8f}, {zip2[1]:11.8f}"
         )
         if count > 100:
             break
@@ -569,27 +569,19 @@ def graph_segment_distance_vs_reward(
 
     print(title)
     sorted_distances = sorted(list(distRewards.keys()))
-    for sorted_distance in sorted_distances:
-        print(
-            "DISTANCE:", sorted_distance, "| COUNT:", len(distRewards[sorted_distance])
-        )
+    # for sorted_distance in sorted_distances:
+    #     print("DISTANCE:", sorted_distance, "| COUNT:", len(distRewards[sorted_distance]))
 
     avg_reward_for_distances = []
-    variances = {}
     for dist in sorted_distances:
         if len(distRewards[dist]) < 2:
             del distRewards[dist]
             sorted_distances.remove(dist)
 
     for rounded_distance in sorted_distances:
-        avg_reward_for_distances.append(statistics.mean(distRewards[rounded_distance]))
-        variances[rounded_distance] = statistics.variance(distRewards[rounded_distance])
-
-    if epochs and pairs_learned:
-        with open(
-            f"output_data/variances_{epochs}_epochs_{pairs_learned}_pairs.pkl", "wb"
-        ) as file:
-            pickle.dump(variances, file)
+        avg_reward_for_distances.append(
+            statistics.mean(distRewards[rounded_distance])
+        )
 
     os.makedirs("figures", exist_ok=True)
     fig = plt.figure()
