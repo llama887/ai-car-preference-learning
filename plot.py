@@ -13,9 +13,8 @@ import torch
 import yaml
 
 import reward
-from agent import NUMBER_OF_RULES
 from reward import TrajectoryRewardNet, prepare_single_trajectory
-from rules import check_rules
+from rules import NUMBER_OF_RULES, check_rules
 
 figure_path = reward.figure_path
 
@@ -503,7 +502,14 @@ def graph_segment_rules_vs_reward(
         }
     )
 
-    sns.violinplot(x='Rules Satisfied', y='Reward of Trajectory Segment', data=df, inner='box', palette='muted', alpha=0.55)
+    sns.violinplot(
+        x="Rules Satisfied",
+        y="Reward of Trajectory Segment",
+        data=df,
+        inner="box",
+        palette="muted",
+        alpha=0.55,
+    )
     plt.title(title)
     plt.legend()
     plt.savefig(f"figures/{title}.png")
@@ -521,7 +527,8 @@ def log_wrong(segment_rules_satisfied, segment_rewards):
         (
             zipped_rules_reward[i],
             zipped_rules_reward[i + 1],
-            (zipped_rules_reward[i][0] == NUMBER_OF_RULES) < (zipped_rules_reward[i + 1][0] == NUMBER_OF_RULES),
+            (zipped_rules_reward[i][0] == NUMBER_OF_RULES)
+            < (zipped_rules_reward[i + 1][0] == NUMBER_OF_RULES),
         )
         for i in range(0, len(zipped_rules_reward), 2)
     ]
@@ -579,9 +586,7 @@ def graph_segment_distance_vs_reward(
             sorted_distances.remove(dist)
 
     for rounded_distance in sorted_distances:
-        avg_reward_for_distances.append(
-            statistics.mean(distRewards[rounded_distance])
-        )
+        avg_reward_for_distances.append(statistics.mean(distRewards[rounded_distance]))
 
     os.makedirs("figures", exist_ok=True)
     fig = plt.figure()

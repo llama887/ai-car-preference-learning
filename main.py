@@ -81,7 +81,11 @@ if __name__ == "__main__":
     )
 
     args = parse.parse_args()
-    if args.trajectories[0] < 0 or args.generations[0] < 0 or args.epochs[0] < 0:
+    if (
+        (args.trajectories is not None and args.trajectories[0] < 0)
+        or (args.generations is not None and args.generations[0] < 0)
+        or (args.epochs is not None and args.epochs[0] < 0)
+    ):
         print("Invalid input. All arguments must be positive integers.")
         sys.exit(1)
     if args.headless:
@@ -89,7 +93,7 @@ if __name__ == "__main__":
 
     database_path = ""
     if args.database is None:
-        database_path = f"trajectories/database_{args.trajectories[0]}.pkl"
+        database_path = f"trajectories/database_{0 if args.trajectories is None else args.trajectories[0]}.pkl"
     else:
         database_path = args.database
         num_pairs = database_path.split("_")[1].split(".")[0]
@@ -132,7 +136,7 @@ if __name__ == "__main__":
         "trueRF",
         False,
     )
-    
+
     with open(
         args.parameters if args.parameters is not None else "best_params.yaml", "r"
     ) as file:
@@ -158,8 +162,8 @@ if __name__ == "__main__":
         "weights": model_weights,
         "net": None,
         "hidden-size": hidden_size,
-        "epochs": args.epochs[0],
-        "pairs-learned": args.trajectories[0],
+        "epochs": -1 if args.epochs is None else args.epochs[0],
+        "pairs-learned": -1 if args.trajectories is None else args.trajectories[0],
         "agents-per-generation": 20,
     }
 
