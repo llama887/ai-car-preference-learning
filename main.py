@@ -1,6 +1,8 @@
 import argparse
 import glob
 import os
+import pickle
+import random
 import sys
 
 import torch
@@ -33,6 +35,23 @@ def start_simulation(config_path, max_generations, number_of_pairs, run_type, no
     )
 
 
+def sample_from_database(num_pairs, database_path):
+    with open(database_path, "rb") as f:
+        database = pickle.load(f)
+    total_pairs = len(database)
+
+    if num_pairs == total_pairs:
+        return database_path
+    elif num_pairs < total_pairs:
+        new_pairs = random.sample(database, num_pairs)
+        new_database_path = trajectory_path + f"database_{num_pairs}.pkl"
+        with open(new_database_path, "wb") as f:
+            pickle.dump(new_pairs, f)
+        return new_database_path
+    else:
+        return -1
+
+
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(
         description="Training a Reward From Synthetic Preferences"
@@ -49,7 +68,7 @@ if __name__ == "__main__":
         "--trajectories",
         type=int,
         nargs=1,
-        help="Number of trajectories to collect",
+        help="Number of pairs of segments to collect",
     )
     parse.add_argument(
         "-g",
@@ -88,16 +107,28 @@ if __name__ == "__main__":
     ):
         print("Invalid input. All arguments must be positive integers.")
         sys.exit(1)
+
     if args.headless:
         os.environ["SDL_VIDEODRIVER"] = "dummy"
 
     database_path = ""
-    if args.database is None:
-        database_path = f"trajectories/database_{0 if args.trajectories is None else args.trajectories[0]}.pkl"
-    else:
+    if args.trajectories and args.database:
+        database_path = sample_from_database(args.trajectories[0], args.database)
+        if database_path == -1:
+            print("Provide a larger database, or generate a new one!")
+            sys.exit(1)
+        num_pairs = database_path.split("_")[1].split(".")[0]
+        args.trajectories[0] = num_pairs
+    elif args.trajectories:
+        database_path = f"trajectories/database_{args.trajectories[0]}.pkl"
+    elif args.database:
         database_path = args.database
         num_pairs = database_path.split("_")[1].split(".")[0]
         args.trajectories[0] = num_pairs
+    else:
+        print(
+            "Need to either provide number of trajectories to collect or existing database"
+        )
 
     model_weights = ""
     if args.reward is None:
@@ -199,11 +230,3 @@ if __name__ == "__main__":
         training_segment_rewards,
         training_segment_distances,
     )
-
-    # bt, bt_, bt_delta, ordered_trajectories = prepare_data(
-    #     f"trajectories/trainedRF_{trainedPairs}.pkl", net=agent.reward_network
-    # )
-
-    # plot_bradley_terry(bt, "False Bradley Terry", bt_)
-    # plot_bradley_terry(bt_delta, "Bradley Terry Difference")
-    # plot_trajectory_order(ordered_trajectories, "Segment Order")
