@@ -20,6 +20,8 @@ import rules
 from reward import TrajectoryRewardNet, prepare_single_trajectory
 from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
 
+os.environ["SDL_AUDIODRIVER"] = "dummy"
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 trajectories_path = "trajectories/"
 os.makedirs(trajectories_path, exist_ok=True)
@@ -465,7 +467,9 @@ def generate_database(trajectory_path):
             same_reward = 0
             for i in range(0, number_of_pairs * 2, 2):
                 _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
-                _, reward_2 = rules.check_rules(trajectory_segments[i + 1], NUMBER_OF_RULES)
+                _, reward_2 = rules.check_rules(
+                    trajectory_segments[i + 1], NUMBER_OF_RULES
+                )
                 if reward_1 == reward_2:
                     same_reward += 1
                 trajectory_pairs.append(
@@ -479,8 +483,12 @@ def generate_database(trajectory_path):
                 )
 
             n = len(trajectory_pairs)
-            print("Generated", n - same_reward, f"pairs with different rewards ({(n-same_reward)/n}%)")
-            
+            print(
+                "Generated",
+                n - same_reward,
+                f"pairs with different rewards ({(n-same_reward)/n}%)",
+            )
+
             if n > number_of_pairs:
                 print("soemthing is wrong unlucky pepperoni (too many pairs!)")
                 for i in range(n - number_of_pairs):

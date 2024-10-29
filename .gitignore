@@ -5,7 +5,10 @@ wandb
 storage/*
 test.py
 scratch.py
-environments/pref_learning/
+.devcontainer/
+ai_dev/
+aider.sh
+*.zip
 
 __pycache__
 best_model*
