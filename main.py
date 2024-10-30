@@ -9,10 +9,14 @@ import torch
 import yaml
 
 import agent
+import rules
+
+from rules import NUMBER_OF_RULES
 from agent import STATE_ACTION_SIZE, run_population, trajectory_path
 from plot import (
     handle_plotting,
     populate_lists,
+    unzipper_chungus,
 )
 from reward import TrajectoryRewardNet, train_reward_function
 
@@ -93,6 +97,12 @@ if __name__ == "__main__":
         help="Directory to reward function weights",
     )
     parse.add_argument(
+        "-c",
+        "--composition",
+        type=int,
+        help="number of rules",
+    )
+    parse.add_argument(
         "-d",
         "--database",
         type=str,
@@ -110,6 +120,9 @@ if __name__ == "__main__":
 
     if args.headless:
         os.environ["SDL_VIDEODRIVER"] = "dummy"
+
+    if args.composition:
+        rules.NUMBER_OF_RULES = args.composition
 
     database_path = ""
     if args.trajectories and args.database:
@@ -217,6 +230,9 @@ if __name__ == "__main__":
         model_info,
     )
 
+    num_rules = NUMBER_OF_RULES
+    best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = unzipper_chungus(num_rules)
+
     print("PLOTTING...")
     handle_plotting(
         model_info,
@@ -229,4 +245,6 @@ if __name__ == "__main__":
         training_segment_rules_satisfied,
         training_segment_rewards,
         training_segment_distances,
+        best_true_agent_expert_segments,
+        aggregate_trained_agent_expert_segments,
     )
