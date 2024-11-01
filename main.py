@@ -14,9 +14,10 @@ import rules
 from rules import NUMBER_OF_RULES
 from agent import STATE_ACTION_SIZE, run_population, trajectory_path
 from plot import (
-    handle_plotting,
+    handle_plotting_rei,
+    handle_plotting_sana,
     populate_lists,
-    unzipper_chungus,
+    unzipper_chungus_deluxe,
 )
 from reward import TrajectoryRewardNet, train_reward_function
 
@@ -230,11 +231,8 @@ if __name__ == "__main__":
         model_info,
     )
 
-    num_rules = NUMBER_OF_RULES
-    best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = unzipper_chungus(num_rules)
-
     print("PLOTTING...")
-    handle_plotting(
+    handle_plotting_rei(
         model_info,
         true_agent_expert_segments,
         trained_agent_expert_segments,
@@ -245,6 +243,12 @@ if __name__ == "__main__":
         training_segment_rules_satisfied,
         training_segment_rewards,
         training_segment_distances,
+    )
+
+    num_rules = NUMBER_OF_RULES
+    best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = unzipper_chungus_deluxe(num_rules)
+
+    handle_plotting_sana(
         best_true_agent_expert_segments,
         aggregate_trained_agent_expert_segments,
     )

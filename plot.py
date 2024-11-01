@@ -856,95 +856,95 @@ def graph_gap_over_pairs(best_trueRF_average_expert_segments, aggregate_trainedR
 
 
 if __name__ == "__main__":
-    # run_wandb = False
-    # parse = argparse.ArgumentParser(description="Generating Plots for trained model")
-    # parse.add_argument(
-    #     "-d",
-    #     "--database",
-    #     type=str,
-    #     action="append",
-    #     help="Directory to trajectory database file",
-    # )
-    # parse.add_argument(
-    #     "-r",
-    #     "--reward",
-    #     type=str,
-    #     help="Directory to reward function weights",
-    # )
-    # parse.add_argument(
-    #     "-p",
-    #     "--parameters",
-    #     type=str,
-    #     help="Directory to hyperparameter yaml file",
-    # )
+    run_wandb = False
+    parse = argparse.ArgumentParser(description="Generating Plots for trained model")
+    parse.add_argument(
+        "-d",
+        "--database",
+        type=str,
+        action="append",
+        help="Directory to trajectory database file",
+    )
+    parse.add_argument(
+        "-r",
+        "--reward",
+        type=str,
+        help="Directory to reward function weights",
+    )
+    parse.add_argument(
+        "-p",
+        "--parameters",
+        type=str,
+        help="Directory to hyperparameter yaml file",
+    )
 
-    # args = parse.parse_args()
-    # epochs = None
-    # num_pairs_learned = None
+    args = parse.parse_args()
+    epochs = None
+    num_pairs_learned = None
 
-    # if args.database:
-    #     database = args.database
-    #     try:
-    #         trained_database = args.database[0]
-    #         true_database = None
-    #         training_database = None
-    #         if len(database) > 1:
-    #             true_database = args.database[1]
-    #         if len(database) > 2:
-    #             training_database = args.database[2]
-    #             num_pairs_learned = training_database.split("_")[1].split(".")[0]
+    if args.database:
+        database = args.database
+        try:
+            trained_database = args.database[0]
+            true_database = None
+            training_database = None
+            if len(database) > 1:
+                true_database = args.database[1]
+            if len(database) > 2:
+                training_database = args.database[2]
+                num_pairs_learned = training_database.split("_")[1].split(".")[0]
 
-    #     except Exception:
-    #         pass
-    # epochs = None
-    # if args.reward:
-    #     reward = args.reward
-    #     epochs = reward.split("_")[1].split(".")[0]
+        except Exception:
+            pass
+    epochs = None
+    if args.reward:
+        reward = args.reward
+        epochs = reward.split("_")[1].split(".")[0]
 
-    # with open(
-    #     args.parameters if args.parameters is not None else "best_params.yaml", "r"
-    # ) as file:
-    #     data = yaml.safe_load(file)
-    #     hidden_size = data["hidden_size"]
+    with open(
+        args.parameters if args.parameters is not None else "best_params.yaml", "r"
+    ) as file:
+        data = yaml.safe_load(file)
+        hidden_size = data["hidden_size"]
 
-    # model_info = {
-    #     "weights": reward,
-    #     "net": None,
-    #     "hidden-size": hidden_size,
-    #     "epochs": epochs,
-    #     "pairs-learned": num_pairs_learned,
-    #     "agents-per-generation": 20,
-    # }
+    model_info = {
+        "weights": reward,
+        "net": None,
+        "hidden-size": hidden_size,
+        "epochs": epochs,
+        "pairs-learned": num_pairs_learned,
+        "agents-per-generation": 20,
+    }
 
-    # (
-    #     true_agent_expert_segments,
-    #     trained_agent_expert_segments,
-    #     trained_agent_rewards,
-    #     trained_segment_rules_satisifed,
-    #     trained_segment_rewards,
-    #     trained_segment_distances,
-    #     training_segment_rules_satisfied,
-    #     training_segment_rewards,
-    #     training_segment_distances,
-    # ) = populate_lists(
-    #     true_database,
-    #     trained_database,
-    #     training_database,
-    #     model_info,
-    # )
+    (
+        true_agent_expert_segments,
+        trained_agent_expert_segments,
+        trained_agent_rewards,
+        trained_segment_rules_satisifed,
+        trained_segment_rewards,
+        trained_segment_distances,
+        training_segment_rules_satisfied,
+        training_segment_rewards,
+        training_segment_distances,
+    ) = populate_lists(
+        true_database,
+        trained_database,
+        training_database,
+        model_info,
+    )
 
-    # handle_plotting_rei(
-    #     model_info,
-    #     true_agent_expert_segments,
-    #     trained_agent_expert_segments,
-    #     trained_agent_rewards,
-    #     trained_segment_rules_satisifed,
-    #     trained_segment_rewards,
-    #     trained_segment_distances,
-    #     training_segment_rules_satisfied,
-    #     training_segment_rewards,
-    #     training_segment_distances,
-    # )
+    handle_plotting_rei(
+        model_info,
+        true_agent_expert_segments,
+        trained_agent_expert_segments,
+        trained_agent_rewards,
+        trained_segment_rules_satisifed,
+        trained_segment_rewards,
+        trained_segment_distances,
+        training_segment_rules_satisfied,
+        training_segment_rewards,
+        training_segment_distances,
+    )
 
     num_rules = NUMBER_OF_RULES
     # best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = unzipper_chungus(num_rules)
