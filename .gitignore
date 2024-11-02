@@ -5,7 +5,6 @@ wandb
 storage/*
 test.py
 scratch.py
-.devcontainer/
 ai_dev/
 aider.sh
 *.zip

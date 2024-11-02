@@ -1,16 +1,36 @@
 #!/bin/bash
 
-# Activate the virtual environment
-source environments/pref_learning/bin/activate
+# Define the environment path and requirements file
+ENV_PATH="environments/pref_learning"
+REQUIREMENTS_FILE="environments/linux_requirements.txt"
 
-# Array of trajectories to iterate over
-TRAJECTORIES=(10000 100000 1000000 10000000)
+# Check if the virtual environment exists, if not, create it
+if [ ! -d "$ENV_PATH" ]; then
+    echo "Virtual environment not found. Creating it..."
+    python3 -m venv "$ENV_PATH"
+    source "$ENV_PATH/bin/activate"
+    echo "Installing dependencies from $REQUIREMENTS_FILE..."
+    pip install -r "$REQUIREMENTS_FILE"
+    echo "Environment setup complete."
+else
+    # Activate the virtual environment if it already exists
+    echo "Activating the virtual environment..."
+    source "$ENV_PATH/bin/activate"
+fi
+
+# Default array of trajectories if none are provided as input
+TRAJECTORIES=(1000000 100000 10000)
 
 # Fixed parameters
 EPOCHS=1000
-GENERATIONS=50
+GENERATIONS=100
 PARAM_FILE="./best_params.yaml"
 MAIN_SCRIPT="main.py"
+
+# Check if any arguments are passed for trajectories
+if [ "$#" -gt 0 ]; then
+    TRAJECTORIES=("$@")
+fi
 
 # Loop over each trajectory value
 for TRAJ in "${TRAJECTORIES[@]}"; do
@@ -34,7 +54,6 @@ for TRAJ in "${TRAJECTORIES[@]}"; do
     else
         echo "Warning: trajectories directory not found for ${TRAJ} trajectories."
     fi
-
 
     echo "Completed run with ${TRAJ} trajectories."
 done

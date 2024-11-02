@@ -15,6 +15,7 @@ import yaml
 import reward
 from reward import TrajectoryRewardNet, prepare_single_trajectory
 from rules import NUMBER_OF_RULES, check_rules
+from collections import Counter
 
 figure_path = reward.figure_path
 
@@ -611,6 +612,16 @@ def graph_segment_distance_vs_reward(
     plt.savefig(f"figures/{title}.png")
     plt.close()
 
+def plot_rules_followed_distribution(rules_followed, title):
+    flattened = [num for sublist in rules_followed for num in sublist]
+    number_counts = Counter(flattened)
+
+    plt.bar(number_counts.keys(), number_counts.values())
+    plt.xlabel("Number of Rules Followed")
+    plt.ylabel("Frequency")
+    plt.title(title)
+    plt.savefig(f"figures/{title}.png")
+    plt.close()
 
 if __name__ == "__main__":
     run_wandb = False
