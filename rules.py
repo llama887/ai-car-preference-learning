@@ -11,9 +11,10 @@ assert (
 def check_rules(segment, total_rules):
     rule_counter = 0
     rules_followed = []
+
     def evaluate(rule_number, rule_lambda):
         increment = 1 if rule_lambda() else 0
-        if increment == 1:
+        if rule_lambda() and total_rules >= rule_number:
             rules_followed.append(rule_number)
         return increment if total_rules >= rule_number else 0
 
@@ -33,4 +34,8 @@ def check_rules(segment, total_rules):
     action2 = segment[1].action
     rule_counter += evaluate(3, lambda: action1 != action2)
 
-    return rule_counter, int(rule_counter == total_rules), rules_followed if rules_followed != [] else [0]
+    return (
+        rule_counter,
+        int(rule_counter == total_rules),
+        rules_followed if rules_followed != [] else [0],
+    )

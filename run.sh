@@ -19,7 +19,7 @@ else
 fi
 
 # Default array of trajectories if none are provided as input
-TRAJECTORIES=(1000000 100000 10000)
+TRAJECTORIES=(100000 100000 10000)
 
 # Fixed parameters
 EPOCHS=1000
