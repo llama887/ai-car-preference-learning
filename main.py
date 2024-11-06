@@ -101,6 +101,7 @@ if __name__ == "__main__":
         "-c",
         "--composition",
         type=int,
+        action="append",
         help="number of rules",
     )
     parse.add_argument(

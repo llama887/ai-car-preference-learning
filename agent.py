@@ -448,7 +448,7 @@ def generate_database(trajectory_path):
     if run_type == "collect":
         # Break trajectories into trajectory segments
         trajectory_segments = []
-
+    
         trim_excess_segments()
         print(
             "SEGMENT POOL FOR DATA COLLECTION:",
