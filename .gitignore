@@ -5,9 +5,16 @@ wandb
 storage/*
 test.py
 scratch.py
+<<<<<<< HEAD
 .devcontainer/
 ai_dev/
 aider.sh
+=======
+ai_dev/
+aider.sh
+*.zip
+environments/pref_learning
+>>>>>>> bash_scripts
 
 __pycache__
 best_model*

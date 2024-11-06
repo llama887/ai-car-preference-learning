@@ -13,6 +13,7 @@ from agent import STATE_ACTION_SIZE, run_population, trajectory_path
 from plot import (
     handle_plotting,
     populate_lists,
+    plot_rules_followed_distribution,
 )
 from reward import TrajectoryRewardNet, train_reward_function
 
@@ -32,7 +33,7 @@ def start_simulation(config_path, max_generations, number_of_pairs, run_type, no
         number_of_pairs=number_of_pairs,
         runType=run_type,
         noHead=noHead,
-    )
+    ), agent.rules_followed
 
 
 def sample_from_database(num_pairs, database_path):
@@ -134,13 +135,15 @@ if __name__ == "__main__":
     if args.reward is None:
         # start the simulation in data collecting mode
         if not args.database:
-            num_traj = start_simulation(
+            num_traj, collecting_rules_followed = start_simulation(
                 "./config/data_collection_config.txt",
                 args.trajectories[0],
                 args.trajectories[0],
                 "collect",
                 args.headless,
             )
+            plot_rules_followed_distribution(collecting_rules_followed, "Input Distribution Rules Followed")
+            
 
         print("Starting training on trajectories...")
         train_reward_function(database_path, args.epochs[0], args.parameters)
@@ -160,13 +163,14 @@ if __name__ == "__main__":
 
     # run the simulation with the true reward function
     print("Simulating on true reward function...")
-    truePairs = start_simulation(
+    truePairs, true_rules_followed = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
         0,
         "trueRF",
         False,
     )
+    plot_rules_followed_distribution(true_rules_followed, "Ground Truth Rules Followed")
 
     with open(
         args.parameters if args.parameters is not None else "best_params.yaml", "r"
@@ -181,13 +185,14 @@ if __name__ == "__main__":
 
     weights = torch.load(model_weights, map_location=device)
     agent.reward_network.load_state_dict(weights)
-    trainedPairs = start_simulation(
+    trainedPairs, trained_rules_followed = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
         0,
         "trainedRF",
         False,
     )
+    plot_rules_followed_distribution(trained_rules_followed, "Trained Agent Rules Followed")
 
     model_info = {
         "weights": model_weights,
@@ -230,3 +235,6 @@ if __name__ == "__main__":
         training_segment_rewards,
         training_segment_distances,
     )
+
+    
+

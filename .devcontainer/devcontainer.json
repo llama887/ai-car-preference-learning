@@ -1,0 +1,55 @@
+{
+	"name": "RLHF",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"runArgs": [
+		"--gpus", "all","--init", "-v", "${env:HOME}/.ssh:/root/.ssh"
+	],
+	"postStartCommand": "chmod +x .devcontainer/postStart.sh && .devcontainer/postStart.sh",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"charliermarsh.ruff",
+				"codezombiech.gitignore",
+				"kevinrose.vsc-python-indent",
+				"ms-azuretools.vscode-docker",
+				"ms-python.python",
+				"njpwerner.autodocstring",
+				"oderwat.indent-rainbow",
+				"shardulm94.trailing-spaces",
+				"usernamehw.errorlens",
+				"yzhang.markdown-all-in-one",
+				"ms-toolsai.jupyter",
+				"ms-toolsai.tensorboard",
+				"aaron-bond.better-comments",
+				"cardinal90.multi-cursor-case-preserve",
+				"shd101wyy.markdown-preview-enhanced",
+				"supermaven.supermaven",
+				"continue.continue",
+				"saoudrizwan.claude-dev"
+			],
+			"settings": {
+				"[python]": {
+					"editor.defaultFormatter": "charliermarsh.ruff",
+					"editor.codeActionsOnSave": {
+						"source.fixAll.ruff": "explicit",
+						"source.organizeImports.ruff": "explicit"
+					},
+					"editor.formatOnSave": true
+				},
+				"files.insertFinalNewline": true,
+				"files.trimTrailingWhitespace": true,
+				"terminal.integrated.defaultProfile.linux": "zsh",
+				"terminal.integrated.profiles.linux": {
+					"zsh": {
+						"path": "/bin/zsh"
+					}
+				},
+				"python.analysis.inlayHints.callArgumentNames": "all",
+				"python.analysis.inlayHints.functionReturnTypes": true,
+				"python.analysis.inlayHints.variableTypes":true
+			}
+		}
+	}
+}

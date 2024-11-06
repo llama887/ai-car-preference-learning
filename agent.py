@@ -20,6 +20,8 @@ import rules
 from reward import TrajectoryRewardNet, prepare_single_trajectory
 from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
 
+os.environ["SDL_AUDIODRIVER"] = "dummy"
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 trajectories_path = "trajectories/"
 os.makedirs(trajectories_path, exist_ok=True)
@@ -60,6 +62,7 @@ saved_trajectories = []
 big_car_best_distance = 0
 big_car_distance = 0
 game_map = None
+rules_followed = []
 
 
 class StateActionPair:
@@ -315,11 +318,12 @@ class Car:
         )
         self.trajectory.append(next_state_action)
 
-        rules_satisfied, is_expert = rules.check_rules(
+        rules_satisfied, is_expert, rules_followed = rules.check_rules(
             self.trajectory[-2:], NUMBER_OF_RULES
         )
         self.rules_per_step.append(rules_satisfied)
         self.expert_segments += is_expert
+        return rules_followed
 
     def get_data(self):
         # Get Distances To Border
@@ -342,7 +346,6 @@ class Car:
             reward = reward_network(trajectory_tensor)
             return reward.item()
         return rules.check_rules(self.trajectory[-2:], NUMBER_OF_RULES)[1]
-
     def rotate_center(self, image, angle):
         # Rotate The Rectangle
         rectangle = image.get_rect()
@@ -464,8 +467,10 @@ def generate_database(trajectory_path):
             random.shuffle(trajectory_segments)
             same_reward = 0
             for i in range(0, number_of_pairs * 2, 2):
-                _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
-                _, reward_2 = rules.check_rules(trajectory_segments[i + 1], NUMBER_OF_RULES)
+                _, reward_1, _ = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
+                _, reward_2, _ = rules.check_rules(
+                    trajectory_segments[i + 1], NUMBER_OF_RULES
+                )
                 if reward_1 == reward_2:
                     same_reward += 1
                 trajectory_pairs.append(
@@ -479,8 +484,12 @@ def generate_database(trajectory_path):
                 )
 
             n = len(trajectory_pairs)
-            print("Generated", n - same_reward, f"pairs with different rewards ({(n-same_reward)/n}%)")
-            
+            print(
+                "Generated",
+                n - same_reward,
+                f"pairs with different rewards ({(n-same_reward)/n}%)",
+            )
+
             if n > number_of_pairs:
                 print("soemthing is wrong unlucky pepperoni (too many pairs!)")
                 for i in range(n - number_of_pairs):
@@ -490,8 +499,8 @@ def generate_database(trajectory_path):
             random.shuffle(trajectory_segments)
             same_reward = []
             for i in range(0, len(trajectory_segments), 2):
-                _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
-                _, reward_2 = rules.check_rules(
+                _, reward_1, _ = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
+                _, reward_2, _ = rules.check_rules(
                     trajectory_segments[i + 1], NUMBER_OF_RULES
                 )
                 if reward_1 == reward_2:
@@ -570,6 +579,8 @@ def run_simulation(genomes, config):
     # Empty Collections For Nets and Cars
     nets = []
     cars = []
+    global rules_followed 
+    rules_followed = []
     # Initialize PyGame And The Display
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
@@ -648,7 +659,7 @@ def run_simulation(genomes, config):
             reward_count += 1
             car_reward = car.get_reward()
             speeds.append(car.speed)
-            car.update(game_map, actions[i])
+            rules_followed.append(car.update(game_map, actions[i]))
             genomes[i][1].fitness += car_reward
 
         global big_car_distance
@@ -741,7 +752,6 @@ def run_simulation(genomes, config):
 
             pygame.display.flip()
         clock.tick(60)  # 60 FPS
-    print("GET REWARD CALLED:", reward_count, "TIMES THIS GENERATION.")
 
 
 def finished_collecting(number_of_pairs):
