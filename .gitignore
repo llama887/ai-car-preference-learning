@@ -8,6 +8,7 @@ scratch.py
 ai_dev/
 aider.sh
 *.zip
+environments/pref_learning
 
 __pycache__
 best_model*

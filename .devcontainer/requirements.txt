@@ -1,0 +1,9 @@
+aider-chat
+torch==2.4.1
+matplotlib==3.9.2
+seaborn==0.13.2
+neat-python==0.92
+pygame==2.6.1
+wandb==0.18.3
+optuna==4.0.0
+scikit-learn==1.5.2
