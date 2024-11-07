@@ -4,8 +4,9 @@ import os
 import pickle
 import random
 import statistics
-from collections import defaultdict
+from collections import Counter, defaultdict
 
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -15,7 +16,6 @@ import yaml
 import reward
 from reward import TrajectoryRewardNet, prepare_single_trajectory
 from rules import NUMBER_OF_RULES, check_rules
-from collections import Counter
 
 figure_path = reward.figure_path
 
@@ -612,16 +612,38 @@ def graph_segment_distance_vs_reward(
     plt.savefig(f"figures/{title}.png")
     plt.close()
 
+
 def plot_rules_followed_distribution(rules_followed, title):
+    rule_descriptions = {
+        1: "Distance > 30",
+        2: "Left Radar > Right Radar",
+        3: "Actions Different",
+    }
+
+    # Flatten the list of rules
     flattened = [num for sublist in rules_followed for num in sublist]
     number_counts = Counter(flattened)
 
-    plt.bar(number_counts.keys(), number_counts.values())
-    plt.xlabel("Number of Rules Followed")
+    # Create a color map for each rule
+    colors = plt.cm.tab10(range(len(number_counts)))
+
+    # Plot each rule with a unique color
+    plt.bar(number_counts.keys(), number_counts.values(), color=colors)
+    plt.xlabel("Rule Number")
     plt.ylabel("Frequency")
     plt.title(title)
+
+    # Create a legend using rule descriptions
+    legend_handles = [
+        mpatches.Patch(color=colors[i], label=f"Rule {rule}: {rule_descriptions[rule]}")
+        for i, rule in enumerate(number_counts.keys())
+    ]
+    plt.legend(handles=legend_handles, title="Rules")
+
+    # Save and close the plot
     plt.savefig(f"figures/{title}.png")
     plt.close()
+
 
 if __name__ == "__main__":
     run_wandb = False

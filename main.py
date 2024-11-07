@@ -12,8 +12,8 @@ import agent
 from agent import STATE_ACTION_SIZE, run_population, trajectory_path
 from plot import (
     handle_plotting,
-    populate_lists,
     plot_rules_followed_distribution,
+    populate_lists,
 )
 from reward import TrajectoryRewardNet, train_reward_function
 
@@ -142,8 +142,9 @@ if __name__ == "__main__":
                 "collect",
                 args.headless,
             )
-            plot_rules_followed_distribution(collecting_rules_followed, "Input Distribution Rules Followed")
-            
+            plot_rules_followed_distribution(
+                collecting_rules_followed, "Input Distribution Rules Followed"
+            )
 
         print("Starting training on trajectories...")
         train_reward_function(database_path, args.epochs[0], args.parameters)
@@ -171,6 +172,9 @@ if __name__ == "__main__":
         False,
     )
     plot_rules_followed_distribution(true_rules_followed, "Ground Truth Rules Followed")
+    plot_rules_followed_distribution(
+        true_rules_followed[-1000:], "Expert Ground Truth Rules Followed"
+    )
 
     with open(
         args.parameters if args.parameters is not None else "best_params.yaml", "r"
@@ -192,7 +196,12 @@ if __name__ == "__main__":
         "trainedRF",
         False,
     )
-    plot_rules_followed_distribution(trained_rules_followed, "Trained Agent Rules Followed")
+    plot_rules_followed_distribution(
+        trained_rules_followed, "Trained Agent Rules Followed"
+    )
+    plot_rules_followed_distribution(
+        trained_rules_followed[-1000:], "Expert Trained Agent Rules Followed"
+    )
 
     model_info = {
         "weights": model_weights,
@@ -235,6 +244,3 @@ if __name__ == "__main__":
         training_segment_rewards,
         training_segment_distances,
     )
-
-    
-
