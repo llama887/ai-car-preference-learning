@@ -169,7 +169,7 @@ if __name__ == "__main__":
         args.generations[0],
         0,
         "trueRF",
-        False,
+        args.headless,
     )
     plot_rules_followed_distribution(true_rules_followed, "Ground Truth Rules Followed")
     plot_rules_followed_distribution(
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         args.generations[0],
         0,
         "trainedRF",
-        False,
+        args.headless,
     )
     plot_rules_followed_distribution(
         trained_rules_followed, "Trained Agent Rules Followed"

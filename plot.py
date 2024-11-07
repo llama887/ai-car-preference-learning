@@ -615,6 +615,7 @@ def graph_segment_distance_vs_reward(
 
 def plot_rules_followed_distribution(rules_followed, title):
     rule_descriptions = {
+        0: "No Rules Followed",
         1: "Distance > 30",
         2: "Left Radar > Right Radar",
         3: "Actions Different",
