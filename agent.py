@@ -18,12 +18,13 @@ import yaml
 import reward
 import rules
 from reward import TrajectoryRewardNet, prepare_single_trajectory
-from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
 
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 trajectories_path = "trajectories/"
+master_database_path = "database_gargantuar.pkl"
+
 os.makedirs(trajectories_path, exist_ok=True)
 # Constants
 
@@ -43,13 +44,6 @@ STATE_ACTION_SIZE = 8
 DEFAULT_MAX_GENERATIONS = 1000
 SEGMENTS_PER_PAIR = 5
 
-NUMBER_OF_RULES = 1
-SEGMENT_DISTRIBUTION_BY_RULES = [0.5, 0.5]
-
-assert (
-    len(SEGMENT_DISTRIBUTION_BY_RULES) == NUMBER_OF_RULES + 1
-), f"SEGMENT_DISTRIBUTION_BY_RULES: {SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {NUMBER_OF_RULES}"
-
 current_generation = 0  # Generation counter
 trajectory_path = "./trajectories/"
 reward_network = None
@@ -57,7 +51,7 @@ num_pairs = 0
 population = ""
 run_type = "collect"
 headless = False
-saved_segments = [[] for _ in range(NUMBER_OF_RULES + 1)]
+saved_segments = []
 saved_trajectories = []
 big_car_best_distance = 0
 big_car_distance = 0
@@ -104,15 +98,11 @@ class StateActionPair:
         return 8
 
 
-class TrajectoryPair:
-    def __init__(self, t1, t2, label, e1, e2, r1, r2):
-        self.t1 = t1
-        self.t2 = t2
-        self.label = label
-        self.e1 = e1
-        self.e2 = e2
-        self.r1 = r1
-        self.r2 = r2
+class Trajectory:
+    def __init__(self, t, e, r):
+        self.traj = t.copy()
+        self.num_expert_segments = e
+        self.total_reward = r
 
     def truncate(self, trajectory):
         trajectory_length = len(trajectory)
@@ -125,24 +115,15 @@ class TrajectoryPair:
 
     def __repr__(self):
         return (
-            "Trajectory 1:\n"
-            + str(self.truncate(self.t1))
+            "Trajectory:\n"
+            + str(self.truncate(self.traj))
             + "\n"
             + "Number of Expert Segments: "
-            + str(self.e1)
+            + str(self.num_expert_segments)
             + "\n"
             + "Reward: "
-            + str(self.r1)
+            + str(self.total_reward)
             + "\n"
-            + "Trajectory 2:\n"
-            + str(self.truncate(self.t2))
-            + "\n"
-            + "Number of Expert Segments: "
-            + str(self.e2)
-            + "\n"
-            + "Reward: "
-            + str(self.r2)
-            + "\n\n"
         )
 
 
@@ -318,7 +299,7 @@ class Car:
         self.trajectory.append(next_state_action)
 
         rules_satisfied, is_expert = rules.check_rules(
-            self.trajectory[-2:], NUMBER_OF_RULES
+            self.trajectory[-2:], rules.NUMBER_OF_RULES
         )
         self.rules_per_step.append(rules_satisfied)
         self.expert_segments += is_expert
@@ -343,7 +324,7 @@ class Car:
             trajectory_tensor = prepare_single_trajectory(self.trajectory)
             reward = reward_network(trajectory_tensor)
             return reward.item()
-        return rules.check_rules(self.trajectory[-2:], NUMBER_OF_RULES)[1]
+        return rules.check_rules(self.trajectory[-2:], rules.NUMBER_OF_RULES)[1]
 
     def rotate_center(self, image, angle):
         # Rotate The Rectangle
@@ -362,16 +343,30 @@ class Car:
             new_segments = break_into_segments(
                 self.trajectory, self.rules_per_step, status
             )
-            for i in range(NUMBER_OF_RULES + 1):
+            for i in range(rules.NUMBER_OF_RULES + 1):
                 saved_segments[i].extend(new_segments[i])
         else:
             saved_trajectories.append(
                 (self.expert_segments, self.trajectory, self.reward)
             )
 
+def display_master_segments(saved_segments):
+    print("MASTER DATABASE CURRENTLY HAS:")
+    if not saved_segments:
+        print("NO SEGMENTS lol")
+    for i, seg in enumerate(saved_segments):
+       print(i, "RULE SEGMENTS:", len(seg))
+    print()
+    
+
+def display_requested_segments(number_of_pairs):
+    print(f"SEGMENTS REQUESTED (Pairs Requested * distribution[i] * Segments Per Pair Multiplier (currently set to: {SEGMENTS_PER_PAIR})):")
+    for i in range(rules.NUMBER_OF_RULES + 1):
+        print(i, "RULE SEGMENTS:", math.ceil(number_of_pairs * SEGMENTS_PER_PAIR * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]))
+    print()
 
 def break_into_segments(trajectory, rules_per_step, done):
-    trajectory_segments = [[] for _ in range(NUMBER_OF_RULES + 1)]
+    trajectory_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
     prev = 0
     curr = 1
     while curr < len(trajectory):
@@ -381,7 +376,7 @@ def break_into_segments(trajectory, rules_per_step, done):
         prev += 1
         curr += 1
 
-    for i in range(NUMBER_OF_RULES + 1):
+    for i in range(rules.NUMBER_OF_RULES + 1):
         if done[
             i
         ]:  # done collecting segments satisfying i rules, then don't collect them anymore
@@ -433,12 +428,21 @@ def calculate_new_point(point, distance, angle):
 
 def trim_excess_segments():
     global saved_segments, number_of_pairs
-    for i in range(NUMBER_OF_RULES + 1):
-        segments_needed = int(
-            number_of_pairs * SEGMENTS_PER_PAIR * SEGMENT_DISTRIBUTION_BY_RULES[i]
+    for i in range(rules.NUMBER_OF_RULES + 1):
+        segments_needed = math.ceil(
+            number_of_pairs * SEGMENTS_PER_PAIR * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
         )
         if len(saved_segments[i]) >= segments_needed:
             saved_segments[i] = saved_segments[i][:segments_needed]
+
+def sample_segments(saved_segments):
+    sampled_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
+    for i in range(rules.NUMBER_OF_RULES + 1):
+        segments_needed = math.ceil(
+            number_of_pairs * SEGMENTS_PER_PAIR * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
+        )
+        sampled_segments[i] = random.sample(saved_segments[i], segments_needed)
+    return sampled_segments
 
 
 def generate_database(trajectory_path):
@@ -448,15 +452,13 @@ def generate_database(trajectory_path):
     if run_type == "collect":
         # Break trajectories into trajectory segments
         trajectory_segments = []
-    
-        trim_excess_segments()
+        sampled_segments = sample_segments(saved_segments)
         print(
             "SEGMENT POOL FOR DATA COLLECTION:",
-            list((f"{i}: {len(seg)}" for i, seg in enumerate(saved_segments))),
+            list((f"{i}: {len(seg)}" for i, seg in enumerate(sampled_segments))),
         )
-
-        for i in range(NUMBER_OF_RULES + 1):
-            trajectory_segments.extend(saved_segments[i])
+        for segments in sampled_segments:
+            trajectory_segments.extend(segments)
 
         if len(trajectory_segments) % 2 != 0:
             trajectory_segments.pop()
@@ -466,9 +468,9 @@ def generate_database(trajectory_path):
             random.shuffle(trajectory_segments)
             same_reward = 0
             for i in range(0, number_of_pairs * 2, 2):
-                _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
+                _, reward_1 = rules.check_rules(trajectory_segments[i], rules.NUMBER_OF_RULES)
                 _, reward_2 = rules.check_rules(
-                    trajectory_segments[i + 1], NUMBER_OF_RULES
+                    trajectory_segments[i + 1], rules.NUMBER_OF_RULES
                 )
                 if reward_1 == reward_2:
                     same_reward += 1
@@ -498,9 +500,9 @@ def generate_database(trajectory_path):
             random.shuffle(trajectory_segments)
             same_reward = []
             for i in range(0, len(trajectory_segments), 2):
-                _, reward_1 = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
+                _, reward_1 = rules.check_rules(trajectory_segments[i], rules.NUMBER_OF_RULES)
                 _, reward_2 = rules.check_rules(
-                    trajectory_segments[i + 1], NUMBER_OF_RULES
+                    trajectory_segments[i + 1], rules.NUMBER_OF_RULES
                 )
                 if reward_1 == reward_2:
                     same_reward.append(
@@ -532,46 +534,58 @@ def generate_database(trajectory_path):
             print("Remaining", fill, "pairs are between segments with same reward.")
             for i in range(fill):
                 trajectory_pairs.append(same_reward[i])
+
+        print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
+
+        # Delete old database if it is redundant (same size)
+        old_pairs_path = trajectory_path + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules.pkl"
+        if os.path.exists(old_pairs_path):
+            print("Removing old database with same pairs and rules...")
+            os.remove(old_pairs_path)
+
+        # Save To Database
+        with open(trajectory_path + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules.pkl", "wb") as f:
+            pickle.dump(trajectory_pairs, f)
+
+        # Delete old master database
+        if os.path.exists(master_database_path):
+            print("Removing old master database...")
+            os.remove(master_database_path)
+
+        # Save new master database
+        with open(master_database_path, "wb") as f:
+            pickle.dump(saved_segments, f)
+        
+        return len(trajectory_pairs)
+
     else:
-        trajectories = saved_trajectories
-        if len(trajectories) % 2 != 0:
-            trajectories.pop()
-        num_traj = len(trajectories)
-        for i in range(0, num_traj, 2):
-            new_pair = TrajectoryPair(
-                t1=trajectories[i][1],
-                t2=trajectories[i + 1][1],
-                label=0 if trajectories[i][0] > trajectories[i + 1][0] else 1,
-                e1=trajectories[i][0],
-                e2=trajectories[i + 1][0],
-                r1=trajectories[i][2],
-                r2=trajectories[i + 1][2],
-            )
-            trajectory_pairs.append(new_pair)
+        trajectories = []
+        for i in range(len(saved_trajectories)):
+            trajectories.append(Trajectory(
+                t=saved_trajectories[i][1],
+                e=saved_trajectories[i][0],
+                r=saved_trajectories[i][2],
+            ))
 
-    print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
+        old_trajectories_path = trajectory_path + f"{run_type}_{len(trajectories)}.pkl"
+        if os.path.exists(old_trajectories_path):
+            print("Removing old agent database with same number of trajectories...")
+            try:
+                os.remove(old_trajectories_path)
+                print("File removed successfully.")
+            except PermissionError:
+                print("Permission denied: could not remove the file.")
+            except FileNotFoundError:
+                print("File not found: it may have been removed by another process.")
+            except Exception as e:
+                print(f"Unexpected error: {e}")
+ 
+        with open(trajectory_path + f"{run_type}_{len(trajectories)}.pkl", "wb") as f:      
+            if len(trajectories) > 0:
+                pickle.dump(trajectories, f)
+                pass
 
-    # Delete all trajectories
-    print("Removing saved trajectories...")
-    old_trajectories = glob.glob(trajectory_path + "trajectory*")
-    for f in old_trajectories:
-        os.remove(f)
-
-    prefix = "database" if run_type == "collect" else run_type
-    # Delete old database if it is redundant (same size)
-    print("Removing old database...")
-    old_trajectories = glob.glob(
-        trajectory_path + f"{prefix}_{len(trajectory_pairs)}.pkl"
-    )
-    for f in old_trajectories:
-        os.remove(f)
-
-    # Save To Database
-    with open(trajectory_path + f"{prefix}_{len(trajectory_pairs)}.pkl", "wb") as f:
-        pickle.dump(trajectory_pairs, f)
-
-    # print("Done saving to database...")
-    return len(trajectory_pairs)
+        return len(trajectories)
 
 
 def run_simulation(genomes, config):
@@ -675,16 +689,13 @@ def run_simulation(genomes, config):
                 car.save_trajectory()
 
             if run_type == "collect":
-                for i in range(NUMBER_OF_RULES + 1):
+                for i in range(rules.NUMBER_OF_RULES + 1):
                     print(
                         "THIS GENERATION PRODUCED",
                         len(saved_segments[i]) - old_lengths[i],
                         f"SEGMENTS SATISFYING {i} RULES.",
                     )
-                print(
-                    "TOTAL SEGMENTS COLLECTED SO FAR:",
-                    list((f"{i}: {len(seg)}" for i, seg in enumerate(saved_segments))),
-                )
+                display_master_segments(saved_segments)
             break
 
         if not headless:
@@ -753,16 +764,16 @@ def run_simulation(genomes, config):
 
 
 def finished_collecting(number_of_pairs):
-    return collection_status(number_of_pairs) == [True] * (NUMBER_OF_RULES + 1)
+    return collection_status(number_of_pairs) == [True] * (rules.NUMBER_OF_RULES + 1)
 
 
 def collection_status(number_of_pairs):
-    rule_finished = [False] * (NUMBER_OF_RULES + 1)
+    rule_finished = [False] * (rules.NUMBER_OF_RULES + 1)
     global saved_segments
-    for i in range(NUMBER_OF_RULES + 1):
+    for i in range(rules.NUMBER_OF_RULES + 1):
         if (
             len(saved_segments[i])
-            >= number_of_pairs * SEGMENTS_PER_PAIR * SEGMENT_DISTRIBUTION_BY_RULES[i]
+            >= number_of_pairs * SEGMENTS_PER_PAIR * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
         ):
             rule_finished[i] = True
     return rule_finished
@@ -770,10 +781,10 @@ def collection_status(number_of_pairs):
 
 def trim_segment_counts(number_of_pairs):
     global saved_segments
-    for i in range(NUMBER_OF_RULES + 1):
+    for i in range(rules.NUMBER_OF_RULES + 1):
         while (
             len(saved_segments[i])
-            > number_of_pairs * SEGMENTS_PER_PAIR * SEGMENT_DISTRIBUTION_BY_RULES[i]
+            > number_of_pairs * SEGMENTS_PER_PAIR * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
         ):
             saved_segments[i].pop()
 
@@ -818,24 +829,48 @@ def run_population(
         population.add_reporter(stats)
         num_pairs = number_of_pairs
 
+        missing_segments = True
+        if run_type == "collect":
+            try:
+                with open(master_database_path, "rb") as file:
+                    data = pickle.load(file)
+                    print("USING MASTER DB...")
+                    saved_segments = data
+            except:
+                print("COULD NOT LOAD FROM MASTER DB")
+                saved_segments = []
+
+            display_master_segments(saved_segments)
+            display_requested_segments(num_pairs)
+
+            while len(saved_segments) < rules.NUMBER_OF_RULES + 1:
+                saved_segments.append([])
+            
+            if finished_collecting(number_of_pairs):
+                missing_segments = False
+                print("SEGMENT COUNT SATISFIED! Subsampling...")
+            else:
+                print("MISSING SEGMENTS! Generating more...")
+
         current_generation = 0
         saved_trajectories = []
         generation = 1
-        while True:
-            population.run(run_simulation, 1)
-            if run_type == "collect" and finished_collecting(number_of_pairs):
-                print(f"Stopping after {generation} generations.")
-                pygame.display.quit()
-                pygame.quit()
-                break
-            elif generation == max_generations:
-                break
-            generation += 1
-            global big_car_distance, big_car_best_distance
-            big_car_best_distance = max(big_car_distance, big_car_best_distance)
-            big_car_distance = 0
+        
+        if run_type != "collect" or missing_segments:
+            while True:
+                population.run(run_simulation, 1)
+                if run_type == "collect" and finished_collecting(number_of_pairs):
+                    print(f"Stopping after {generation} generations.")
+                    pygame.display.quit()
+                    pygame.quit()
+                    break
+                elif generation == max_generations:
+                    break
+                generation += 1
+                global big_car_distance, big_car_best_distance
+                big_car_best_distance = max(big_car_distance, big_car_best_distance)
+                big_car_distance = 0
 
-        trim_segment_counts(number_of_pairs)
         numTrajPairs = generate_database(trajectory_path)
 
         return numTrajPairs

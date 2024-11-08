@@ -1,12 +1,8 @@
 # [<Radars: [46, 54, 293, 114, 73], Action: 1 ,Position: [830, 920]>, <Radars: [41, 52, 276, 114, 75], Action: 1 ,Position: [849.6961550602441, 923.4729635533386]>]
 import math
 
-NUMBER_OF_RULES = 1
-SEGMENT_DISTRIBUTION_BY_RULES = [0.5, 0.5]
-assert (
-    len(SEGMENT_DISTRIBUTION_BY_RULES) == NUMBER_OF_RULES + 1
-), f"SEGMENT_DISTRIBUTION_BY_RULES: {SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {NUMBER_OF_RULES}"
-
+NUMBER_OF_RULES = 2
+SEGMENT_DISTRIBUTION_BY_RULES = [1/3, 1/3, 1/3]
 
 def check_rules(segment, total_rules):
     rule_counter = 0

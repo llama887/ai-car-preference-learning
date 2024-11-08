@@ -11,7 +11,7 @@ import yaml
 import agent
 import rules
 
-from rules import NUMBER_OF_RULES
+from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
 from agent import STATE_ACTION_SIZE, run_population, trajectory_path
 from plot import (
     handle_plotting_rei,
@@ -39,22 +39,31 @@ def start_simulation(config_path, max_generations, number_of_pairs, run_type, no
         noHead=noHead,
     )
 
+def parse_to_float(s):
+    try:
+        return float(s)
+    except ValueError:
+        try:
+            numerator, denominator = map(float, s.split('/'))
+            return numerator / denominator
+        except (ValueError, ZeroDivisionError):
+            raise ValueError(f"Cannot convert '{s}' to float")
+        
+# def sample_from_database(num_pairs, database_path):
+#     with open(database_path, "rb") as f:
+#         database = pickle.load(f)
+#     total_pairs = len(database)
 
-def sample_from_database(num_pairs, database_path):
-    with open(database_path, "rb") as f:
-        database = pickle.load(f)
-    total_pairs = len(database)
-
-    if num_pairs == total_pairs:
-        return database_path
-    elif num_pairs < total_pairs:
-        new_pairs = random.sample(database, num_pairs)
-        new_database_path = trajectory_path + f"database_{num_pairs}.pkl"
-        with open(new_database_path, "wb") as f:
-            pickle.dump(new_pairs, f)
-        return new_database_path
-    else:
-        return -1
+#     if num_pairs == total_pairs:
+#         return database_path
+#     elif num_pairs < total_pairs:
+#         new_pairs = random.sample(database, num_pairs)
+#         new_database_path = trajectory_path + f"database_{num_pairs}.pkl"
+#         with open(new_database_path, "wb") as f:
+#             pickle.dump(new_pairs, f)
+#         return new_database_path
+#     else:
+#         return -1
 
 
 if __name__ == "__main__":
@@ -101,14 +110,14 @@ if __name__ == "__main__":
         "-c",
         "--composition",
         type=int,
-        action="append",
         help="number of rules",
     )
     parse.add_argument(
         "-d",
-        "--database",
+        "--distribution",
         type=str,
-        help="Directory to trajectory database file, the number of pairs indicated by this file name will override -t flag",
+        action="append",
+        help="Distribution of segments collected",
     )
 
     args = parse.parse_args()
@@ -123,39 +132,53 @@ if __name__ == "__main__":
     if args.headless:
         os.environ["SDL_VIDEODRIVER"] = "dummy"
 
-    if args.composition:
+    if args.composition and args.trajectories:
         rules.NUMBER_OF_RULES = args.composition
-
-    database_path = ""
-    if args.trajectories and args.database:
-        database_path = sample_from_database(args.trajectories[0], args.database)
-        if database_path == -1:
-            print("Provide a larger database, or generate a new one!")
-            sys.exit(1)
-        num_pairs = database_path.split("_")[1].split(".")[0]
-        args.trajectories[0] = num_pairs
-    elif args.trajectories:
-        database_path = f"trajectories/database_{args.trajectories[0]}.pkl"
-    elif args.database:
-        database_path = args.database
-        num_pairs = database_path.split("_")[1].split(".")[0]
-        args.trajectories[0] = num_pairs
+        database_path = f"trajectories/database_{args.trajectories[0]}_pairs_{args.composition}_rules.pkl"
     else:
-        print(
-            "Need to either provide number of trajectories to collect or existing database"
-        )
+        print("Missing either -c flag or -t flag")
+
+
+    # database_path = ""
+    # if args.trajectories and args.database:
+    #     database_path = sample_from_database(args.trajectories[0], args.database)
+    #     if database_path == -1:
+    #         print("Provide a larger database, or generate a new one!")
+    #         sys.exit(1)
+    #     num_pairs = database_path.split("_")[1].split(".")[0]
+    #     args.trajectories[0] = num_pairs
+    # elif args.trajectories:
+    #     database_path = f"trajectories/database_{args.trajectories[0]}.pkl"
+    # elif args.database:
+    #     database_path = args.database
+    #     num_pairs = database_path.split("_")[1].split(".")[0]
+    #     args.trajectories[0] = num_pairs
+    # else:
+    #     print(
+    #         "Need to either provide number of trajectories to collect or existing database"
+    #     )
+
+    if args.distribution:
+        try:
+            rules.SEGMENT_DISTRIBUTION_BY_RULES = [parse_to_float(d) for d in args.distribution]
+        except:
+            print("Distribution input too advanced for Alex and Franklin's caveman parser. (or maybe you input something weird sry)")
+            sys.exit()
+        sum_dist = sum(rules.SEGMENT_DISTRIBUTION_BY_RULES)
+        rules.SEGMENT_DISTRIBUTION_BY_RULES = [d / sum_dist for d in rules.SEGMENT_DISTRIBUTION_BY_RULES]
+        assert (len(rules.SEGMENT_DISTRIBUTION_BY_RULES) == rules.NUMBER_OF_RULES + 1), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {rules.NUMBER_OF_RULES}"
+        assert (sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
 
     model_weights = ""
     if args.reward is None:
         # start the simulation in data collecting mode
-        if not args.database:
-            num_traj = start_simulation(
-                "./config/data_collection_config.txt",
-                args.trajectories[0],
-                args.trajectories[0],
-                "collect",
-                args.headless,
-            )
+        num_traj = start_simulation(
+            "./config/data_collection_config.txt",
+            args.trajectories[0],
+            args.trajectories[0],
+            "collect",
+            args.headless,
+        )
 
         print("Starting training on trajectories...")
         train_reward_function(database_path, args.epochs[0], args.parameters)
