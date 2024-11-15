@@ -173,7 +173,7 @@ if __name__ == "__main__":
     )
     plot_rules_followed_distribution(true_rules_followed, "Ground Truth Rules Followed")
     plot_rules_followed_distribution(
-        true_rules_followed[-1000:], "Expert Ground Truth Rules Followed"
+        true_rules_followed[-10000:], "Expert Ground Truth Rules Followed"
     )
 
     with open(
@@ -200,7 +200,7 @@ if __name__ == "__main__":
         trained_rules_followed, "Trained Agent Rules Followed"
     )
     plot_rules_followed_distribution(
-        trained_rules_followed[-1000:], "Expert Trained Agent Rules Followed"
+        trained_rules_followed[-10000:], "Expert Trained Agent Rules Followed"
     )
 
     model_info = {

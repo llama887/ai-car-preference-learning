@@ -7,3 +7,6 @@ pygame==2.6.1
 wandb==0.18.3
 optuna==4.0.0
 scikit-learn==1.5.2
+shapely==2.0.6
+imageio==2.36.0
+scikit-image==0.24.0

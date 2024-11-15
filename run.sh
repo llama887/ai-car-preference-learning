@@ -32,6 +32,9 @@ if [ "$#" -gt 0 ]; then
     TRAJECTORIES=("$@")
 fi
 
+# Remove any existing zip files for figures and trajectories to avoid conflicts
+rm -f figures_*.zip trajectories_*.zip
+
 # Loop over each trajectory value
 for TRAJ in "${TRAJECTORIES[@]}"; do
     # Remove the directories to prepare for the next run
