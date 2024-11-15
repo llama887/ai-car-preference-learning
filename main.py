@@ -269,10 +269,10 @@ if __name__ == "__main__":
         training_segment_distances,
     )
 
-    num_rules = NUMBER_OF_RULES
-    best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = unzipper_chungus_deluxe(num_rules)
+    # num_rules = NUMBER_OF_RULES
+    # best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = unzipper_chungus_deluxe(num_rules)
 
-    handle_plotting_sana(
-        best_true_agent_expert_segments,
-        aggregate_trained_agent_expert_segments,
-    )
+    # handle_plotting_sana(
+    #     best_true_agent_expert_segments,
+    #     aggregate_trained_agent_expert_segments,
+    # )

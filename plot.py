@@ -31,6 +31,19 @@ NET_SIZE = 16
 run_wandb = True
 epochs = None
 
+#Todo:
+class TrajectoryData:
+    # Dimensions [num_generations][num_agents_per_generation]
+    def __init__(self):
+        self.gt_rewards = [[]]
+        self.trained_rewards = [[]]
+
+class SegmentData:
+    # Dimensions [total number of segments (if everything is correct 450 * num_agents_per_generation * num_generations)]
+    def __init__(self):
+        self.rules_satisfied = []
+        self.trained_rewards = []
+        self.distances = []
 
 class RewardNormalizer:
     def __init__(self, rewards):
@@ -179,11 +192,15 @@ def populate_lists(true_database, trained_database, training_database, model_inf
     agents_per_generation = model_info["agents-per-generation"]
 
     true_agent_expert_segments = []
+    true_agent_rewards = []
+
     trained_agent_expert_segments = []
     trained_agent_rewards = []
+
     trained_segment_rules_satisifed = []
     trained_segment_rewards = []
     trained_segment_distances = []
+
     training_segment_rules_satisfied = []
     training_segment_rewards = []
     training_segment_distances = []
@@ -220,12 +237,16 @@ def populate_lists(true_database, trained_database, training_database, model_inf
         count = 0
         while count < num_true_trajectories:
             gen_true_expert_segments = []
+            gen_true_rewards = []
             for _ in range(agents_per_generation):
                 trajectory = true_trajectories[count]
                 gen_true_expert_segments.append(trajectory.num_expert_segments)
+                gen_true_rewards.append(sum([model(prepare_single_trajectory(segment)).item() for segment in break_into_segments(trajectory.traj)]))
                 count += 1
             if gen_true_expert_segments:
                 true_agent_expert_segments.append(gen_true_expert_segments)
+            if gen_true_rewards:
+                true_agent_rewards.append(gen_true_rewards)
 
     num_trained_trajectories = len(trained_trajectories)
     count = 0
@@ -254,27 +275,27 @@ def populate_lists(true_database, trained_database, training_database, model_inf
             trained_agent_rewards.append(gen_trained_rewards)
 
     if training_database:
-        for traj1, traj2, _, reward1, reward2 in training_trajectories:
+        for segment1, segment2, _, reward1, reward2 in training_trajectories:
             training_segment_rules_satisfied.append(
                 check_rules(
-                    traj1,
+                    segment1,
                     NUMBER_OF_RULES,
                 )[0]
             )
             training_segment_rules_satisfied.append(
                 check_rules(
-                    traj2,
+                    segment2,
                     NUMBER_OF_RULES,
                 )[0]
             )
             training_segment_rewards.append(
-                model(prepare_single_trajectory(traj1)).item()
+                model(prepare_single_trajectory(segment1)).item()
             )
             training_segment_rewards.append(
-                model(prepare_single_trajectory(traj2)).item()
+                model(prepare_single_trajectory(segment2)).item()
             )
-            training_segment_distances.append(dist(traj1))
-            training_segment_distances.append(dist(traj2))
+            training_segment_distances.append(dist(segment1))
+            training_segment_distances.append(dist(segment2))
 
     if replace:
         true_agent_expert_segments = [
@@ -288,11 +309,15 @@ def populate_lists(true_database, trained_database, training_database, model_inf
 
     return (
         true_agent_expert_segments,
+        true_agent_rewards,
+
         trained_agent_expert_segments,
         trained_agent_rewards,
+
         trained_segment_rules_satisifed,
         trained_segment_rewards,
         trained_segment_distances,
+
         training_segment_rules_satisfied,
         training_segment_rewards,
         training_segment_distances,
@@ -475,6 +500,7 @@ def plot_trajectory_order(data, title):
 def handle_plotting_rei(
     model_info,
     true_agent_expert_segments,
+    true_agent_rewards,
     trained_agent_expert_segments,
     trained_agent_rewards,
     trained_segment_rules_satisifed,
@@ -490,7 +516,7 @@ def handle_plotting_rei(
     pairs_learned = model_info["pairs-learned"]
 
     agents_per_generation = len(true_agent_expert_segments[0])
-    # Avg/max number of expert segments per trajectory for each agent over generations
+    # Avg/max number of expert segments per trajectory for each gt agent over generations
     trueRF_average_expert_segments = [
         (sum(generation) / agents_per_generation)
         for generation in true_agent_expert_segments
@@ -499,7 +525,7 @@ def handle_plotting_rei(
         max(generation) for generation in true_agent_expert_segments
     ]
 
-    # Avg/max number of expert segments per trajectory for each agent over generations
+    # Avg/max number of expert segments per trajectory for each trained agent over generations
     trainedRF_average_expert_segments = [
         (sum(generation) / agents_per_generation)
         for generation in trained_agent_expert_segments
@@ -508,7 +534,16 @@ def handle_plotting_rei(
         max(generation) for generation in trained_agent_expert_segments
     ]
 
-    # Avg/max reward obtained by agents over generations
+    # Avg/max reward obtained by gt agents over generations
+    true_agent_reward_averages = [
+        (sum(generation) / agents_per_generation)
+        for generation in true_agent_rewards
+    ]
+    true_agent_reward_maxes = [
+        max(generation) for generation in true_agent_rewards
+    ]
+
+    # Avg/max reward obtained by trained agents over generations
     trained_agent_reward_averages = [
         (sum(generation) / agents_per_generation)
         for generation in trained_agent_rewards
@@ -523,7 +558,8 @@ def handle_plotting_rei(
     )
 
     graph_trained_agent_performance(
-        trained_agent_reward_averages, trained_agent_reward_maxes
+        (true_agent_reward_averages, trained_agent_reward_averages),
+        (true_agent_reward_maxes, trained_agent_reward_maxes),
     )
 
     graph_segment_rules_vs_reward(
@@ -563,39 +599,52 @@ def graph_expert_segments_over_generations(averages, maxes):
     x_values = range(len(trainedRF_average_expert_segments))
 
     plt.figure()
-    plt.plot(x_values, trueRF_average_expert_segments, label="Ground Truth")
-    plt.plot(x_values, trainedRF_average_expert_segments, label="Trained Reward")
+    plt.plot(x_values, trueRF_average_expert_segments, label="Ground Truth Agent")
+    plt.plot(x_values, trainedRF_average_expert_segments, label="Trained Agent")
     plt.xlabel("Generation")
     plt.ylabel("Number of Expert Trajectories")
-    plt.title("Ground Truth vs Trained Reward: Average Number of Expert Segments")
+    plt.title("Ground Truth vs Trained Agent: Average Ground Truth Reward")
     plt.legend()
     plt.savefig("figures/average.png")
     plt.close()
 
     plt.figure()
-    plt.plot(x_values, trueRF_max_expert_segments, label="Ground Truth")
-    plt.plot(x_values, trainedRF_max_expert_segments, label="Trained Reward")
+    plt.plot(x_values, trueRF_max_expert_segments, label="Ground Truth Agent")
+    plt.plot(x_values, trainedRF_max_expert_segments, label="Trained Agent")
     plt.xlabel("Generation")
     plt.ylabel("Number of Expert Trajectories")
-    plt.title("Ground Truth vs Trained Reward: Max Number of Expert Segments")
+    plt.title("Ground Truth vs Trained Agents: Max Ground Truth Reward")
     plt.legend()
     plt.savefig("figures/max.png")
     plt.close()
 
 
 def graph_trained_agent_performance(averages, maxes):
+    true_agent_reward_averages, trained_agent_reward_averages = averages
+    true_agent_reward_maxes, trained_agent_reward_maxes = maxes
+
     os.makedirs("figures", exist_ok=True)
 
-    x_values = range(len(averages))
+    x_values = range(len(true_agent_reward_averages))
 
     plt.figure()
-    plt.plot(x_values, averages, label="Average Fitness Per Gen")
-    plt.plot(x_values, maxes, label="Max Fitness Per Gen")
+    plt.plot(x_values, true_agent_reward_averages, label="Trained Agent")
+    plt.plot(x_values, trained_agent_reward_averages, label="GT Agent")
     plt.xlabel("Generation")
-    plt.ylabel("Reward")
-    plt.title("Reward Obtained by Trained Agents")
+    plt.ylabel("Avg. Fitness Per Generation")
+    plt.title("Avg. Fitness wrt Trained Reward")
     plt.legend()
-    plt.savefig("figures/agent_rewards.png")
+    plt.savefig("figures/average_trained_reward.png")
+    plt.close()
+
+    plt.figure()
+    plt.plot(x_values, true_agent_reward_maxes, label="Ground Truth Agent")
+    plt.plot(x_values, trained_agent_reward_maxes, label="Trained Agent")
+    plt.xlabel("Generation")
+    plt.ylabel("Max Fitness Per Generation")
+    plt.title("Max Fitness wrt Trained Reward")
+    plt.legend()
+    plt.savefig("figures/max_trained_reward.png")
     plt.close()
 
 
@@ -913,6 +962,7 @@ if __name__ == "__main__":
 
     (
         true_agent_expert_segments,
+        true_agent_rewards,
         trained_agent_expert_segments,
         trained_agent_rewards,
         trained_segment_rules_satisifed,
@@ -931,6 +981,7 @@ if __name__ == "__main__":
     handle_plotting_rei(
         model_info,
         true_agent_expert_segments,
+        true_agent_rewards,
         trained_agent_expert_segments,
         trained_agent_rewards,
         trained_segment_rules_satisifed,
@@ -941,13 +992,10 @@ if __name__ == "__main__":
         training_segment_distances,
     )
 
-    num_rules = NUMBER_OF_RULES
-    best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = unzipper_chungus_deluxe(num_rules)
-    # print(best_true_agent_expert_segments)
-    # print("\n\n")
-    # print(aggregate_trained_agent_expert_segments)
+    # num_rules = NUMBER_OF_RULES
+    # best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = unzipper_chungus_deluxe(num_rules)
 
-    handle_plotting_sana(
-        best_true_agent_expert_segments,
-        aggregate_trained_agent_expert_segments,
-    )
+    # handle_plotting_sana(
+    #     best_true_agent_expert_segments,
+    #     aggregate_trained_agent_expert_segments,
+    # )
