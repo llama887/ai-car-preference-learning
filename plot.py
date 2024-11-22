@@ -19,7 +19,7 @@ import zipfile
 import re
 
 from reward import TrajectoryRewardNet, prepare_single_trajectory
-from rules import NUMBER_OF_RULES, check_rules
+import rules
 
 AGENTS_PER_GENERATION = 20
 
@@ -259,9 +259,9 @@ def populate_lists(true_database, trained_database, training_database, model_inf
             gen_trained_rewards.append(trajectory.total_reward)
             for segment in break_into_segments(trajectory.traj):
                 trained_segment_rules_satisifed.append(
-                    check_rules(
+                    rules.check_rules(
                         segment,
-                        NUMBER_OF_RULES,
+                        rules.NUMBER_OF_RULES,
                     )[0]
                 )
                 trained_segment_rewards.append(
@@ -277,15 +277,15 @@ def populate_lists(true_database, trained_database, training_database, model_inf
     if training_database:
         for segment1, segment2, _, reward1, reward2 in training_trajectories:
             training_segment_rules_satisfied.append(
-                check_rules(
+                rules.check_rules(
                     segment1,
-                    NUMBER_OF_RULES,
+                    rules.NUMBER_OF_RULES,
                 )[0]
             )
             training_segment_rules_satisfied.append(
-                check_rules(
+                rules.check_rules(
                     segment2,
-                    NUMBER_OF_RULES,
+                    rules.NUMBER_OF_RULES,
                 )[0]
             )
             training_segment_rewards.append(
@@ -557,7 +557,7 @@ def handle_plotting_rei(
         (trueRF_max_expert_segments, trainedRF_max_expert_segments),
     )
 
-    graph_trained_agent_performance(
+    graph_against_trained_reward(
         (true_agent_reward_averages, trained_agent_reward_averages),
         (true_agent_reward_maxes, trained_agent_reward_maxes),
     )
@@ -619,7 +619,7 @@ def graph_expert_segments_over_generations(averages, maxes):
     plt.close()
 
 
-def graph_trained_agent_performance(averages, maxes):
+def graph_against_trained_reward(averages, maxes):
     true_agent_reward_averages, trained_agent_reward_averages = averages
     true_agent_reward_maxes, trained_agent_reward_maxes = maxes
 
@@ -628,8 +628,8 @@ def graph_trained_agent_performance(averages, maxes):
     x_values = range(len(true_agent_reward_averages))
 
     plt.figure()
-    plt.plot(x_values, true_agent_reward_averages, label="Trained Agent")
-    plt.plot(x_values, trained_agent_reward_averages, label="GT Agent")
+    plt.plot(x_values, true_agent_reward_averages, label="GT Agent")
+    plt.plot(x_values, trained_agent_reward_averages, label="Trained Agent")
     plt.xlabel("Generation")
     plt.ylabel("Avg. Fitness Per Generation")
     plt.title("Avg. Fitness wrt Trained Reward")
@@ -660,7 +660,7 @@ def graph_segment_rules_vs_reward(
         )
         return
 
-    rewards_for_rules = [[] for _ in range(NUMBER_OF_RULES + 1)]
+    rewards_for_rules = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
 
     for i in range(len(segment_rules_satisfied)):
         num_rules, reward = (
@@ -670,7 +670,7 @@ def graph_segment_rules_vs_reward(
         rewards_for_rules[num_rules].append(reward)
 
     print(title)
-    for i in range(NUMBER_OF_RULES + 1):
+    for i in range(rules.NUMBER_OF_RULES + 1):
         print("Rules Satisfied:", i, "| COUNT:", len(rewards_for_rules[i]))
 
     df = pd.DataFrame(
@@ -705,8 +705,8 @@ def log_wrong(segment_rules_satisfied, segment_rewards):
         (
             zipped_rules_reward[i],
             zipped_rules_reward[i + 1],
-            (zipped_rules_reward[i][0] == NUMBER_OF_RULES)
-            < (zipped_rules_reward[i + 1][0] == NUMBER_OF_RULES),
+            (zipped_rules_reward[i][0] == rules.NUMBER_OF_RULES)
+            < (zipped_rules_reward[i + 1][0] == rules.NUMBER_OF_RULES),
         )
         for i in range(0, len(zipped_rules_reward), 2)
     ]
@@ -937,6 +937,7 @@ if __name__ == "__main__":
             if len(database) > 2:
                 training_database = args.database[2]
                 num_pairs_learned = training_database.split("_")[1].split(".")[0]
+                rules.NUMBER_OF_RULES = int(training_database.split("_")[3])
 
         except Exception:
             pass
@@ -992,7 +993,7 @@ if __name__ == "__main__":
         training_segment_distances,
     )
 
-    # num_rules = NUMBER_OF_RULES
+    # num_rules = rules.NUMBER_OF_RULES
     # best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = unzipper_chungus_deluxe(num_rules)
 
     # handle_plotting_sana(

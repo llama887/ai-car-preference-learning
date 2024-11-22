@@ -463,7 +463,7 @@ def generate_database(trajectory_path):
         if len(trajectory_segments) % 2 != 0:
             trajectory_segments.pop()
 
-        segment_generation_mode = "different"
+        segment_generation_mode = "random"
         if segment_generation_mode == "random":
             random.shuffle(trajectory_segments)
             same_reward = 0
