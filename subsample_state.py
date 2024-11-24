@@ -1,5 +1,6 @@
+import argparse
 import math
-import time
+import multiprocessing
 
 import numpy as np
 import pygame
@@ -8,10 +9,10 @@ from shapely.geometry import Point, Polygon
 from skimage import measure
 from skimage.color import rgb2gray, rgba2rgb
 
-from agent import CAR_SIZE_X, CAR_SIZE_Y, HEIGHT, WIDTH, Car
+from agent import CAR_SIZE_X, CAR_SIZE_Y, HEIGHT, WIDTH, Car, StateActionPair
 
 
-def subsample_state(image_path, number_of_points):
+def subsample_state(image_path, number_of_points=1000):
     # Read the image
     image_path = "maps/map.png"  # Replace with the correct path if necessary
     polypic = imread(image_path)
@@ -49,7 +50,7 @@ def subsample_state(image_path, number_of_points):
         print("Track polygon bounds:", track_polygon.bounds)
 
         # Define grid resolution (try a smaller value if points are sparse)
-        grid_resolution = 10  # Adjust this value as needed
+        grid_resolution = 100  # Adjust this value as needed
 
         # Get the bounding box for the polygon
         min_x, min_y, max_x, max_y = track_polygon.bounds
@@ -65,50 +66,104 @@ def subsample_state(image_path, number_of_points):
         return points, contours
 
 
-def calculate_tangent_angle(position, contours):
-    # Flatten all contour points into one list
-    all_points = np.vstack(contours)
+def process_trajectory_segment(params):
+    """Process a single trajectory segment for a given point, angle, and speed."""
+    point, angle, speed, CAR_SIZE_X, CAR_SIZE_Y, WIDTH, HEIGHT, game_map_path = params
+    trajectory_segments = []
 
-    # Find the closest point on the contour to the given position
-    distances = np.linalg.norm(all_points - np.array(position), axis=1)
-    closest_index = np.argmin(distances)
-    closest_point = all_points[closest_index]
-
-    # Determine the tangent vector
-    if closest_index > 0:
-        prev_point = all_points[closest_index - 1]
-    else:
-        prev_point = all_points[closest_index]
-
-    if closest_index < len(all_points) - 1:
-        next_point = all_points[closest_index + 1]
-    else:
-        next_point = all_points[closest_index]
-
-    tangent_vector = next_point - prev_point
-
-    # Calculate the tangent angle
-    angle = math.degrees(math.atan2(tangent_vector[1], tangent_vector[0]))
-    return angle
-
-
-# Load subsampled grid points and contours
-points, contours = subsample_state("maps/map.png", 100)
-
-# Initialize pygame and load the map
-screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
-screen.blit(pygame.image.load("maps/map.png").convert(), (0, 0))
-
-# Create a Car object with initial position and orientation
-while True:
-    random_point = points[np.random.choice(len(points))]
+    # Initialize car object
     car = Car()
-    car.position = [random_point[1] - CAR_SIZE_X / 2, random_point[0] - CAR_SIZE_Y / 2]
+    car.position = [point[1] - CAR_SIZE_X / 2, point[0] - CAR_SIZE_Y / 2]
+    car.speed = speed
+    car.angle = angle
+    car.radars.clear()
+    car.rotated_sprite = car.rotate_center(car.sprite, car.angle)
 
-    # Calculate the tangent angle at the random point
-    car.angle = calculate_tangent_angle(car.position, contours)
+    # Load game map
+    game_map = pygame.image.load(game_map_path).convert()
 
-    # Draw the car
-    car.draw(screen)
-    pygame.display.flip()
-    time.sleep(0.1)
+    # Generate trajectory segments
+    for first_action in range(0, 4):
+        car.check_radar(car.angle, game_map)
+        first_state_action_pair = StateActionPair(
+            [car.check_radar(d, game_map) for d in range(-90, 120, 45)],
+            first_action,
+            car.position,
+            True,
+        )
+
+        # Apply action
+        if first_action == 0:
+            car.angle += 10  # Left
+        elif first_action == 1:
+            car.angle -= 10  # Right
+        elif first_action == 2:
+            if car.speed - 2 >= 12:
+                car.speed -= 2  # Slow Down
+        else:
+            car.speed += 2  # Speed Up
+
+        car.position[0] += math.cos(math.radians(360 - car.angle)) * car.speed
+        car.position[0] = max(car.position[0], 20)
+        car.position[0] = min(car.position[0], WIDTH - 120)
+        car.position[1] += math.sin(math.radians(360 - car.angle)) * car.speed
+        car.position[1] = max(car.position[1], 20)
+        car.position[1] = min(car.position[1], HEIGHT - 120)
+
+        for second_action in range(0, 4):
+            last_state_action_pair = StateActionPair(
+                [car.check_radar(d, game_map) for d in range(-90, 120, 45)],
+                second_action,
+                car.position,
+                True,
+            )
+            trajectory_segments.append(
+                [first_state_action_pair, last_state_action_pair]
+            )
+
+    return trajectory_segments
+
+
+def main():
+    # Load subsampled grid points and contours
+    points, contours = subsample_state("maps/map.png", args.samples)
+
+    # Prepare parameters for multiprocessing
+    params = [
+        (point, angle, speed, CAR_SIZE_X, CAR_SIZE_Y, WIDTH, HEIGHT, "maps/map.png")
+        for point in points
+        for angle in range(0, 360, 10)
+        for speed in range(10, 50, 2)
+    ]
+
+    # Use multiprocessing to process trajectory segments
+    with multiprocessing.Pool() as pool:
+        results = pool.map(process_trajectory_segment, params)
+    print(results)
+
+
+if __name__ == "__main__":
+    parse = argparse.ArgumentParser(
+        description="Training a Reward From Synthetic Preferences"
+    )
+    parse.add_argument(
+        "-s",
+        "--samples",
+        type=int,
+        nargs=1,
+        help="Number of samples",
+    )
+
+    args = parse.parse_args()
+    if args.samples and args.samples[0] > 0:
+        samples = args.samples[0]
+    else:
+        samples = 1000
+
+    # Load subsampled grid points and contours
+    gridpoints = samples // (360 / 10) // (40 / 2) // 4 // 4
+    points, contours = subsample_state("maps/map.png", gridpoints)
+
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
+    game_map = pygame.image.load("maps/map.png").convert()
+    main()
