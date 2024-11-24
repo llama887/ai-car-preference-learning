@@ -139,7 +139,15 @@ def main():
     # Use multiprocessing to process trajectory segments
     with multiprocessing.Pool() as pool:
         results = pool.map(process_trajectory_segment, params)
-    print(results)
+
+    trajectory_segments = [[result[0], result[-1]] for result in results if result]
+    assert isinstance(
+        trajectory_segments[0][0], StateActionPair
+    ), "Error in subsampling"
+    assert isinstance(
+        trajectory_segments[-1][-1], StateActionPair
+    ), "Error in subsampling"
+    return trajectory_segments
 
 
 if __name__ == "__main__":
