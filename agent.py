@@ -299,7 +299,7 @@ class Car:
         )
         self.trajectory.append(next_state_action)
 
-        rules_satisfied, is_expert = rules.check_rules(
+        rules_satisfied, is_expert, _ = rules.check_rules(
             self.trajectory[-2:], rules.NUMBER_OF_RULES
         )
         self.rules_per_step.append(rules_satisfied)
@@ -470,8 +470,8 @@ def generate_database(trajectory_path):
             random.shuffle(trajectory_segments)
             same_reward = 0
             for i in range(0, number_of_pairs * 2, 2):
-                _, reward_1 = rules.check_rules(trajectory_segments[i], rules.NUMBER_OF_RULES)
-                _, reward_2 = rules.check_rules(
+                _, reward_1, _ = rules.check_rules(trajectory_segments[i], rules.NUMBER_OF_RULES)
+                _, reward_2, _ = rules.check_rules(
                     trajectory_segments[i + 1], rules.NUMBER_OF_RULES
                 )
                 if reward_1 == reward_2:
@@ -502,8 +502,8 @@ def generate_database(trajectory_path):
             random.shuffle(trajectory_segments)
             same_reward = []
             for i in range(0, len(trajectory_segments), 2):
-                _, reward_1 = rules.check_rules(trajectory_segments[i], rules.NUMBER_OF_RULES)
-                _, reward_2 = rules.check_rules(
+                _, reward_1, _ = rules.check_rules(trajectory_segments[i], rules.NUMBER_OF_RULES)
+                _, reward_2, _ = rules.check_rules(
                     trajectory_segments[i + 1], rules.NUMBER_OF_RULES
                 )
                 if reward_1 == reward_2:

@@ -184,9 +184,9 @@ if __name__ == "__main__":
         print("Starting training on trajectories...")
         train_reward_function(database_path, args.epochs[0], args.parameters)
 
-        plot_rules_followed_distribution(
-            collecting_rules_followed, "Input Distribution Rules Followed"
-        )
+        # plot_rules_followed_distribution(
+        #     collecting_rules_followed, "Input Distribution Rules Followed"
+        # )
 
         print("Finished training model...")
 
@@ -211,10 +211,10 @@ if __name__ == "__main__":
         "trueRF",
         args.headless,
     )
-    plot_rules_followed_distribution(true_rules_followed, "Ground Truth Rules Followed")
-    plot_rules_followed_distribution(
-        true_rules_followed[-1000:], "Expert Ground Truth Rules Followed"
-    )
+    # plot_rules_followed_distribution(true_rules_followed, "Ground Truth Rules Followed")
+    # plot_rules_followed_distribution(
+        # true_rules_followed[-1000:], "Expert Ground Truth Rules Followed"
+    # )
 
     with open(
         args.parameters if args.parameters is not None else "best_params.yaml", "r"
@@ -236,12 +236,12 @@ if __name__ == "__main__":
         "trainedRF",
         args.headless,
     )
-    plot_rules_followed_distribution(
-        trained_rules_followed, "Trained Agent Rules Followed"
-    )
-    plot_rules_followed_distribution(
-        trained_rules_followed[-1000:], "Expert Trained Agent Rules Followed"
-    )
+    # plot_rules_followed_distribution(
+    #     trained_rules_followed, "Trained Agent Rules Followed"
+    # )
+    # plot_rules_followed_distribution(
+    #     trained_rules_followed[-1000:], "Expert Trained Agent Rules Followed"
+    # )
 
     model_info = {
         "weights": model_weights,
@@ -256,6 +256,7 @@ if __name__ == "__main__":
     trained_database = trajectory_path + f"trainedRF_{trainedPairs}.pkl"
     (
         true_agent_expert_segments,
+        true_agent_rewards,
         trained_agent_expert_segments,
         trained_agent_rewards,
         trained_segment_rules_satisifed,
@@ -275,6 +276,7 @@ if __name__ == "__main__":
     handle_plotting_rei(
         model_info,
         true_agent_expert_segments,
+        true_agent_rewards,
         trained_agent_expert_segments,
         trained_agent_rewards,
         trained_segment_rules_satisifed,
