@@ -1,6 +1,7 @@
 import argparse
 import math
 import multiprocessing
+import pickle
 
 import numpy as np
 import pygame
@@ -124,32 +125,6 @@ def process_trajectory_segment(params):
     return trajectory_segments
 
 
-def main():
-    # Load subsampled grid points and contours
-    points, contours = subsample_state("maps/map.png", args.samples)
-
-    # Prepare parameters for multiprocessing
-    params = [
-        (point, angle, speed, CAR_SIZE_X, CAR_SIZE_Y, WIDTH, HEIGHT, "maps/map.png")
-        for point in points
-        for angle in range(0, 360, 10)
-        for speed in range(10, 50, 2)
-    ]
-
-    # Use multiprocessing to process trajectory segments
-    with multiprocessing.Pool() as pool:
-        results = pool.map(process_trajectory_segment, params)
-
-    trajectory_segments = [[result[0], result[-1]] for result in results if result]
-    assert isinstance(
-        trajectory_segments[0][0], StateActionPair
-    ), "Error in subsampling"
-    assert isinstance(
-        trajectory_segments[-1][-1], StateActionPair
-    ), "Error in subsampling"
-    return trajectory_segments
-
-
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(
         description="Training a Reward From Synthetic Preferences"
@@ -174,4 +149,28 @@ if __name__ == "__main__":
 
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
     game_map = pygame.image.load("maps/map.png").convert()
-    main()
+
+    points, _ = subsample_state("maps/map.png", args.samples)
+
+    # Prepare parameters for multiprocessing
+    params = [
+        (point, angle, speed, CAR_SIZE_X, CAR_SIZE_Y, WIDTH, HEIGHT, "maps/map.png")
+        for point in points
+        for angle in range(0, 360, 10)
+        for speed in range(10, 50, 2)
+    ]
+
+    # Use multiprocessing to process trajectory segments
+    with multiprocessing.Pool() as pool:
+        results = pool.map(process_trajectory_segment, params)
+
+    trajectory_segments = [[result[0], result[-1]] for result in results if result]
+    assert isinstance(
+        trajectory_segments[0][0], StateActionPair
+    ), "Error in subsampling"
+    assert isinstance(
+        trajectory_segments[-1][-1], StateActionPair
+    ), "Error in subsampling"
+
+    with open("subsampled_gargantuan.plk", "wb") as f:
+        pickle.dump(trajectory_segments, f)
