@@ -1,7 +1,9 @@
 import argparse
 import math
 import multiprocessing
+import os
 import pickle
+from multiprocessing import Pool
 
 import numpy as np
 import pygame
@@ -13,110 +15,147 @@ from skimage.color import rgb2gray, rgba2rgb
 from agent import CAR_SIZE_X, CAR_SIZE_Y, HEIGHT, WIDTH, Car, StateActionPair
 
 
-def subsample_state(image_path, number_of_points=1000):
-    # Read the image
-    image_path = "maps/map.png"  # Replace with the correct path if necessary
+def generate_points(track_polygon, resolution):
+    # Generate grid points for a given resolution
+    min_x, min_y, max_x, max_y = track_polygon.bounds
+    points = [
+        (x, y)
+        for x in np.arange(min_x, max_x, resolution)
+        for y in np.arange(min_y, max_y, resolution)
+        if track_polygon.contains(Point(x, y))
+    ]
+    return len(points), resolution, points
+
+
+def binary_search_parallel(
+    track_polygon, target_points, low, high, tolerance=1000, num_workers=None
+):
+    if abs(low - high) < 1 and tolerance < float("inf"):
+        # Stop if resolution difference is negligible and within tolerance
+        return None, []
+
+    if num_workers is None:
+        print("Using all available cores:", os.cpu_count())
+        num_workers = os.cpu_count()
+
+    mid1 = (2 * low + high) / 3
+    mid2 = (low + 2 * high) / 3
+    resolutions = [low, mid1, mid2, high]
+
+    with Pool(processes=num_workers) as pool:
+        results = pool.starmap(
+            generate_points, [(track_polygon, res) for res in resolutions]
+        )
+
+    closest_diff = float("inf")
+    best_resolution, best_points = None, []
+    closest_num_points = None
+
+    for num_points, resolution, points in results:
+        diff = abs(num_points - target_points)
+        if diff < closest_diff:
+            closest_diff = diff
+            closest_num_points = num_points
+            best_resolution = resolution
+            best_points = points
+
+    # Print the progress for user feedback
+    print(
+        f"Current search range: [{low:.2f}, {high:.2f}]. "
+        f"Closest points so far: {closest_num_points} (target: {target_points}). "
+        f"Best resolution: {best_resolution:.2f}"
+    )
+
+    # Check if we are within the tolerance for the closest resolution
+    if closest_diff <= tolerance:
+        return best_resolution, best_points
+
+    # Recursively narrow down the range
+    if best_resolution == low or best_resolution == high:
+        return best_resolution, best_points
+    elif best_resolution == mid1:
+        return binary_search_parallel(
+            track_polygon, target_points, low, mid2, tolerance, num_workers
+        )
+    else:  # best_resolution == mid2
+        return binary_search_parallel(
+            track_polygon, target_points, mid1, high, tolerance, num_workers
+        )
+
+
+def subsample_state(
+    image_path, number_of_points=1000, num_workers=None, tolerance=1000
+):
     polypic = imread(image_path)
 
-    # Check if the image has an alpha channel and convert only if necessary
     if polypic.shape[-1] == 4:  # RGBA
         polypic = rgba2rgb(polypic)
 
-    # Convert to grayscale
     gray = rgb2gray(polypic)
-
-    # Detect contours in the grayscale image at an appropriate level
     contours = measure.find_contours(gray, 0.5)
 
-    # Check if contours were found
     if len(contours) < 2:
-        print(
-            "Not enough contours found. Please check the contour level or image content."
-        )
+        print("Not enough contours found. Check image content or contour level.")
         return []
-    else:
-        # Sort contours by length (assuming largest is the outer boundary, second largest is inner boundary)
-        contours = sorted(contours, key=len, reverse=True)
-        outer_contour = contours[0]
-        inner_contour = contours[1]
 
-        # Create polygons from the contours without swapping coordinates
-        outer_polygon = Polygon(outer_contour).simplify(1.0)
-        inner_polygon = Polygon(inner_contour).simplify(1.0)
+    contours = sorted(contours, key=len, reverse=True)
+    outer_contour = contours[0]
+    inner_contour = contours[1]
 
-        # Create a ring-shaped polygon by subtracting the inner polygon from the outer polygon
-        track_polygon = outer_polygon.difference(inner_polygon)
+    outer_polygon = Polygon(outer_contour).simplify(1.0)
+    inner_polygon = Polygon(inner_contour).simplify(1.0)
+    track_polygon = outer_polygon.difference(inner_polygon)
 
-        # Print polygon bounds for debugging
-        print("Track polygon bounds:", track_polygon.bounds)
+    low, high = 0.01, 1000.0
+    optimal_resolution, best_points = binary_search_parallel(
+        track_polygon, number_of_points, low, high, tolerance, num_workers
+    )
 
-        # Define grid resolution (try a smaller value if points are sparse)
-        grid_resolution = 100  # Adjust this value as needed
-
-        # Get the bounding box for the polygon
-        min_x, min_y, max_x, max_y = track_polygon.bounds
-
-        # Generate grid points within the bounding box and filter those inside the track polygon
-        points = []
-        for x in np.arange(min_x, max_x, grid_resolution):
-            for y in np.arange(min_y, max_y, grid_resolution):
-                point = Point(x, y)
-                if track_polygon.contains(point):
-                    points.append((x, y))
-
-        return points, contours
+    print(f"Optimal grid resolution: {optimal_resolution}")
+    return best_points
 
 
 def process_trajectory_segment(params):
-    """Process a single trajectory segment for a given point, angle, and speed."""
-    point, angle, speed, CAR_SIZE_X, CAR_SIZE_Y, WIDTH, HEIGHT, game_map_path = params
+    point, angle, speed, game_map_path = params
     trajectory_segments = []
 
-    # Initialize car object
     car = Car()
     car.position = [point[1] - CAR_SIZE_X / 2, point[0] - CAR_SIZE_Y / 2]
     car.speed = speed
     car.angle = angle
     car.radars.clear()
     car.rotated_sprite = car.rotate_center(car.sprite, car.angle)
-
-    # Load game map
     game_map = pygame.image.load(game_map_path).convert()
 
-    # Generate trajectory segments
-    for first_action in range(0, 4):
-        car.check_radar(car.angle, game_map)
+    radar_results = [
+        car.check_radar(d, game_map) for d in range(-90, 120, 45)
+    ]  # Cache radar results
+
+    for first_action in range(4):
+        car.radars = radar_results
         first_state_action_pair = StateActionPair(
-            [car.check_radar(d, game_map) for d in range(-90, 120, 45)],
-            first_action,
-            car.position,
-            True,
+            radar_results, first_action, car.position, True
         )
 
         # Apply action
         if first_action == 0:
-            car.angle += 10  # Left
+            car.angle += 10
         elif first_action == 1:
-            car.angle -= 10  # Right
+            car.angle -= 10
         elif first_action == 2:
-            if car.speed - 2 >= 12:
-                car.speed -= 2  # Slow Down
+            car.speed = max(car.speed - 2, 12)
         else:
-            car.speed += 2  # Speed Up
+            car.speed += 2
 
         car.position[0] += math.cos(math.radians(360 - car.angle)) * car.speed
-        car.position[0] = max(car.position[0], 20)
-        car.position[0] = min(car.position[0], WIDTH - 120)
+        car.position[0] = max(20, min(car.position[0], WIDTH - 120))
         car.position[1] += math.sin(math.radians(360 - car.angle)) * car.speed
-        car.position[1] = max(car.position[1], 20)
-        car.position[1] = min(car.position[1], HEIGHT - 120)
+        car.position[1] = max(20, min(car.position[1], HEIGHT - 120))
 
-        for second_action in range(0, 4):
+        radar_results = [car.check_radar(d, game_map) for d in range(-90, 120, 45)]
+        for second_action in range(4):
             last_state_action_pair = StateActionPair(
-                [car.check_radar(d, game_map) for d in range(-90, 120, 45)],
-                second_action,
-                car.position,
-                True,
+                radar_results, second_action, car.position, True
             )
             trajectory_segments.append(
                 [first_state_action_pair, last_state_action_pair]
@@ -143,14 +182,13 @@ if __name__ == "__main__":
     else:
         samples = 1000
 
-    # Load subsampled grid points and contours
+    # Load subsampled grid points
     gridpoints = samples // (360 / 10) // (40 / 2) // 4 // 4
-    points, contours = subsample_state("maps/map.png", gridpoints)
+    print("Gridding the map")
+    points = subsample_state("maps/map.png", gridpoints)
 
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
     game_map = pygame.image.load("maps/map.png").convert()
-
-    points, _ = subsample_state("maps/map.png", args.samples)
 
     # Prepare parameters for multiprocessing
     params = [
@@ -161,6 +199,7 @@ if __name__ == "__main__":
     ]
 
     # Use multiprocessing to process trajectory segments
+    print("Gridding over all actions, speeds, and orientations")
     with multiprocessing.Pool() as pool:
         results = pool.map(process_trajectory_segment, params)
 
