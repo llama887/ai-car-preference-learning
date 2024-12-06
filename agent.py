@@ -17,7 +17,7 @@ import yaml
 
 import reward
 import rules
-from reward import TrajectoryRewardNet, prepare_single_trajectory
+from reward import TrajectoryRewardNet, Ensemble, prepare_single_trajectory
 
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
@@ -47,6 +47,7 @@ SEGMENTS_PER_PAIR = 5
 current_generation = 0  # Generation counter
 trajectory_path = "./trajectories/"
 reward_network = None
+ensemble = None
 num_pairs = 0
 population = ""
 run_type = "collect"
@@ -299,7 +300,7 @@ class Car:
         )
         self.trajectory.append(next_state_action)
 
-        rules_satisfied, is_expert = rules.check_rules(
+        rules_satisfied, is_expert, _ = rules.check_rules(
             self.trajectory[-2:], rules.NUMBER_OF_RULES
         )
         self.rules_per_step.append(rules_satisfied)
@@ -322,10 +323,13 @@ class Car:
     def get_reward(self):
         if len(self.trajectory) < 2:
             return 0
-        if reward_network is not None:
+        if ensemble:
             trajectory_tensor = prepare_single_trajectory(self.trajectory)
-            reward = reward_network(trajectory_tensor)
-            return reward.item()
+            return ensemble(trajectory_tensor).item()
+        elif reward_network:
+            trajectory_tensor = prepare_single_trajectory(self.trajectory)
+            return reward_network(trajectory_tensor).item()
+
         return rules.check_rules(self.trajectory[-2:], rules.NUMBER_OF_RULES)[1]
 
     def rotate_center(self, image, angle):
@@ -352,20 +356,32 @@ class Car:
                 (self.expert_segments, self.trajectory, self.reward)
             )
 
+
 def display_master_segments(saved_segments):
     print("MASTER DATABASE CURRENTLY HAS:")
     if not saved_segments:
         print("NO SEGMENTS lol")
     for i, seg in enumerate(saved_segments):
-       print(i, "RULE SEGMENTS:", len(seg))
+        print(i, "RULE SEGMENTS:", len(seg))
     print()
-    
+
 
 def display_requested_segments(number_of_pairs):
-    print(f"SEGMENTS REQUESTED (Pairs Requested * distribution[i] * Segments Per Pair Multiplier (currently set to: {SEGMENTS_PER_PAIR})):")
+    print(
+        f"SEGMENTS REQUESTED (Pairs Requested * distribution[i] * Segments Per Pair Multiplier (currently set to: {SEGMENTS_PER_PAIR})):"
+    )
     for i in range(rules.NUMBER_OF_RULES + 1):
-        print(i, "RULE SEGMENTS:", math.ceil(number_of_pairs * SEGMENTS_PER_PAIR * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]))
+        print(
+            i,
+            "RULE SEGMENTS:",
+            math.ceil(
+                number_of_pairs
+                * SEGMENTS_PER_PAIR
+                * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
+            ),
+        )
     print()
+
 
 def break_into_segments(trajectory, rules_per_step, done):
     trajectory_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
@@ -437,6 +453,7 @@ def trim_excess_segments():
         if len(saved_segments[i]) >= segments_needed:
             saved_segments[i] = saved_segments[i][:segments_needed]
 
+
 def sample_segments(saved_segments):
     sampled_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
     for i in range(rules.NUMBER_OF_RULES + 1):
@@ -470,8 +487,10 @@ def generate_database(trajectory_path):
             random.shuffle(trajectory_segments)
             same_reward = 0
             for i in range(0, number_of_pairs * 2, 2):
-                _, reward_1 = rules.check_rules(trajectory_segments[i], rules.NUMBER_OF_RULES)
-                _, reward_2 = rules.check_rules(
+                _, reward_1, _ = rules.check_rules(
+                    trajectory_segments[i], rules.NUMBER_OF_RULES
+                )
+                _, reward_2, _ = rules.check_rules(
                     trajectory_segments[i + 1], rules.NUMBER_OF_RULES
                 )
                 if reward_1 == reward_2:
@@ -502,8 +521,10 @@ def generate_database(trajectory_path):
             random.shuffle(trajectory_segments)
             same_reward = []
             for i in range(0, len(trajectory_segments), 2):
-                _, reward_1 = rules.check_rules(trajectory_segments[i], rules.NUMBER_OF_RULES)
-                _, reward_2 = rules.check_rules(
+                _, reward_1, _ = rules.check_rules(
+                    trajectory_segments[i], rules.NUMBER_OF_RULES
+                )
+                _, reward_2, _ = rules.check_rules(
                     trajectory_segments[i + 1], rules.NUMBER_OF_RULES
                 )
                 if reward_1 == reward_2:
@@ -540,13 +561,20 @@ def generate_database(trajectory_path):
         print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
         # Delete old database if it is redundant (same size)
-        old_pairs_path = trajectory_path + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules.pkl"
+        old_pairs_path = (
+            trajectory_path
+            + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules.pkl"
+        )
         if os.path.exists(old_pairs_path):
             print("Removing old database with same pairs and rules...")
             os.remove(old_pairs_path)
 
         # Save To Database
-        with open(trajectory_path + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules.pkl", "wb") as f:
+        with open(
+            trajectory_path
+            + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules.pkl",
+            "wb",
+        ) as f:
             pickle.dump(trajectory_pairs, f)
 
         # Delete old master database
@@ -557,17 +585,19 @@ def generate_database(trajectory_path):
         # Save new master database
         with open(master_database_path, "wb") as f:
             pickle.dump(saved_segments, f)
-        
+
         return len(trajectory_pairs)
 
     else:
         trajectories = []
         for i in range(len(saved_trajectories)):
-            trajectories.append(Trajectory(
-                t=saved_trajectories[i][1],
-                e=saved_trajectories[i][0],
-                r=saved_trajectories[i][2],
-            ))
+            trajectories.append(
+                Trajectory(
+                    t=saved_trajectories[i][1],
+                    e=saved_trajectories[i][0],
+                    r=saved_trajectories[i][2],
+                )
+            )
 
         old_trajectories_path = trajectory_path + f"{run_type}_{len(trajectories)}.pkl"
         if os.path.exists(old_trajectories_path):
@@ -581,8 +611,8 @@ def generate_database(trajectory_path):
                 print("File not found: it may have been removed by another process.")
             except Exception as e:
                 print(f"Unexpected error: {e}")
- 
-        with open(trajectory_path + f"{run_type}_{len(trajectories)}.pkl", "wb") as f:      
+
+        with open(trajectory_path + f"{run_type}_{len(trajectories)}.pkl", "wb") as f:
             if len(trajectories) > 0:
                 pickle.dump(trajectories, f)
                 pass
@@ -594,7 +624,7 @@ def run_simulation(genomes, config):
     # Empty Collections For Nets and Cars
     nets = []
     cars = []
-    global rules_followed 
+    global rules_followed
     rules_followed = []
     # Initialize PyGame And The Display
     pygame.init()
@@ -776,7 +806,9 @@ def collection_status(number_of_pairs):
     for i in range(rules.NUMBER_OF_RULES + 1):
         if (
             len(saved_segments[i])
-            >= number_of_pairs * SEGMENTS_PER_PAIR * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
+            >= number_of_pairs
+            * SEGMENTS_PER_PAIR
+            * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
         ):
             rule_finished[i] = True
     return rule_finished
@@ -787,7 +819,9 @@ def trim_segment_counts(number_of_pairs):
     for i in range(rules.NUMBER_OF_RULES + 1):
         while (
             len(saved_segments[i])
-            > number_of_pairs * SEGMENTS_PER_PAIR * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
+            > number_of_pairs
+            * SEGMENTS_PER_PAIR
+            * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
         ):
             saved_segments[i].pop()
 
@@ -820,12 +854,7 @@ def run_population(
             pass
 
         # Create Population And Add Reporters
-        global \
-            current_generation, \
-            population, \
-            saved_segments, \
-            saved_trajectories, \
-            num_pairs
+        global current_generation, population, saved_segments, saved_trajectories, num_pairs
         population = neat.Population(config)
         population.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
@@ -848,7 +877,7 @@ def run_population(
 
             while len(saved_segments) < rules.NUMBER_OF_RULES + 1:
                 saved_segments.append([])
-            
+
             if finished_collecting(number_of_pairs):
                 missing_segments = False
                 print("SEGMENT COUNT SATISFIED! Subsampling...")
@@ -858,7 +887,7 @@ def run_population(
         current_generation = 0
         saved_trajectories = []
         generation = 1
-        
+
         if run_type != "collect" or missing_segments:
             while True:
                 population.run(run_simulation, 1)
@@ -881,6 +910,47 @@ def run_population(
         generate_database(trajectory_path)
 
 
+def load_models(reward_paths):
+    global runType, reward_network, ensemble
+    if len(reward_paths) == 1:
+        print("\nLoading reward network...")
+        reward_network = TrajectoryRewardNet(
+            STATE_ACTION_SIZE * 2,
+            hidden_size=hidden_size,
+        ).to(device)
+        weights = torch.load(reward_paths, map_location=torch.device(f"{device}"))
+        reward_network.load_state_dict(weights)
+    else:
+        print(f"\nLoading ensemble of {len(reward_paths)} models...")
+        if reward_paths[0] == "QUICK":
+            if len(reward_paths) > 2:
+                raise Exception("REWARD PATH ERROR (QUICK MODE)")
+            reward_paths = []
+            for file in glob.glob(reward_paths[1]):
+                reward_paths.append(file)
+
+        ensemble_nets = [
+            TrajectoryRewardNet(
+                STATE_ACTION_SIZE * 2,
+                hidden_size=hidden_size,
+            ).to(device)
+            for _ in range(len(reward_paths))
+        ]
+        ensemble_weights = []
+        for reward_path in reward_paths:
+            ensemble_weights.append(
+                torch.load(reward_path, map_location=torch.device(f"{device}"))
+            )
+        for i in range(len(ensemble_nets)):
+            ensemble_nets[i].load_state_dict(ensemble_weights[i])
+            print(f"Loaded model #{i} from ensemble...")
+        ensemble = Ensemble(STATE_ACTION_SIZE * 2, len(ensemble_nets), ensemble_nets)
+
+    runType = "trainedRF"
+    if args.big:
+        runType = "big_mode"
+
+
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(description="AI Car Preference Learning")
     parse.add_argument(
@@ -895,6 +965,7 @@ if __name__ == "__main__":
         "-r",
         "--reward",
         type=str,
+        action="append",
         help="Directory to reward function weights",
     )
     parse.add_argument(
@@ -918,27 +989,15 @@ if __name__ == "__main__":
         data = yaml.safe_load(file)
         hidden_size = data["hidden_size"]
 
-    if args.reward is not None:
-        print("\nLoading reward network...")
-
-        reward_network = TrajectoryRewardNet(
-            STATE_ACTION_SIZE * 2,
-            hidden_size=hidden_size,
-        ).to(device)
-        weights = torch.load(args.reward, map_location=torch.device(f"{device}"))
-        reward_network.load_state_dict(weights)
-        runType = "trainedRF"
-        with open("scaler.pkl", "rb") as f:
-            reward.scaler = pickle.load(f)
-        if args.big:
-            runType = "big_mode"
+    if args.reward:
+        load_models(args.reward)
 
     config_path = (
         "config/data_collection_config.txt"
         if reward_network is None
         else "config/agent_config.txt"
     )
-    # number_of_pairs = [-1]
+
     if args.trajectories[0] > 0:
         number_of_pairs = args.trajectories[0]
         runType = "collect"

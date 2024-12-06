@@ -9,18 +9,24 @@ import torch
 import yaml
 
 import agent
+import reward
 import rules
 
 from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
-from agent import STATE_ACTION_SIZE, run_population, trajectory_path
+from agent import STATE_ACTION_SIZE, run_population, trajectory_path, load_models
 from plot import (
     handle_plotting_rei,
     handle_plotting_sana,
     populate_lists,
     unzipper_chungus_deluxe,
-    plot_rules_followed_distribution
+    plot_rules_followed_distribution,
 )
-from reward import TrajectoryRewardNet, train_reward_function
+from reward import (
+    TrajectoryRewardNet,
+    train_reward_function,
+    models_path,
+    ensemble_path,
+)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -32,24 +38,29 @@ def start_simulation(config_path, max_generations, number_of_pairs, run_type, no
     # Set number of trajectories
     agent.number_of_pairs = number_of_pairs
 
-    return run_population(
-        config_path=config_path,
-        max_generations=max_generations,
-        number_of_pairs=number_of_pairs,
-        runType=run_type,
-        noHead=noHead,
-    ), agent.rules_followed
+    return (
+        run_population(
+            config_path=config_path,
+            max_generations=max_generations,
+            number_of_pairs=number_of_pairs,
+            runType=run_type,
+            noHead=noHead,
+        ),
+        agent.rules_followed,
+    )
+
 
 def parse_to_float(s):
     try:
         return float(s)
     except ValueError:
         try:
-            numerator, denominator = map(float, s.split('/'))
+            numerator, denominator = map(float, s.split("/"))
             return numerator / denominator
         except (ValueError, ZeroDivisionError):
             raise ValueError(f"Cannot convert '{s}' to float")
-        
+
+
 # def sample_from_database(num_pairs, database_path):
 #     with open(database_path, "rb") as f:
 #         database = pickle.load(f)
@@ -102,9 +113,13 @@ if __name__ == "__main__":
         "--headless", action="store_true", help="Run simulation without GUI"
     )
     parse.add_argument(
+        "--ensemble", action="store_true", help="Train an ensemble of 3 edictors"
+    )
+    parse.add_argument(
         "-r",
         "--reward",
         type=str,
+        action="append",
         help="Directory to reward function weights",
     )
     parse.add_argument(
@@ -139,36 +154,26 @@ if __name__ == "__main__":
     else:
         print("Missing either -c flag or -t flag")
 
-
-    # database_path = ""
-    # if args.trajectories and args.database:
-    #     database_path = sample_from_database(args.trajectories[0], args.database)
-    #     if database_path == -1:
-    #         print("Provide a larger database, or generate a new one!")
-    #         sys.exit(1)
-    #     num_pairs = database_path.split("_")[1].split(".")[0]
-    #     args.trajectories[0] = num_pairs
-    # elif args.trajectories:
-    #     database_path = f"trajectories/database_{args.trajectories[0]}.pkl"
-    # elif args.database:
-    #     database_path = args.database
-    #     num_pairs = database_path.split("_")[1].split(".")[0]
-    #     args.trajectories[0] = num_pairs
-    # else:
-    #     print(
-    #         "Need to either provide number of trajectories to collect or existing database"
-    #     )
-
     if args.distribution:
         try:
-            rules.SEGMENT_DISTRIBUTION_BY_RULES = [parse_to_float(d) for d in args.distribution]
+            rules.SEGMENT_DISTRIBUTION_BY_RULES = [
+                parse_to_float(d) for d in args.distribution
+            ]
         except:
-            print("Distribution input too advanced for Alex and Franklin's caveman parser. (or maybe you input something weird sry)")
+            print(
+                "Distribution input too advanced for Alex and Franklin's caveman parser. (or maybe you input something weird sry)"
+            )
             sys.exit()
         sum_dist = sum(rules.SEGMENT_DISTRIBUTION_BY_RULES)
-        rules.SEGMENT_DISTRIBUTION_BY_RULES = [d / sum_dist for d in rules.SEGMENT_DISTRIBUTION_BY_RULES]
-        assert (len(rules.SEGMENT_DISTRIBUTION_BY_RULES) == rules.NUMBER_OF_RULES + 1), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {rules.NUMBER_OF_RULES}"
-        assert (sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
+        rules.SEGMENT_DISTRIBUTION_BY_RULES = [
+            d / sum_dist for d in rules.SEGMENT_DISTRIBUTION_BY_RULES
+        ]
+        assert (
+            len(rules.SEGMENT_DISTRIBUTION_BY_RULES) == rules.NUMBER_OF_RULES + 1
+        ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {rules.NUMBER_OF_RULES}"
+        assert (
+            sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1
+        ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
 
     model_weights = ""
     if args.reward is None:
@@ -182,23 +187,19 @@ if __name__ == "__main__":
         )
 
         print("Starting training on trajectories...")
-        train_reward_function(database_path, args.epochs[0], args.parameters)
-
-        plot_rules_followed_distribution(
-            collecting_rules_followed, "Input Distribution Rules Followed"
+        train_reward_function(
+            database_path, args.epochs[0], args.parameters, args.ensemble
         )
 
         print("Finished training model...")
 
+        if args.parameters:
+            sys.exit()
         # run the simulation with the trained reward function
-
-        try:
-            optimized_weights = [f for f in glob.glob("best_model_*.pth")][0]
-        except IndexError:
-            optimized_weights = None
-        model_weights = (
-            f"model_{args.epochs[0]}.pth" if args.parameters else optimized_weights
-        )
+        if args.ensemble:
+            model_weights = ["QUICK", ensemble_path]
+        else:
+            model_weights = [(models_path + f"model_{args.epochs[0]}.pth")]
     else:
         model_weights = args.reward
 
@@ -211,10 +212,6 @@ if __name__ == "__main__":
         "trueRF",
         args.headless,
     )
-    plot_rules_followed_distribution(true_rules_followed, "Ground Truth Rules Followed")
-    plot_rules_followed_distribution(
-        true_rules_followed[-1000:], "Expert Ground Truth Rules Followed"
-    )
 
     with open(
         args.parameters if args.parameters is not None else "best_params.yaml", "r"
@@ -223,12 +220,14 @@ if __name__ == "__main__":
         hidden_size = data["hidden_size"]
 
     print("Simulating on trained reward function...")
-    agent.reward_network = TrajectoryRewardNet(
-        STATE_ACTION_SIZE * 2, hidden_size=hidden_size
-    ).to(device)
+    # agent.reward_network = TrajectoryRewardNet(
+    #     STATE_ACTION_SIZE * 2, hidden_size=hidden_size
+    # ).to(device)
 
-    weights = torch.load(model_weights, map_location=device)
-    agent.reward_network.load_state_dict(weights)
+    # weights = torch.load(model_weights, map_location=device)
+    # agent.reward_network.load_state_dict(weights)
+    load_models(model_weights)
+
     trainedPairs, trained_rules_followed = start_simulation(
         "./config/agent_config.txt",
         args.generations[0],
@@ -236,15 +235,10 @@ if __name__ == "__main__":
         "trainedRF",
         args.headless,
     )
-    plot_rules_followed_distribution(
-        trained_rules_followed, "Trained Agent Rules Followed"
-    )
-    plot_rules_followed_distribution(
-        trained_rules_followed[-1000:], "Expert Trained Agent Rules Followed"
-    )
 
     model_info = {
-        "weights": model_weights,
+        "net": agent.reward_network,
+        "ensemble": agent.ensemble,
         "net": None,
         "hidden-size": hidden_size,
         "epochs": -1 if args.epochs is None else args.epochs[0],
@@ -256,6 +250,7 @@ if __name__ == "__main__":
     trained_database = trajectory_path + f"trainedRF_{trainedPairs}.pkl"
     (
         true_agent_expert_segments,
+        true_agent_rewards,
         trained_agent_expert_segments,
         trained_agent_rewards,
         trained_segment_rules_satisifed,
@@ -275,6 +270,7 @@ if __name__ == "__main__":
     handle_plotting_rei(
         model_info,
         true_agent_expert_segments,
+        true_agent_rewards,
         trained_agent_expert_segments,
         trained_agent_rewards,
         trained_segment_rules_satisifed,
