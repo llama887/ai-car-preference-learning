@@ -11,6 +11,7 @@ import random
 import sys
 
 import neat
+import numpy as np
 import pygame
 import torch
 import yaml
@@ -253,22 +254,23 @@ class Car:
                 )
                 self.trajectory.append(first_state_action)
 
-            # Get Rotated Sprite And Move Into The Right X-Direction
-            # Don't Let The Car Go Closer Than 20px To The Edge
-            self.rotated_sprite = self.rotate_center(self.sprite, self.angle)
-            self.position[0] += math.cos(math.radians(360 - self.angle)) * self.speed
-            self.position[0] = max(self.position[0], 20)
-            self.position[0] = min(self.position[0], WIDTH - 120)
+            # Precompute trigonometric values for angle
+            radians_360_minus_angle = math.radians(360 - self.angle)
+            cos_angle = math.cos(radians_360_minus_angle)
+            sin_angle = math.sin(radians_360_minus_angle)
 
-            # Increase Distance and Time
+            # Update positions with clamping
+            self.position[0] = np.clip(
+                self.position[0] + cos_angle * self.speed, 20, WIDTH - 120
+            )
+            self.position[1] = np.clip(
+                self.position[1] + sin_angle * self.speed, 20, WIDTH - 120
+            )
+
+            # Update metrics
             self.distance += self.speed
             self.reward += self.get_reward()
             self.time += 1
-
-            # Same For Y-Position
-            self.position[1] += math.sin(math.radians(360 - self.angle)) * self.speed
-            self.position[1] = max(self.position[1], 20)
-            self.position[1] = min(self.position[1], WIDTH - 120)
 
             # Calculate New Center
             self.center = [
@@ -276,34 +278,18 @@ class Car:
                 int(self.position[1]) + CAR_SIZE_Y / 2,
             ]
 
-            # Calculate Four Corners
-            # Length Is Half The Side
+            # Precompute constants for corner calculations
             length = 0.5 * CAR_SIZE_X
-            left_top = [
-                self.center[0]
-                + math.cos(math.radians(360 - (self.angle + 30))) * length,
-                self.center[1]
-                + math.sin(math.radians(360 - (self.angle + 30))) * length,
+            angles = [self.angle + offset for offset in [30, 150, 210, 330]]
+            radians = np.radians([360 - a for a in angles])
+            cos_values = np.cos(radians) * length
+            sin_values = np.sin(radians) * length
+
+            # Update corners using vectorized operations
+            self.corners = [
+                [self.center[0] + dx, self.center[1] + dy]
+                for dx, dy in zip(cos_values, sin_values)
             ]
-            right_top = [
-                self.center[0]
-                + math.cos(math.radians(360 - (self.angle + 150))) * length,
-                self.center[1]
-                + math.sin(math.radians(360 - (self.angle + 150))) * length,
-            ]
-            left_bottom = [
-                self.center[0]
-                + math.cos(math.radians(360 - (self.angle + 210))) * length,
-                self.center[1]
-                + math.sin(math.radians(360 - (self.angle + 210))) * length,
-            ]
-            right_bottom = [
-                self.center[0]
-                + math.cos(math.radians(360 - (self.angle + 330))) * length,
-                self.center[1]
-                + math.sin(math.radians(360 - (self.angle + 330))) * length,
-            ]
-            self.corners = [left_top, right_top, left_bottom, right_bottom]
 
             # Check Collisions And Clear Radars
             self.check_collision(game_map)
@@ -346,6 +332,7 @@ class Car:
             reward = reward_network(trajectory_tensor)
             return reward.item()
         return rules.check_rules(self.trajectory[-2:], NUMBER_OF_RULES)[1]
+
     def rotate_center(self, image, angle):
         # Rotate The Rectangle
         rectangle = image.get_rect()
@@ -467,7 +454,9 @@ def generate_database(trajectory_path):
             random.shuffle(trajectory_segments)
             same_reward = 0
             for i in range(0, number_of_pairs * 2, 2):
-                _, reward_1, _ = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
+                _, reward_1, _ = rules.check_rules(
+                    trajectory_segments[i], NUMBER_OF_RULES
+                )
                 _, reward_2, _ = rules.check_rules(
                     trajectory_segments[i + 1], NUMBER_OF_RULES
                 )
@@ -499,7 +488,9 @@ def generate_database(trajectory_path):
             random.shuffle(trajectory_segments)
             same_reward = []
             for i in range(0, len(trajectory_segments), 2):
-                _, reward_1, _ = rules.check_rules(trajectory_segments[i], NUMBER_OF_RULES)
+                _, reward_1, _ = rules.check_rules(
+                    trajectory_segments[i], NUMBER_OF_RULES
+                )
                 _, reward_2, _ = rules.check_rules(
                     trajectory_segments[i + 1], NUMBER_OF_RULES
                 )
@@ -579,7 +570,7 @@ def run_simulation(genomes, config):
     # Empty Collections For Nets and Cars
     nets = []
     cars = []
-    global rules_followed 
+    global rules_followed
     rules_followed = []
     # Initialize PyGame And The Display
     pygame.init()
