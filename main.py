@@ -4,6 +4,7 @@ import os
 import pickle
 import random
 import sys
+from multiprocessing import Process
 
 import torch
 import yaml
@@ -180,10 +181,6 @@ if __name__ == "__main__":
         "trueRF",
         args.headless,
     )
-    plot_rules_followed_distribution(true_rules_followed, "Ground Truth Rules Followed")
-    plot_rules_followed_distribution(
-        true_rules_followed[-10000:], "Expert Ground Truth Rules Followed"
-    )
 
     with open(
         args.parameters if args.parameters is not None else "best_params.yaml", "r"
@@ -205,11 +202,52 @@ if __name__ == "__main__":
         "trainedRF",
         args.headless,
     )
-    plot_rules_followed_distribution(
-        trained_rules_followed, "Trained Agent Rules Followed"
+
+    def plot_collecting_rules():
+        if collecting_rules_followed:
+            plot_rules_followed_distribution(
+                collecting_rules_followed, "Input Distribution Rules Followed"
+            )
+
+    def plot_true_rules():
+        plot_rules_followed_distribution(
+            true_rules_followed, "Ground Truth Rules Followed"
+        )
+
+    def plot_true_expert_rules():
+        plot_rules_followed_distribution(
+            true_rules_followed[-10000:], "Expert Ground Truth Rules Followed"
+        )
+
+    def plot_trained_rules():
+        plot_rules_followed_distribution(
+            trained_rules_followed, "Trained Agent Rules Followed"
+        )
+
+    def plot_trained_expert_rules():
+        plot_rules_followed_distribution(
+            trained_rules_followed[-10000:], "Expert Trained Agent Rules Followed"
+        )
+
+    print("Plotting Rules Followed Distributions...")
+    process_collecting = Process(target=plot_collecting_rules)
+    process_true = Process(target=plot_true_rules)
+    process_true_expert = Process(target=plot_true_expert_rules)
+    process_trained = Process(target=plot_trained_rules)
+    process_trained_expert = Process(target=plot_trained_expert_rules)
+    (
+        process_collecting.start(),
+        process_true.start(),
+        process_true_expert.start(),
+        process_trained.start(),
+        process_trained_expert.start(),
     )
-    plot_rules_followed_distribution(
-        trained_rules_followed[-10000:], "Expert Trained Agent Rules Followed"
+    (
+        process_collecting.join(),
+        process_true.join(),
+        process_true_expert.join(),
+        process_trained.join(),
+        process_trained_expert.join(),
     )
 
     model_info = {

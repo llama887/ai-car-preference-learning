@@ -65,13 +65,13 @@ distribution=$(printf "%.10g " $(yes "$value" | head -n "$length"))
 distribution=$(echo "$distribution" | xargs)
 
 # Fixed parameters
-EPOCHS=1000
+EPOCHS=200
 GENERATIONS=100
 PARAM_FILE="./best_params.yaml"
 MAIN_SCRIPT="main.py"
 
 # Remove any existing zip files for figures and trajectories to avoid conflicts
-rm -f figures_*.zip trajectories_*.zip zips/*
+rm -f figures_*.zip trajectories_*.zip
 
 # Create the zips directory if it doesn't exist
 mkdir zips
