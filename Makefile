@@ -4,6 +4,18 @@ run_baseline:
 	./scripts/run_basic.sh -r 2
 	./scripts/run_basic.sh -r 3
 
+run_with_subsampling:
+	make clean
+	...
+
+run_with_ensemble:
+	make clean
+	...
+
+run_pong:
+	make clean
+	...
+
 clean:
 	rm -rf wandb
 	rm -rf __pycache__
