@@ -27,7 +27,8 @@
 				"shd101wyy.markdown-preview-enhanced",
 				"supermaven.supermaven",
 				"continue.continue",
-				"saoudrizwan.claude-dev"
+				"saoudrizwan.claude-dev",
+				"ms-vscode.makefile-tools"
 			],
 			"settings": {
 				"[python]": {

@@ -27,13 +27,11 @@ GENERATIONS=100
 PARAM_FILE="./best_params.yaml"
 MAIN_SCRIPT="main.py"
 
-# Check if any arguments are passed for trajectories
-if [ "$#" -gt 0 ]; then
-    TRAJECTORIES=("$@")
-fi
-
 # Remove any existing zip files for figures and trajectories to avoid conflicts
 rm -f figures_*.zip trajectories_*.zip
+
+# Create the zips directory if it doesn't exist
+mkdir zips
 
 # Loop over each trajectory value
 for TRAJ in "${TRAJECTORIES[@]}"; do
@@ -47,13 +45,13 @@ for TRAJ in "${TRAJECTORIES[@]}"; do
 
     # Check if the directories exist and zip them
     if [ -d "figures" ]; then
-        zip -r "figures_${TRAJ}.zip" figures
+        zip -r "zips/figures_t${TRAJ}.zip" figures
     else
         echo "Warning: figures directory not found for ${TRAJ} trajectories."
     fi
 
     if [ -d "trajectories" ]; then
-        zip -r "trajectories_${TRAJ}.zip" trajectories
+        zip -r "zips/trajectories_t${TRAJ}.zip" trajectories
     else
         echo "Warning: trajectories directory not found for ${TRAJ} trajectories."
     fi
