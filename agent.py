@@ -19,7 +19,6 @@ import yaml
 import reward
 import rules
 from reward import TrajectoryRewardNet, prepare_single_trajectory
-from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
 
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
@@ -44,13 +43,6 @@ STATE_ACTION_SIZE = 8
 DEFAULT_MAX_GENERATIONS = 1000
 SEGMENTS_PER_PAIR = 5
 
-NUMBER_OF_RULES = 1
-SEGMENT_DISTRIBUTION_BY_RULES = [0.5, 0.5]
-
-assert (
-    len(SEGMENT_DISTRIBUTION_BY_RULES) == NUMBER_OF_RULES + 1
-), f"SEGMENT_DISTRIBUTION_BY_RULES: {SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {NUMBER_OF_RULES}"
-
 current_generation = 0  # Generation counter
 trajectory_path = "./trajectories/"
 reward_network = None
@@ -58,7 +50,7 @@ num_pairs = 0
 population = ""
 run_type = "collect"
 headless = False
-saved_segments = [[] for _ in range(NUMBER_OF_RULES + 1)]
+saved_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
 saved_trajectories = []
 big_car_best_distance = 0
 big_car_distance = 0
@@ -305,7 +297,7 @@ class Car:
         self.trajectory.append(next_state_action)
 
         rules_satisfied, is_expert, rules_followed = rules.check_rules(
-            self.trajectory[-2:], NUMBER_OF_RULES
+            self.trajectory[-2:], rules.NUMBER_OF_RULES
         )
         self.rules_per_step.append(rules_satisfied)
         self.expert_segments += is_expert
@@ -331,7 +323,7 @@ class Car:
             trajectory_tensor = prepare_single_trajectory(self.trajectory)
             reward = reward_network(trajectory_tensor)
             return reward.item()
-        return rules.check_rules(self.trajectory[-2:], NUMBER_OF_RULES)[1]
+        return rules.check_rules(self.trajectory[-2:], rules.NUMBER_OF_RULES)[1]
 
     def rotate_center(self, image, angle):
         # Rotate The Rectangle
@@ -350,7 +342,7 @@ class Car:
             new_segments = break_into_segments(
                 self.trajectory, self.rules_per_step, status
             )
-            for i in range(NUMBER_OF_RULES + 1):
+            for i in range(rules.NUMBER_OF_RULES + 1):
                 saved_segments[i].extend(new_segments[i])
         else:
             saved_trajectories.append(
@@ -359,7 +351,7 @@ class Car:
 
 
 def break_into_segments(trajectory, rules_per_step, done):
-    trajectory_segments = [[] for _ in range(NUMBER_OF_RULES + 1)]
+    trajectory_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
     prev = 0
     curr = 1
     while curr < len(trajectory):
@@ -369,7 +361,7 @@ def break_into_segments(trajectory, rules_per_step, done):
         prev += 1
         curr += 1
 
-    for i in range(NUMBER_OF_RULES + 1):
+    for i in range(rules.NUMBER_OF_RULES + 1):
         if done[
             i
         ]:  # done collecting segments satisfying i rules, then don't collect them anymore
@@ -421,9 +413,9 @@ def calculate_new_point(point, distance, angle):
 
 def trim_excess_segments():
     global saved_segments, number_of_pairs
-    for i in range(NUMBER_OF_RULES + 1):
+    for i in range(rules.NUMBER_OF_RULES + 1):
         segments_needed = int(
-            number_of_pairs * SEGMENTS_PER_PAIR * SEGMENT_DISTRIBUTION_BY_RULES[i]
+            number_of_pairs * SEGMENTS_PER_PAIR * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
         )
         if len(saved_segments[i]) >= segments_needed:
             saved_segments[i] = saved_segments[i][:segments_needed]
@@ -443,7 +435,7 @@ def generate_database(trajectory_path):
             list((f"{i}: {len(seg)}" for i, seg in enumerate(saved_segments))),
         )
 
-        for i in range(NUMBER_OF_RULES + 1):
+        for i in range(rules.NUMBER_OF_RULES + 1):
             trajectory_segments.extend(saved_segments[i])
 
         if len(trajectory_segments) % 2 != 0:
@@ -455,10 +447,10 @@ def generate_database(trajectory_path):
             same_reward = 0
             for i in range(0, number_of_pairs * 2, 2):
                 _, reward_1, _ = rules.check_rules(
-                    trajectory_segments[i], NUMBER_OF_RULES
+                    trajectory_segments[i], rules.NUMBER_OF_RULES
                 )
                 _, reward_2, _ = rules.check_rules(
-                    trajectory_segments[i + 1], NUMBER_OF_RULES
+                    trajectory_segments[i + 1], rules.NUMBER_OF_RULES
                 )
                 if reward_1 == reward_2:
                     same_reward += 1
@@ -489,10 +481,10 @@ def generate_database(trajectory_path):
             same_reward = []
             for i in range(0, len(trajectory_segments), 2):
                 _, reward_1, _ = rules.check_rules(
-                    trajectory_segments[i], NUMBER_OF_RULES
+                    trajectory_segments[i], rules.NUMBER_OF_RULES
                 )
                 _, reward_2, _ = rules.check_rules(
-                    trajectory_segments[i + 1], NUMBER_OF_RULES
+                    trajectory_segments[i + 1], rules.NUMBER_OF_RULES
                 )
                 if reward_1 == reward_2:
                     same_reward.append(
@@ -669,7 +661,7 @@ def run_simulation(genomes, config):
                 car.save_trajectory()
 
             if run_type == "collect":
-                for i in range(NUMBER_OF_RULES + 1):
+                for i in range(rules.NUMBER_OF_RULES + 1):
                     print(
                         "THIS GENERATION PRODUCED",
                         len(saved_segments[i]) - old_lengths[i],
@@ -746,16 +738,18 @@ def run_simulation(genomes, config):
 
 
 def finished_collecting(number_of_pairs):
-    return collection_status(number_of_pairs) == [True] * (NUMBER_OF_RULES + 1)
+    return collection_status(number_of_pairs) == [True] * (rules.NUMBER_OF_RULES + 1)
 
 
 def collection_status(number_of_pairs):
-    rule_finished = [False] * (NUMBER_OF_RULES + 1)
+    rule_finished = [False] * (rules.NUMBER_OF_RULES + 1)
     global saved_segments
-    for i in range(NUMBER_OF_RULES + 1):
+    for i in range(rules.NUMBER_OF_RULES + 1):
         if (
             len(saved_segments[i])
-            >= number_of_pairs * SEGMENTS_PER_PAIR * SEGMENT_DISTRIBUTION_BY_RULES[i]
+            >= number_of_pairs
+            * SEGMENTS_PER_PAIR
+            * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
         ):
             rule_finished[i] = True
     return rule_finished
@@ -763,10 +757,12 @@ def collection_status(number_of_pairs):
 
 def trim_segment_counts(number_of_pairs):
     global saved_segments
-    for i in range(NUMBER_OF_RULES + 1):
+    for i in range(rules.NUMBER_OF_RULES + 1):
         while (
             len(saved_segments[i])
-            > number_of_pairs * SEGMENTS_PER_PAIR * SEGMENT_DISTRIBUTION_BY_RULES[i]
+            > number_of_pairs
+            * SEGMENTS_PER_PAIR
+            * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
         ):
             saved_segments[i].pop()
 

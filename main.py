@@ -9,6 +9,7 @@ import torch
 import yaml
 
 import agent
+import rules
 from agent import STATE_ACTION_SIZE, run_population, trajectory_path
 from plot import (
     handle_plotting,
@@ -99,6 +100,12 @@ if __name__ == "__main__":
         type=str,
         help="Directory to trajectory database file, the number of pairs indicated by this file name will override -t flag",
     )
+    parse.add_argument(
+        "--rules_distribution",
+        type=int,
+        nargs="+",
+        help="Distribution of rules followed by the agent. Number of rules in the reward function is defined as len(rules_distribution)-1",
+    )
 
     args = parse.parse_args()
     if (
@@ -161,7 +168,9 @@ if __name__ == "__main__":
         )
     else:
         model_weights = args.reward
-
+    if args.rules_distribution:
+        rules.SEGMENT_DISTRIBUTION_BY_RULES = args.rules_distribution
+        rules.NUMBER_OF_RULES = len(rules.SEGMENT_DISTRIBUTION_BY_RULES) - 1
     # run the simulation with the true reward function
     print("Simulating on true reward function...")
     truePairs, true_rules_followed = start_simulation(

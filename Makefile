@@ -1,5 +1,7 @@
-run_basic:
-	...
+run_baseline:
+	./scripts/run_basic.sh -r 1
+	./scripts/run_basic.sh -r 2
+	./scripts/run_basic.sh -r 3
 
 clean:
 	rm -rf wandb

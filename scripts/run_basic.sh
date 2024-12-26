@@ -21,6 +21,49 @@ fi
 # Default array of trajectories if none are provided as input
 TRAJECTORIES=(1000000 1000000 10000)
 
+# Function to display usage
+usage() {
+    echo "Usage: $0 -r <rules>"
+    exit 1
+}
+
+# Parse arguments
+rules=""
+
+while getopts "r:" opt; do
+    case "$opt" in
+        r)
+            rules=$OPTARG
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+
+# Validate the rules input
+if ! [[ $rules =~ ^[0-9]+$ ]]; then
+    echo "Error: The -r option must be an integer."
+    usage
+fi
+
+# Calculate the distribution
+length=$((rules + 1))
+
+# Avoid division by zero
+if [ "$length" -le 0 ]; then
+    echo "Error: The calculated length must be greater than 0."
+    exit 1
+fi
+
+value=$(bc <<< "scale=10; 1 / $length")
+
+# Create the list of distribution values
+distribution=$(printf "%.10g " $(yes "$value" | head -n "$length"))
+
+# Trim trailing whitespace
+distribution=$(echo "$distribution" | xargs)
+
 # Fixed parameters
 EPOCHS=1000
 GENERATIONS=100
@@ -28,7 +71,7 @@ PARAM_FILE="./best_params.yaml"
 MAIN_SCRIPT="main.py"
 
 # Remove any existing zip files for figures and trajectories to avoid conflicts
-rm -f figures_*.zip trajectories_*.zip
+rm -f figures_*.zip trajectories_*.zip zips/*
 
 # Create the zips directory if it doesn't exist
 mkdir zips
@@ -41,17 +84,17 @@ for TRAJ in "${TRAJECTORIES[@]}"; do
     echo "Running with ${TRAJ} trajectories..."
 
     # Run the main.py script
-    python "$MAIN_SCRIPT" -e "$EPOCHS" -t "$TRAJ" -g "$GENERATIONS" -p "$PARAM_FILE" --headless
+    python "$MAIN_SCRIPT" -e "$EPOCHS" -t "$TRAJ" -g "$GENERATIONS" -p "$PARAM_FILE" --rules_distribution "$distribution" --headless
 
     # Check if the directories exist and zip them
     if [ -d "figures" ]; then
-        zip -r "zips/figures_t${TRAJ}.zip" figures
+        zip -r "zips/figures_t${TRAJ}_r${rules}.zip" figures
     else
         echo "Warning: figures directory not found for ${TRAJ} trajectories."
     fi
 
     if [ -d "trajectories" ]; then
-        zip -r "zips/trajectories_t${TRAJ}.zip" trajectories
+        zip -r "zips/trajectories_t${TRAJ}_r${rules}.zip" trajectories
     else
         echo "Warning: trajectories directory not found for ${TRAJ} trajectories."
     fi
