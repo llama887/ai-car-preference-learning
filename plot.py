@@ -345,6 +345,66 @@ def plot_trajectory_order(data, title):
     plt.close()
 
 
+def plot_experts(
+    trueRF_average_expert_segments,
+    trainedRF_average_expert_segments,
+    trueRF_max_expert_segments,
+    trainedRF_max_expert_segments,
+):
+    graph_expert_segments_over_generations(
+        (trueRF_average_expert_segments, trainedRF_average_expert_segments),
+        (trueRF_max_expert_segments, trainedRF_max_expert_segments),
+    )
+
+
+def plot_agent(trained_agent_reward_averages, trained_agent_reward_maxes):
+    graph_trained_agent_performance(
+        trained_agent_reward_averages, trained_agent_reward_maxes
+    )
+
+
+def plot_agent_segments(
+    trained_segment_rules_satisfied, trained_segment_rewards, epochs, pairs_learned
+):
+    graph_segment_rules_vs_reward(
+        "Agent Segment Rules Satisfied vs Reward",
+        trained_segment_rules_satisfied,
+        trained_segment_rewards,
+        epochs,
+        pairs_learned,
+    )
+
+
+def plot_training_segments(training_segment_rules_satisfied, training_segment_rewards):
+    graph_segment_rules_vs_reward(
+        "Training Dataset Rules Satisfied vs Reward",
+        training_segment_rules_satisfied,
+        training_segment_rewards,
+    )
+
+
+def plot_agent_segment_distances(
+    trained_segment_distances, trained_segment_rewards, epochs, pairs_learned
+):
+    graph_segment_distance_vs_reward(
+        "Agent Segment Distance vs Reward",
+        trained_segment_distances,
+        trained_segment_rewards,
+        epochs,
+        pairs_learned,
+    )
+
+
+def plot_training_segment_distances(
+    training_segment_distances, training_segment_rewards
+):
+    graph_segment_distance_vs_reward(
+        "Training Dataset Distance vs Reward",
+        training_segment_distances,
+        training_segment_rewards,
+    )
+
+
 def handle_plotting(
     model_info,
     true_agent_expert_segments,
@@ -363,98 +423,84 @@ def handle_plotting(
     pairs_learned = model_info["pairs-learned"]
 
     agents_per_generation = len(true_agent_expert_segments[0])
-    # Avg/max number of expert segments per trajectory for each agent over generations
+
+    # Compute averages and maximums
     trueRF_average_expert_segments = [
-        (sum(generation) / agents_per_generation)
+        sum(generation) / agents_per_generation
         for generation in true_agent_expert_segments
     ]
     trueRF_max_expert_segments = [
         max(generation) for generation in true_agent_expert_segments
     ]
-
-    # Avg/max number of expert segments per trajectory for each agent over generations
     trainedRF_average_expert_segments = [
-        (sum(generation) / agents_per_generation)
+        sum(generation) / agents_per_generation
         for generation in trained_agent_expert_segments
     ]
     trainedRF_max_expert_segments = [
         max(generation) for generation in trained_agent_expert_segments
     ]
-
-    # Avg/max reward obtained by agents over generations
     trained_agent_reward_averages = [
-        (sum(generation) / agents_per_generation)
-        for generation in trained_agent_rewards
+        sum(generation) / agents_per_generation for generation in trained_agent_rewards
     ]
     trained_agent_reward_maxes = [
         max(generation) for generation in trained_agent_rewards
     ]
 
-    def plot_experts():
-        graph_expert_segments_over_generations(
-            (trueRF_average_expert_segments, trainedRF_average_expert_segments),
-            (trueRF_max_expert_segments, trainedRF_max_expert_segments),
-        )
-
-    def plot_agent():
-        graph_trained_agent_performance(
-            trained_agent_reward_averages, trained_agent_reward_maxes
-        )
-
-    def plot_agent_segments():
-        graph_segment_rules_vs_reward(
-            "Agent Segment Rules Satisfied vs Reward",
+    # Start parallel processes
+    process_experts = Process(
+        target=plot_experts,
+        args=(
+            trueRF_average_expert_segments,
+            trainedRF_average_expert_segments,
+            trueRF_max_expert_segments,
+            trainedRF_max_expert_segments,
+        ),
+    )
+    process_agent = Process(
+        target=plot_agent,
+        args=(trained_agent_reward_averages, trained_agent_reward_maxes),
+    )
+    process_agent_segments = Process(
+        target=plot_agent_segments,
+        args=(
             trained_segment_rules_satisifed,
             trained_segment_rewards,
             epochs,
             pairs_learned,
-        )
-
-    def plot_training_segments():
-        graph_segment_rules_vs_reward(
-            "Training Dataset Rules Satisfied vs Reward",
-            training_segment_rules_satisfied,
-            training_segment_rewards,
-        )
-
-    def plot_agent_segment_distances():
-        graph_segment_distance_vs_reward(
-            "Agent Segment Distance vs Reward",
+        ),
+    )
+    process_training_segments = Process(
+        target=plot_training_segments,
+        args=(training_segment_rules_satisfied, training_segment_rewards),
+    )
+    process_agent_segment_distances = Process(
+        target=plot_agent_segment_distances,
+        args=(
             trained_segment_distances,
             trained_segment_rewards,
             epochs,
             pairs_learned,
-        )
-
-    def plot_training_segment_distances():
-        graph_segment_distance_vs_reward(
-            "Training Dataset Distance vs Reward",
-            training_segment_distances,
-            training_segment_rewards,
-        )
-
-    process_experts = Process(target=plot_experts)
-    process_agent = Process(target=plot_agent)
-    process_agent_segments = Process(target=plot_agent_segments)
-    process_training_segments = Process(target=plot_training_segments)
-    process_agent_segment_distances = Process(target=plot_agent_segment_distances)
-    process_training_segment_distances = Process(target=plot_training_segment_distances)
-    (
-        process_experts.start(),
-        process_agent.start(),
-        process_agent_segments.start(),
-        process_training_segments.start(),
-        process_agent_segment_distances.start(),
-        process_training_segment_distances.start(),
+        ),
     )
-    (
-        process_experts.join(),
-        process_agent.join(),
-        process_agent_segments.join(),
-        process_training_segments.join(),
-        process_agent_segment_distances.join(),
-        process_training_segment_distances.join(),
+    process_training_segment_distances = Process(
+        target=plot_training_segment_distances,
+        args=(training_segment_distances, training_segment_rewards),
     )
+
+    # Start and join processes
+    process_experts.start()
+    process_agent.start()
+    process_agent_segments.start()
+    process_training_segments.start()
+    process_agent_segment_distances.start()
+    process_training_segment_distances.start()
+
+    process_experts.join()
+    process_agent.join()
+    process_agent_segments.join()
+    process_training_segments.join()
+    process_agent_segment_distances.join()
+    process_training_segment_distances.join()
 
 
 def graph_expert_segments_over_generations(averages, maxes):
