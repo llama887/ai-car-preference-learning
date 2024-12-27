@@ -7,6 +7,10 @@ import statistics
 from collections import Counter, defaultdict
 from multiprocessing import Process
 
+import matplotlib
+
+matplotlib.use("Agg")
+
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import pandas as pd

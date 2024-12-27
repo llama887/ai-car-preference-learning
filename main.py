@@ -4,7 +4,6 @@ import os
 import pickle
 import random
 import sys
-from multiprocessing import Manager, Process
 
 import torch
 import yaml
@@ -103,7 +102,7 @@ if __name__ == "__main__":
     )
     parse.add_argument(
         "--rules_distribution",
-        type=int,
+        type=float,
         nargs="+",
         help="Distribution of rules followed by the agent. Number of rules in the reward function is defined as len(rules_distribution)-1",
     )
@@ -172,117 +171,45 @@ if __name__ == "__main__":
     if args.rules_distribution:
         rules.SEGMENT_DISTRIBUTION_BY_RULES = args.rules_distribution
         rules.NUMBER_OF_RULES = len(rules.SEGMENT_DISTRIBUTION_BY_RULES) - 1
+    # run the simulation with the true reward function
+    print("Simulating on true reward function...")
+    truePairs, true_rules_followed = start_simulation(
+        "./config/agent_config.txt",
+        args.generations[0],
+        0,
+        "trueRF",
+        args.headless,
+    )
+    plot_rules_followed_distribution(true_rules_followed, "Ground Truth Rules Followed")
+    plot_rules_followed_distribution(
+        true_rules_followed[-10000:], "Expert Ground Truth Rules Followed"
+    )
+
     with open(
         args.parameters if args.parameters is not None else "best_params.yaml", "r"
     ) as file:
         data = yaml.safe_load(file)
         hidden_size = data["hidden_size"]
 
-    true_pairs, true_rules_followed, trained_pairs, trained_rules_followed = (
-        None,
-        None,
-        None,
-        None,
+    print("Simulating on trained reward function...")
+    agent.reward_network = TrajectoryRewardNet(
+        STATE_ACTION_SIZE * 2, hidden_size=hidden_size
+    ).to(device)
+
+    weights = torch.load(model_weights, map_location=device)
+    agent.reward_network.load_state_dict(weights)
+    trainedPairs, trained_rules_followed = start_simulation(
+        "./config/agent_config.txt",
+        args.generations[0],
+        0,
+        "trainedRF",
+        args.headless,
     )
-
-    def run_true_simulation(shared_data):
-        print("Simulating on true reward function...")
-        shared_data["true_pairs"], shared_data["true_rules_followed"] = (
-            start_simulation(
-                "./config/agent_config.txt",
-                args.generations[0],
-                0,
-                "trueRF",
-                args.headless,
-            )
-        )
-
-    def run_trained_simulation(shared_data, hidden_size):
-        print("Simulating on trained reward function...")
-        agent.reward_network = TrajectoryRewardNet(
-            STATE_ACTION_SIZE * 2, hidden_size=hidden_size
-        ).to(device)
-
-        weights = torch.load(model_weights, map_location=device)
-        agent.reward_network.load_state_dict(weights)
-        shared_data["trained_pairs"], shared_data["trained_rules_followed"] = (
-            start_simulation(
-                "./config/agent_config.txt",
-                args.generations[0],
-                0,
-                "trainedRF",
-                args.headless,
-            )
-        )
-
-    with Manager() as manager:
-        shared_data = manager.dict()
-
-        # Pass the shared dictionary and hidden_size to worker processes
-        process_true_simulation = Process(
-            target=run_true_simulation, args=(shared_data,)
-        )
-        process_trained_simulation = Process(
-            target=run_trained_simulation, args=(shared_data, hidden_size)
-        )
-
-        process_true_simulation.start()
-        process_trained_simulation.start()
-
-        process_true_simulation.join()
-        process_trained_simulation.join()
-
-        # Access the shared data
-        true_pairs = shared_data.get("true_pairs")
-        true_rules_followed = shared_data.get("true_rules_followed")
-        trained_pairs = shared_data.get("trained_pairs")
-        trained_rules_followed = shared_data.get("trained_rules_followed")
-
-    def plot_collecting_rules():
-        if collecting_rules_followed:
-            plot_rules_followed_distribution(
-                collecting_rules_followed, "Input Distribution Rules Followed"
-            )
-
-    def plot_true_rules():
-        plot_rules_followed_distribution(
-            true_rules_followed, "Ground Truth Rules Followed"
-        )
-
-    def plot_true_expert_rules():
-        plot_rules_followed_distribution(
-            true_rules_followed[-10000:], "Expert Ground Truth Rules Followed"
-        )
-
-    def plot_trained_rules():
-        plot_rules_followed_distribution(
-            trained_rules_followed, "Trained Agent Rules Followed"
-        )
-
-    def plot_trained_expert_rules():
-        plot_rules_followed_distribution(
-            trained_rules_followed[-10000:], "Expert Trained Agent Rules Followed"
-        )
-
-    print("Plotting Rules Followed Distributions...")
-    process_collecting = Process(target=plot_collecting_rules)
-    process_true = Process(target=plot_true_rules)
-    process_true_expert = Process(target=plot_true_expert_rules)
-    process_trained = Process(target=plot_trained_rules)
-    process_trained_expert = Process(target=plot_trained_expert_rules)
-    (
-        process_collecting.start(),
-        process_true.start(),
-        process_true_expert.start(),
-        process_trained.start(),
-        process_trained_expert.start(),
+    plot_rules_followed_distribution(
+        trained_rules_followed, "Trained Agent Rules Followed"
     )
-    (
-        process_collecting.join(),
-        process_true.join(),
-        process_true_expert.join(),
-        process_trained.join(),
-        process_trained_expert.join(),
+    plot_rules_followed_distribution(
+        trained_rules_followed[-10000:], "Expert Trained Agent Rules Followed"
     )
 
     model_info = {
@@ -294,8 +221,8 @@ if __name__ == "__main__":
         "agents-per-generation": 20,
     }
 
-    true_database = trajectory_path + f"trueRF_{true_pairs}.pkl"
-    trained_database = trajectory_path + f"trainedRF_{trained_pairs}.pkl"
+    true_database = trajectory_path + f"trueRF_{truePairs}.pkl"
+    trained_database = trajectory_path + f"trainedRF_{trainedPairs}.pkl"
     (
         true_agent_expert_segments,
         trained_agent_expert_segments,
