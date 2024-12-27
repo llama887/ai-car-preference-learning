@@ -1,8 +1,8 @@
 run_baseline:
 	make clean
-	./scripts/run_basic.sh -r 1
-	./scripts/run_basic.sh -r 2
 	./scripts/run_basic.sh -r 3
+	./scripts/run_basic.sh -r 2
+	./scripts/run_basic.sh -r 1
 
 run_with_subsampling:
 	make clean
