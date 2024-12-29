@@ -30,8 +30,8 @@ if ! [[ $rules =~ ^[0-9]+$ ]]; then
 fi
 
 # Create the list of distribution values
-distribution=$(printf -- "-d '1/%d' " $(seq 1 $((rules+1)) | sed "s/.*/$((rules+1))/"))
-echo $distribution
+distribution=$(printf -- "-d \"1/%d\" " $(seq 1 $((rules+1)) | sed "s/.*/$((rules+1))/"))
+
 
 # Fixed parameters
 EPOCHS=200
@@ -53,8 +53,9 @@ for TRAJ in "${TRAJECTORIES[@]}"; do
     echo "Running with ${TRAJ} trajectories..."
 
     # Run the main.py script
-    python "$MAIN_SCRIPT" -e "$EPOCHS" -t "$TRAJ" -g "$GENERATIONS" -p "$PARAM_FILE" -c "$rules" "$distribution" --headless
-    echo "python $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules $distribution --headless"
+    cmd="python $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules $distribution --headless"
+    echo "Executing: $cmd"
+    eval $cmd
     # Check if the directories exist and zip them
     if [ -d "figures" ]; then
         zip -r "zips/figures_t${TRAJ}_r${rules}.zip" figures
