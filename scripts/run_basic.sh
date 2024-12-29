@@ -31,9 +31,6 @@ fi
 
 # Create the list of distribution values
 distribution=$(printf -- "-d '1/%d' " $(seq 1 $((rules+1)) | sed "s/.*/$((rules+1))/"))
-
-# Trim trailing whitespace
-distribution=$(echo "$distribution" | xargs)
 echo $distribution
 
 # Fixed parameters
