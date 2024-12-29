@@ -1,8 +1,6 @@
 import argparse
 import glob
 import os
-import pickle
-import random
 import sys
 
 import torch
@@ -10,16 +8,8 @@ import yaml
 
 import agent
 import rules
-
-from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
 from agent import STATE_ACTION_SIZE, run_population, trajectory_path
-from plot import (
-    handle_plotting_rei,
-    handle_plotting_sana,
-    populate_lists,
-    unzipper_chungus_deluxe,
-    plot_rules_followed_distribution
-)
+from plot import handle_plotting_rei, plot_rules_followed_distribution, populate_lists
 from reward import TrajectoryRewardNet, train_reward_function
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -40,16 +30,18 @@ def start_simulation(config_path, max_generations, number_of_pairs, run_type, no
         noHead=noHead,
     ), agent.rules_followed
 
+
 def parse_to_float(s):
     try:
         return float(s)
     except ValueError:
         try:
-            numerator, denominator = map(float, s.split('/'))
+            numerator, denominator = map(float, s.split("/"))
             return numerator / denominator
         except (ValueError, ZeroDivisionError):
             raise ValueError(f"Cannot convert '{s}' to float")
-        
+
+
 # def sample_from_database(num_pairs, database_path):
 #     with open(database_path, "rb") as f:
 #         database = pickle.load(f)
@@ -139,36 +131,26 @@ if __name__ == "__main__":
     else:
         print("Missing either -c flag or -t flag")
 
-
-    # database_path = ""
-    # if args.trajectories and args.database:
-    #     database_path = sample_from_database(args.trajectories[0], args.database)
-    #     if database_path == -1:
-    #         print("Provide a larger database, or generate a new one!")
-    #         sys.exit(1)
-    #     num_pairs = database_path.split("_")[1].split(".")[0]
-    #     args.trajectories[0] = num_pairs
-    # elif args.trajectories:
-    #     database_path = f"trajectories/database_{args.trajectories[0]}.pkl"
-    # elif args.database:
-    #     database_path = args.database
-    #     num_pairs = database_path.split("_")[1].split(".")[0]
-    #     args.trajectories[0] = num_pairs
-    # else:
-    #     print(
-    #         "Need to either provide number of trajectories to collect or existing database"
-    #     )
-
     if args.distribution:
         try:
-            rules.SEGMENT_DISTRIBUTION_BY_RULES = [parse_to_float(d) for d in args.distribution]
-        except:
-            print("Distribution input too advanced for Alex and Franklin's caveman parser. (or maybe you input something weird sry)")
+            rules.SEGMENT_DISTRIBUTION_BY_RULES = [
+                parse_to_float(d) for d in args.distribution
+            ]
+        except Exception:
+            print(
+                "Distribution input too advanced for Alex and Franklin's caveman parser. (or maybe you input something weird sry)"
+            )
             sys.exit()
         sum_dist = sum(rules.SEGMENT_DISTRIBUTION_BY_RULES)
-        rules.SEGMENT_DISTRIBUTION_BY_RULES = [d / sum_dist for d in rules.SEGMENT_DISTRIBUTION_BY_RULES]
-        assert (len(rules.SEGMENT_DISTRIBUTION_BY_RULES) == rules.NUMBER_OF_RULES + 1), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {rules.NUMBER_OF_RULES}"
-        assert (sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
+        rules.SEGMENT_DISTRIBUTION_BY_RULES = [
+            d / sum_dist for d in rules.SEGMENT_DISTRIBUTION_BY_RULES
+        ]
+        assert (
+            len(rules.SEGMENT_DISTRIBUTION_BY_RULES) == rules.NUMBER_OF_RULES + 1
+        ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {rules.NUMBER_OF_RULES}"
+        assert (
+            sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1
+        ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
 
     model_weights = ""
     if args.reward is None:

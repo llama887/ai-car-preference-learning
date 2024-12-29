@@ -1,9 +1,9 @@
 run_baseline:
 	make clean
 	mkdir logs
-	@echo "Running ./scripts/run_basic.sh -r 3" && time ./scripts/run_basic.sh -r 3 2>&1 | tee -a logs/execution_times.log
-	@echo "Running ./scripts/run_basic.sh -r 2" && time ./scripts/run_basic.sh -r 2 2>&1 | tee -a logs/execution_times.log
-	@echo "Running ./scripts/run_basic.sh -r 1" && time ./scripts/run_basic.sh -r 1 2>&1 | tee -a logs/execution_times.log
+	./scripts/run_basic.sh -r 3
+	./scripts/run_basic.sh -r 2
+	./scripts/run_basic.sh -r 1
 
 run_with_subsampling:
 	make clean

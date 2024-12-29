@@ -1,9 +1,13 @@
 import argparse
+import glob
 import math
 import os
 import pickle
 import random
+import re
+import shutil
 import statistics
+import zipfile
 from collections import Counter, defaultdict
 
 import matplotlib.patches as mpatches
@@ -14,13 +18,8 @@ import torch
 import yaml
 
 import reward
-import glob
-import shutil
-import zipfile
-import re
-
-from reward import TrajectoryRewardNet, prepare_single_trajectory
 import rules
+from reward import TrajectoryRewardNet, prepare_single_trajectory
 
 AGENTS_PER_GENERATION = 20
 
@@ -32,12 +31,14 @@ NET_SIZE = 16
 run_wandb = True
 epochs = None
 
-#Todo:
+
+# Todo:
 class TrajectoryData:
     # Dimensions [num_generations][num_agents_per_generation]
     def __init__(self):
         self.gt_rewards = [[]]
         self.trained_rewards = [[]]
+
 
 class SegmentData:
     # Dimensions [total number of segments (if everything is correct 450 * num_agents_per_generation * num_generations)]
@@ -45,6 +46,7 @@ class SegmentData:
         self.rules_satisfied = []
         self.trained_rewards = []
         self.distances = []
+
 
 class RewardNormalizer:
     def __init__(self, rewards):
@@ -242,7 +244,14 @@ def populate_lists(true_database, trained_database, training_database, model_inf
             for _ in range(agents_per_generation):
                 trajectory = true_trajectories[count]
                 gen_true_expert_segments.append(trajectory.num_expert_segments)
-                gen_true_rewards.append(sum([model(prepare_single_trajectory(segment)).item() for segment in break_into_segments(trajectory.traj)]))
+                gen_true_rewards.append(
+                    sum(
+                        [
+                            model(prepare_single_trajectory(segment)).item()
+                            for segment in break_into_segments(trajectory.traj)
+                        ]
+                    )
+                )
                 count += 1
             if gen_true_expert_segments:
                 true_agent_expert_segments.append(gen_true_expert_segments)
@@ -311,14 +320,11 @@ def populate_lists(true_database, trained_database, training_database, model_inf
     return (
         true_agent_expert_segments,
         true_agent_rewards,
-
         trained_agent_expert_segments,
         trained_agent_rewards,
-
         trained_segment_rules_satisifed,
         trained_segment_rewards,
         trained_segment_distances,
-
         training_segment_rules_satisfied,
         training_segment_rewards,
         training_segment_distances,
@@ -332,32 +338,34 @@ def unzipper_chungus(num_rules):
     zip_files = glob.glob(f"trajectories_*_pairs_{num_rules}_rules.zip")
     for zip_file in zip_files:
         num_pairs = int(re.search(r"trajectories_(\d+)_pairs", zip_file).group(1))
-        
+
         true_agent_expert_segments = []
         trained_agent_expert_segments = []
         os.makedirs("temp_trajectories", exist_ok=True)
-        with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_file, "r") as zip_ref:
             # Extract all contents of the zip file to the specified folder
             zip_ref.extractall("temp_trajectories")
-            trueRF = glob.glob(f"temp_trajectories/trajectories/trueRF_*.pkl")[0]
-            trainedRF = glob.glob(f"temp_trajectories/trajectories/trainedRF_*.pkl")[0]
-            
+            trueRF = glob.glob("temp_trajectories/trajectories/trueRF_*.pkl")[0]
+            trainedRF = glob.glob("temp_trajectories/trajectories/trainedRF_*.pkl")[0]
+
             with open(trueRF, "rb") as f:
                 true_trajectories = pickle.load(f)
             with open(trainedRF, "rb") as f:
                 trained_trajectories = pickle.load(f)
-                
+
             num_true_trajectories = len(true_trajectories)
             count = 0
             while count < num_true_trajectories:
                 gen_true_expert_segments = []
                 for _ in range(AGENTS_PER_GENERATION // 2):
                     trajectory_pair = true_trajectories[count]
-                    gen_true_expert_segments.extend([trajectory_pair.e1, trajectory_pair.e2])
+                    gen_true_expert_segments.extend(
+                        [trajectory_pair.e1, trajectory_pair.e2]
+                    )
                     count += 1
                 if gen_true_expert_segments:
                     true_agent_expert_segments.append(gen_true_expert_segments)
-            
+
             num_trained_trajectories = len(trained_trajectories)
 
             count = 0
@@ -365,14 +373,22 @@ def unzipper_chungus(num_rules):
                 gen_trained_expert_segments = []
                 for _ in range(AGENTS_PER_GENERATION // 2):
                     trajectory_pair = trained_trajectories[count]
-                    gen_trained_expert_segments.extend([trajectory_pair.e1, trajectory_pair.e2])
+                    gen_trained_expert_segments.extend(
+                        [trajectory_pair.e1, trajectory_pair.e2]
+                    )
                     count += 1
                 if gen_trained_expert_segments:
                     trained_agent_expert_segments.append(gen_trained_expert_segments)
 
-            if max([sum(generation) for generation in true_agent_expert_segments]) > max([sum(generation) for generation in best_true_agent_expert_segments]):
+            if max(
+                [sum(generation) for generation in true_agent_expert_segments]
+            ) > max(
+                [sum(generation) for generation in best_true_agent_expert_segments]
+            ):
                 best_true_agent_expert_segments = true_agent_expert_segments.copy()
-            aggregate_trained_agent_expert_segments[num_pairs] = trained_agent_expert_segments.copy()
+            aggregate_trained_agent_expert_segments[num_pairs] = (
+                trained_agent_expert_segments.copy()
+            )
 
         shutil.rmtree("temp_trajectories")
     return (
@@ -393,19 +409,21 @@ def unzipper_chungus_deluxe(num_rules):
             num_pairs = int(re.search(r"trajectories_(\d+)_pairs", zip_file).group(1))
             true_agent_expert_segments = []
             trained_agent_expert_segments = []
-            
+
             os.makedirs("temp_trajectories", exist_ok=True)
-            with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+            with zipfile.ZipFile(zip_file, "r") as zip_ref:
                 # Extract all contents of the zip file to the specified folder
                 zip_ref.extractall("temp_trajectories")
-                trueRF = glob.glob(f"temp_trajectories/trajectories/trueRF_*.pkl")[0]
-                trainedRF = glob.glob(f"temp_trajectories/trajectories/trainedRF_*.pkl")[0]
-                
+                trueRF = glob.glob("temp_trajectories/trajectories/trueRF_*.pkl")[0]
+                trainedRF = glob.glob("temp_trajectories/trajectories/trainedRF_*.pkl")[
+                    0
+                ]
+
                 with open(trueRF, "rb") as f:
                     true_trajectories = pickle.load(f)
                 with open(trainedRF, "rb") as f:
                     trained_trajectories = pickle.load(f)
-                    
+
                 num_true_trajectories = len(true_trajectories)
                 count = 0
                 while count < num_true_trajectories:
@@ -416,24 +434,36 @@ def unzipper_chungus_deluxe(num_rules):
                         count += 1
                     if gen_true_expert_segments:
                         true_agent_expert_segments.append(gen_true_expert_segments)
-                
+
                 num_trained_trajectories = len(trained_trajectories)
                 count = 0
                 while count < num_trained_trajectories:
                     gen_trained_expert_segments = []
                     for _ in range(AGENTS_PER_GENERATION):
                         trajectory = trained_trajectories[count]
-                        gen_trained_expert_segments.append(trajectory.num_expert_segments)
+                        gen_trained_expert_segments.append(
+                            trajectory.num_expert_segments
+                        )
                         count += 1
                     if gen_trained_expert_segments:
-                        trained_agent_expert_segments.append(gen_trained_expert_segments)
+                        trained_agent_expert_segments.append(
+                            gen_trained_expert_segments
+                        )
 
-                if max([sum(generation) for generation in true_agent_expert_segments]) > max([sum(generation) for generation in rule_best_true_agent_segments]):
+                if max(
+                    [sum(generation) for generation in true_agent_expert_segments]
+                ) > max(
+                    [sum(generation) for generation in rule_best_true_agent_segments]
+                ):
                     rule_best_true_agent_segments = true_agent_expert_segments.copy()
-                rule_aggregate_segments[num_pairs] = trained_agent_expert_segments.copy()
+                rule_aggregate_segments[num_pairs] = (
+                    trained_agent_expert_segments.copy()
+                )
 
-            shutil.rmtree("temp_trajectories")            
-        best_true_agent_expert_segments[rule_count] = rule_best_true_agent_segments.copy()
+            shutil.rmtree("temp_trajectories")
+        best_true_agent_expert_segments[rule_count] = (
+            rule_best_true_agent_segments.copy()
+        )
         aggregate_trained_agent_expert_segments[rule_count] = rule_aggregate_segments
 
     s = 0
@@ -450,6 +480,7 @@ def unzipper_chungus_deluxe(num_rules):
         best_true_agent_expert_segments,
         aggregate_trained_agent_expert_segments,
     )
+
 
 # Define a function to plot trajectories
 def plot_trajectories(trajectories, title):
@@ -537,12 +568,9 @@ def handle_plotting_rei(
 
     # Avg/max reward obtained by gt agents over generations
     true_agent_reward_averages = [
-        (sum(generation) / agents_per_generation)
-        for generation in true_agent_rewards
+        (sum(generation) / agents_per_generation) for generation in true_agent_rewards
     ]
-    true_agent_reward_maxes = [
-        max(generation) for generation in true_agent_rewards
-    ]
+    true_agent_reward_maxes = [max(generation) for generation in true_agent_rewards]
 
     # Avg/max reward obtained by trained agents over generations
     trained_agent_reward_averages = [
@@ -590,6 +618,7 @@ def handle_plotting_rei(
         training_segment_distances,
         training_segment_rewards,
     )
+
 
 def graph_expert_segments_over_generations(averages, maxes):
     trueRF_average_expert_segments, trainedRF_average_expert_segments = averages
@@ -822,9 +851,12 @@ def plot_rules_followed_distribution(rules_followed, title):
     # Save and close the plot
     plt.savefig(f"figures/{title}.png")
 
-def handle_plotting_sana(best_true_agent_expert_segments, aggregate_trained_agent_expert_segments):
+
+def handle_plotting_sana(
+    best_true_agent_expert_segments, aggregate_trained_agent_expert_segments
+):
     # Avg/max number of expert segments per trajectory for each agent over generations
-    best_trueRF_average_expert_segments =  {}
+    best_trueRF_average_expert_segments = {}
     best_trueRF_max_expert_segments = {}
 
     for rule in best_true_agent_expert_segments.keys():
@@ -845,45 +877,82 @@ def handle_plotting_sana(best_true_agent_expert_segments, aggregate_trained_agen
         for num_pairs in aggregate_trained_agent_expert_segments[rule].keys():
             aggregate_trainedRF_average_expert_segments[rule][num_pairs] = [
                 (sum(generation) / AGENTS_PER_GENERATION)
-                for generation in aggregate_trained_agent_expert_segments[rule][num_pairs]
+                for generation in aggregate_trained_agent_expert_segments[rule][
+                    num_pairs
+                ]
             ]
             aggregate_trainedRF_max_expert_segments[rule][num_pairs] = [
-                max(generation) for generation in aggregate_trained_agent_expert_segments[rule][num_pairs]
+                max(generation)
+                for generation in aggregate_trained_agent_expert_segments[rule][
+                    num_pairs
+                ]
             ]
-    
-    graph_normalized_segments_over_generations(best_trueRF_average_expert_segments, aggregate_trainedRF_average_expert_segments,
-                                                best_trueRF_max_expert_segments, aggregate_trainedRF_max_expert_segments)
-    
-    graph_gap_over_pairs(best_trueRF_average_expert_segments, aggregate_trainedRF_average_expert_segments)
-    
 
-def graph_normalized_segments_over_generations(best_trueRF_average_expert_segments,
-                                                aggregate_trainedRF_average_expert_segments,
-                                                best_trueRF_max_expert_segments,
-                                                aggregate_trainedRF_max_expert_segments):
+    graph_normalized_segments_over_generations(
+        best_trueRF_average_expert_segments,
+        aggregate_trainedRF_average_expert_segments,
+        best_trueRF_max_expert_segments,
+        aggregate_trainedRF_max_expert_segments,
+    )
+
+    graph_gap_over_pairs(
+        best_trueRF_average_expert_segments, aggregate_trainedRF_average_expert_segments
+    )
+
+
+def graph_normalized_segments_over_generations(
+    best_trueRF_average_expert_segments,
+    aggregate_trainedRF_average_expert_segments,
+    best_trueRF_max_expert_segments,
+    aggregate_trainedRF_max_expert_segments,
+):
     os.makedirs("figures", exist_ok=True)
 
     for rule in best_trueRF_average_expert_segments.keys():
         x_values = range(len(best_trueRF_average_expert_segments[rule]))
         max_avg_trueRF_segments = max(best_trueRF_average_expert_segments[rule])
         max_max_trueRF_segments = max(best_trueRF_max_expert_segments[rule])
-        best_trueRF_average_expert_segments[rule] = [avg_segments / max_avg_trueRF_segments for  avg_segments in best_trueRF_average_expert_segments[rule]]
-        best_trueRF_max_expert_segments[rule] = [max_segments / max_max_trueRF_segments for max_segments in best_trueRF_max_expert_segments[rule]]
+        best_trueRF_average_expert_segments[rule] = [
+            avg_segments / max_avg_trueRF_segments
+            for avg_segments in best_trueRF_average_expert_segments[rule]
+        ]
+        best_trueRF_max_expert_segments[rule] = [
+            max_segments / max_max_trueRF_segments
+            for max_segments in best_trueRF_max_expert_segments[rule]
+        ]
 
         for num_pairs in aggregate_trainedRF_average_expert_segments[rule].keys():
-            aggregate_trainedRF_average_expert_segments[rule][num_pairs] = [avg_segments / max_avg_trueRF_segments for  avg_segments in aggregate_trainedRF_average_expert_segments[rule][num_pairs]]
+            aggregate_trainedRF_average_expert_segments[rule][num_pairs] = [
+                avg_segments / max_avg_trueRF_segments
+                for avg_segments in aggregate_trainedRF_average_expert_segments[rule][
+                    num_pairs
+                ]
+            ]
         for num_pairs in aggregate_trainedRF_max_expert_segments[rule].keys():
-            aggregate_trainedRF_max_expert_segments[rule][num_pairs] = [max_segments / max_max_trueRF_segments for max_segments in aggregate_trainedRF_max_expert_segments[rule][num_pairs]]
+            aggregate_trainedRF_max_expert_segments[rule][num_pairs] = [
+                max_segments / max_max_trueRF_segments
+                for max_segments in aggregate_trainedRF_max_expert_segments[rule][
+                    num_pairs
+                ]
+            ]
 
         plt.figure()
-        plt.plot(x_values, best_trueRF_average_expert_segments[rule], label="Ground Truth")
-        for num_pairs in sorted(aggregate_trainedRF_average_expert_segments[rule].keys()):
+        plt.plot(
+            x_values, best_trueRF_average_expert_segments[rule], label="Ground Truth"
+        )
+        for num_pairs in sorted(
+            aggregate_trainedRF_average_expert_segments[rule].keys()
+        ):
             # if num_pairs == 1000000:
             #     sum = 0
             #     for i in range(len(x_values)):
             #         print(i, best_trueRF_average_expert_segments[rule][i], "\t", aggregate_trainedRF_average_expert_segments[rule][num_pairs][i], "\t", best_trueRF_average_expert_segments[rule][i] - aggregate_trainedRF_average_expert_segments[rule][num_pairs][i], "\t", sum)
             #         sum += best_trueRF_average_expert_segments[rule][i] - aggregate_trainedRF_average_expert_segments[rule][num_pairs][i]
-            plt.plot(x_values, aggregate_trainedRF_average_expert_segments[rule][num_pairs], label=f"{num_pairs} pairs")
+            plt.plot(
+                x_values,
+                aggregate_trainedRF_average_expert_segments[rule][num_pairs],
+                label=f"{num_pairs} pairs",
+            )
         plt.xlabel("Generation")
         plt.ylabel("Number of Expert Trajectories (Normalized by GT)")
         plt.title("Ground Truth vs Trained Reward: Average Number of Expert Segments")
@@ -891,11 +960,14 @@ def graph_normalized_segments_over_generations(best_trueRF_average_expert_segmen
         plt.savefig(f"figures/average_norm_{rule}_rules.png")
         plt.close()
 
-
         plt.figure()
         plt.plot(x_values, best_trueRF_max_expert_segments[rule], label="Ground Truth")
         for num_pairs in aggregate_trainedRF_max_expert_segments[rule].keys():
-            plt.plot(x_values, aggregate_trainedRF_max_expert_segments[rule][num_pairs], label=f"{num_pairs} pairs")
+            plt.plot(
+                x_values,
+                aggregate_trainedRF_max_expert_segments[rule][num_pairs],
+                label=f"{num_pairs} pairs",
+            )
         plt.xlabel("Generation")
         plt.ylabel("Number of Expert Trajectories (Normalized by GT)")
         plt.title("Ground Truth vs Trained Reward: Max Number of Expert Segments")
@@ -903,7 +975,10 @@ def graph_normalized_segments_over_generations(best_trueRF_average_expert_segmen
         plt.savefig(f"figures/max_norm_{rule}_rules.png")
         plt.close()
 
-def graph_gap_over_pairs(best_trueRF_average_expert_segments, aggregate_trainedRF_average_expert_segments):
+
+def graph_gap_over_pairs(
+    best_trueRF_average_expert_segments, aggregate_trainedRF_average_expert_segments
+):
     os.makedirs("figures", exist_ok=True)
     plt.figure()
     for rule in best_trueRF_average_expert_segments.keys():
@@ -911,19 +986,38 @@ def graph_gap_over_pairs(best_trueRF_average_expert_segments, aggregate_trainedR
         y_values = []
 
         max_avg_trueRF_segments = max(best_trueRF_average_expert_segments[rule])
-        best_trueRF_average_expert_segments[rule] = [avg_segments / max_avg_trueRF_segments for  avg_segments in best_trueRF_average_expert_segments[rule]]
+        best_trueRF_average_expert_segments[rule] = [
+            avg_segments / max_avg_trueRF_segments
+            for avg_segments in best_trueRF_average_expert_segments[rule]
+        ]
         for num_pairs in aggregate_trainedRF_average_expert_segments[rule].keys():
-            aggregate_trainedRF_average_expert_segments[rule][num_pairs] = [avg_segments / max_avg_trueRF_segments for  avg_segments in aggregate_trainedRF_average_expert_segments[rule][num_pairs]]
-        
+            aggregate_trainedRF_average_expert_segments[rule][num_pairs] = [
+                avg_segments / max_avg_trueRF_segments
+                for avg_segments in aggregate_trainedRF_average_expert_segments[rule][
+                    num_pairs
+                ]
+            ]
+
         for num_pairs in x_values:
-            if len(best_trueRF_average_expert_segments[rule]) != len(aggregate_trainedRF_average_expert_segments[rule][num_pairs]):
+            if len(best_trueRF_average_expert_segments[rule]) != len(
+                aggregate_trainedRF_average_expert_segments[rule][num_pairs]
+            ):
                 print("Mismatch in generations between GT and Trained!")
-            gap = sum([best_trueRF_average_expert_segments[rule][generation] - aggregate_trainedRF_average_expert_segments[rule][num_pairs][generation]
-                       for generation in range(len(best_trueRF_average_expert_segments[rule]))])
+            gap = sum(
+                [
+                    best_trueRF_average_expert_segments[rule][generation]
+                    - aggregate_trainedRF_average_expert_segments[rule][num_pairs][
+                        generation
+                    ]
+                    for generation in range(
+                        len(best_trueRF_average_expert_segments[rule])
+                    )
+                ]
+            )
             y_values.append(gap / len(best_trueRF_average_expert_segments[rule]))
         plt.plot(x_values, y_values, label=f"{rule} rules")
     plt.xlabel("Number of Trajectory Pairs (Log Scale)")
-    plt.xscale('log')
+    plt.xscale("log")
     plt.ylabel("Average Gap in Reward (Reward_GT - Reward_Trained)")
     plt.title("Reward Gap vs. Trajectory Pairs")
     plt.legend()
