@@ -42,23 +42,6 @@ def parse_to_float(s):
             raise ValueError(f"Cannot convert '{s}' to float")
 
 
-# def sample_from_database(num_pairs, database_path):
-#     with open(database_path, "rb") as f:
-#         database = pickle.load(f)
-#     total_pairs = len(database)
-
-#     if num_pairs == total_pairs:
-#         return database_path
-#     elif num_pairs < total_pairs:
-#         new_pairs = random.sample(database, num_pairs)
-#         new_database_path = trajectory_path + f"database_{num_pairs}.pkl"
-#         with open(new_database_path, "wb") as f:
-#             pickle.dump(new_pairs, f)
-#         return new_database_path
-#     else:
-#         return -1
-
-
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(
         description="Training a Reward From Synthetic Preferences"
