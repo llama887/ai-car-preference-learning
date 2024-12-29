@@ -1,6 +1,7 @@
 import argparse
 import glob
 import math
+import multiprocessing
 import os
 import pickle
 import random
@@ -548,6 +549,7 @@ def handle_plotting_rei(
     pairs_learned = model_info["pairs-learned"]
 
     agents_per_generation = len(true_agent_expert_segments[0])
+
     # Avg/max number of expert segments per trajectory for each gt agent over generations
     trueRF_average_expert_segments = [
         (sum(generation) / agents_per_generation)
@@ -581,43 +583,84 @@ def handle_plotting_rei(
         max(generation) for generation in trained_agent_rewards
     ]
 
-    graph_expert_segments_over_generations(
-        (trueRF_average_expert_segments, trainedRF_average_expert_segments),
-        (trueRF_max_expert_segments, trainedRF_max_expert_segments),
+    processes = []
+
+    processes.append(
+        multiprocessing.Process(
+            target=graph_expert_segments_over_generations,
+            args=(
+                (trueRF_average_expert_segments, trainedRF_average_expert_segments),
+                (trueRF_max_expert_segments, trainedRF_max_expert_segments),
+            ),
+        )
     )
 
-    graph_against_trained_reward(
-        (true_agent_reward_averages, trained_agent_reward_averages),
-        (true_agent_reward_maxes, trained_agent_reward_maxes),
+    processes.append(
+        multiprocessing.Process(
+            target=graph_against_trained_reward,
+            args=(
+                (true_agent_reward_averages, trained_agent_reward_averages),
+                (true_agent_reward_maxes, trained_agent_reward_maxes),
+            ),
+        )
     )
 
-    graph_segment_rules_vs_reward(
-        "Agent Segment Rules Satisfied vs Reward",
-        trained_segment_rules_satisifed,
-        trained_segment_rewards,
-        epochs,
-        pairs_learned,
+    processes.append(
+        multiprocessing.Process(
+            target=graph_segment_rules_vs_reward,
+            args=(
+                "Agent Segment Rules Satisfied vs Reward",
+                trained_segment_rules_satisifed,
+                trained_segment_rewards,
+                epochs,
+                pairs_learned,
+            ),
+        )
     )
 
-    graph_segment_rules_vs_reward(
-        "Training Dataset Rules Satisfied vs Reward",
-        training_segment_rules_satisfied,
-        training_segment_rewards,
+    processes.append(
+        multiprocessing.Process(
+            target=graph_segment_rules_vs_reward,
+            args=(
+                "Training Dataset Rules Satisfied vs Reward",
+                training_segment_rules_satisfied,
+                training_segment_rewards,
+            ),
+        )
     )
 
-    graph_segment_distance_vs_reward(
-        "Agent Segment Distance vs Reward",
-        trained_segment_distances,
-        trained_segment_rewards,
-        epochs,
-        pairs_learned,
+    processes.append(
+        multiprocessing.Process(
+            target=graph_segment_distance_vs_reward,
+            args=(
+                "Agent Segment Distance vs Reward",
+                trained_segment_distances,
+                trained_segment_rewards,
+                epochs,
+                pairs_learned,
+            ),
+        )
     )
 
-    graph_segment_distance_vs_reward(
-        "Training Dataset Distance vs Reward",
-        training_segment_distances,
-        training_segment_rewards,
+    processes.append(
+        multiprocessing.Process(
+            target=graph_segment_distance_vs_reward,
+            args=(
+                "Training Dataset Distance vs Reward",
+                training_segment_distances,
+                training_segment_rewards,
+            ),
+        )
     )
+
+    # Start all processes
+    for process in processes:
+        print(f"Starting process {process}")
+        process.start()
+
+    # Wait for all processes to finish
+    for process in processes:
+        process.join()
 
 
 def graph_expert_segments_over_generations(averages, maxes):
