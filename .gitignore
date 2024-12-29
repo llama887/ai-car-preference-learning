@@ -15,6 +15,7 @@ best_model*
 best_model.pth
 best.pth
 figures/*
+database_gargantuar.pkl
 test.py
 archive
 *.pth

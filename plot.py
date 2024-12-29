@@ -997,6 +997,7 @@ if __name__ == "__main__":
         "-r",
         "--reward",
         type=str,
+        action="append",
         help="Directory to reward function weights",
     )
     parse.add_argument(
@@ -1036,7 +1037,7 @@ if __name__ == "__main__":
         data = yaml.safe_load(file)
         hidden_size = data["hidden_size"]
 
-    reward_network, ensemble = load_models(args.reward)
+    reward_network, ensemble = load_models(args.reward, hidden_size)
     model_info = {
         "net": reward_network,
         "ensemble": ensemble,

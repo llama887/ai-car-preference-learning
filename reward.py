@@ -13,7 +13,8 @@ import torch.nn.functional as F
 import torch.optim.lr_scheduler as lr_scheduler
 import yaml
 from sklearn.preprocessing import StandardScaler
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, Dataset, random_split, RandomSampler
+import math
 
 import wandb
 
@@ -27,6 +28,10 @@ models_path = "models/"
 ensemble_path = None
 os.makedirs(figure_path, exist_ok=True)
 os.makedirs(models_path, exist_ok=True)
+
+
+train_ratio = 0.8
+val_ratio = 0.2
 
 ENSEMBLE_SIZE = 3
 
@@ -78,7 +83,7 @@ class TrajectoryRewardNet(nn.Module):
         x = self.fc7(x)
         return x
 
-    def train_step(self, training_dataloader, validation_dataloader, model_path):
+    def train_step(self, training_dataloader, validation_dataloader):
         self.train()
 
         train_size = len(training_dataloader.dataset)
@@ -135,9 +140,6 @@ class TrajectoryRewardNet(nn.Module):
                 ) * validation_true_pref.size(0)
 
         average_validation_loss = total_validation_loss / val_size
-        if average_validation_loss < best_loss:
-            best_loss = average_validation_loss
-            torch.save(self.state_dict(), model_path)
         average_validation_accuracy = total_validation_accuracy / val_size
 
         return (
@@ -157,12 +159,13 @@ class Ensemble(nn.Module):
         hidden_size=128,
         dropout_prob=0.0,
     ):
+        super(Ensemble, self).__init__()
         self.num_models = num_models
         if not models_list:
             self.model_list = nn.ModuleList(
                 [
                     TrajectoryRewardNet(input_size, hidden_size, dropout_prob)
-                    for _ in self.num_models
+                    for _ in range(self.num_models)
                 ]
             )
         else:
@@ -176,43 +179,47 @@ class Ensemble(nn.Module):
 
 
 class TrajectoryDataset(Dataset):
-    def __init__(self, file_path):
-        self.data_path = file_path
-        with open(file_path, "rb") as f:
-            self.trajectory_pairs = pickle.load(f)
+    def __init__(self, file_path, variance_pairs=None):
         self.first_trajectories = []
         self.second_trajectories = []
         self.labels = []
         self.score1 = []
         self.score2 = []
-        all_data = []
-        for trajectory_pair in self.trajectory_pairs:
-            trajectory1_flat = [
-                [item for sublist in trajectory_pair[0] for item in sublist]
-            ]
-            trajectory2_flat = [
-                [item for sublist in trajectory_pair[1] for item in sublist]
-            ]
-            temp_flat = [item for sublist in trajectory_pair[0] for item in sublist]
-            all_data.append(temp_flat)
-            temp_flat = [item for sublist in trajectory_pair[1] for item in sublist]
-            all_data.append(temp_flat)
-            self.first_trajectories.append(trajectory1_flat)
-            self.second_trajectories.append(trajectory2_flat)
-            self.labels.append(trajectory_pair[2])
-            self.score1.append(trajectory_pair[3])
-            self.score2.append(trajectory_pair[4])
 
-        self.first_trajectories = torch.tensor(
-            self.first_trajectories, dtype=torch.float32
-        ).to(device)
-        self.second_trajectories = torch.tensor(
-            self.second_trajectories, dtype=torch.float32
-        ).to(device)
+        self.data_path = file_path
+        if variance_pairs:
+            self.first_trajectories = variance_pairs["first_trajectories"]
+            self.second_trajectories = variance_pairs["second_trajectories"]
+            self.labels = variance_pairs["labels"]
+            self.score1 = variance_pairs["score1"]
+            self.score2 = variance_pairs["score2"]
+        else:    
+            with open(file_path, "rb") as f:
+                self.trajectory_pairs = pickle.load(f)
+            
+            for trajectory_pair in self.trajectory_pairs:
+                trajectory1_flat = [
+                    [item for sublist in trajectory_pair[0] for item in sublist]
+                ]
+                trajectory2_flat = [
+                    [item for sublist in trajectory_pair[1] for item in sublist]
+                ]
+                self.first_trajectories.append(trajectory1_flat)
+                self.second_trajectories.append(trajectory2_flat)
+                self.labels.append(trajectory_pair[2])
+                self.score1.append(trajectory_pair[3])
+                self.score2.append(trajectory_pair[4])
 
-        self.labels = torch.tensor(self.labels, dtype=torch.float32).to(device)
-        self.score1 = torch.tensor(self.score1, dtype=torch.float32).to(device)
-        self.score2 = torch.tensor(self.score2, dtype=torch.float32).to(device)
+            self.first_trajectories = torch.tensor(
+                self.first_trajectories, dtype=torch.float32
+            ).to(device)
+            self.second_trajectories = torch.tensor(
+                self.second_trajectories, dtype=torch.float32
+            ).to(device)
+
+            self.labels = torch.tensor(self.labels, dtype=torch.float32).to(device)
+            self.score1 = torch.tensor(self.score1, dtype=torch.float32).to(device)
+            self.score2 = torch.tensor(self.score2, dtype=torch.float32).to(device)
 
     def __getitem__(self, idx):
         traj1 = self.first_trajectories[idx]
@@ -223,7 +230,7 @@ class TrajectoryDataset(Dataset):
         return traj1, traj2, preference, score1, score2
 
     def __len__(self):
-        return len(self.trajectory_pairs)
+        return len(self.labels)
 
 
 def bradley_terry_model(r1, r2):
@@ -237,32 +244,61 @@ def preference_loss(predicted_probabilities, true_preferences):
     return F.binary_cross_entropy(predicted_probabilities, true_preferences)
 
 
-def pickHighestEntropyPairs(dataset, batch_size):
-    # Define the split ratio
-    train_ratio = 0.8
-    # val_ratio = 0.2
-    dataset_size = len(dataset)
-    train_size = int(train_ratio * dataset_size)
-    val_size = dataset_size - train_size
+def pick_highest_entropy_dataset(epoch, ensemble, train_dataset, subset_size):
+    def get_variance(traj1, traj2):
+        model_probabilities = []
+        for model in ensemble.model_list:
+            model_probabilities.append(bradley_terry_model(model(traj1), model(traj2)))
+        variance = torch.var(torch.stack(model_probabilities)).item()
+        return variance
+        
+    new_train_size = int(subset_size * train_ratio)
 
-    # Split the dataset into training and validation sets
-    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    if epoch == 0:
+        train_sampler, _ = random_split(train_dataset, [new_train_size, len(train_dataset) - new_train_size])   
+    else:
+        pairs_w_variance = []
+        for idx, (traj1, traj2, label, score1, score2) in enumerate(train_dataset.dataset):
+            pair_variance = get_variance(traj1, traj2)
+            pairs_w_variance.append((idx, pair_variance))
+        
+        pairs_w_variance = sorted(pairs_w_variance, key=lambda x: x[1], reverse=True)
 
-    # Initialize Dataloaders
-    train_dataloader = DataLoader(
-        train_dataset,
-        batch_size=train_size if train_size < batch_size else batch_size,
+        top_indices = [item[0] for item in pairs_w_variance[:new_train_size]]
+        
+        variance_pairs = {
+            "first_trajectories" : [],
+            "second_trajectories" : [],
+            "labels" : [],
+            "score1" : [],
+            "score2" : [],
+        }
+
+        for index in top_indices:
+            (traj1, traj2, label, score1, score2) = train_dataset.dataset[index]
+            variance_pairs["first_trajectories"].append(traj1)
+            variance_pairs["second_trajectories"].append(traj2)
+            variance_pairs["labels"].append(label)
+            variance_pairs["score1"].append(score1)
+            variance_pairs["score2"].append(score2)
+
+        train_sampler = TrajectoryDataset("", variance_pairs)
+        
+    return train_sampler
+
+def distribute_data(train_subset, batch_size, num_models):
+    train_sizes = [len(train_subset) // num_models for _ in range(num_models)]
+    print("TRAIN_SIZES:", train_sizes)
+    first_train_size = len(train_subset) - num_models * (len(train_subset) // num_models)
+    train_sizes[0] += first_train_size
+    train_datasets = random_split(train_subset, train_sizes)
+    train_dataloaders = [DataLoader(
+        train_datasets[i],
+        batch_size=train_sizes[i] if train_sizes[i] < batch_size else batch_size,
         shuffle=True,
         pin_memory=False,
-    )
-    validation_dataloader = DataLoader(
-        val_dataset,
-        batch_size=val_size if val_size < batch_size else batch_size,
-        shuffle=False,
-        pin_memory=False,
-    )
-    return train_dataloader, validation_dataloader
-
+    ) for i in range(num_models)]
+    return train_dataloaders
 
 def prepare_single_trajectory(trajectory, max_length=2):
     def truncate(trajectory, max_length):
@@ -288,26 +324,46 @@ def calculate_accuracy(predicted_probabilities, true_preferences):
 
 
 def train_ensemble(
-    ensemble, epochs, swap_interval, optimizer, batch_size, trajectory_path
+    ensemble, epochs, swaps, optimizer, batch_size, trajectory_path
 ):
+    global ensemble_path
+    ensemble_path = models_path + f'ensemble_{epochs}/'
+    os.makedirs(ensemble_path, exist_ok=True)
+
+    n_models = len(ensemble.model_list)
     ensemble.to(device)
     scheduler = lr_scheduler.LinearLR(
         optimizer, start_factor=1.0, end_factor=0.01, total_iters=epochs
     )
 
     full_dataset = TrajectoryDataset(trajectory_path)
-    best_val_loss = float("inf")
+    dataset_size = len(full_dataset)
+    train_size = int(train_ratio * dataset_size)
+    val_size = dataset_size - train_size
+    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+
+    validation_dataloader = DataLoader(
+        val_dataset,
+        batch_size=val_size if val_size < batch_size else batch_size,
+        shuffle=False,
+        pin_memory=False,
+    )
 
     training_losses = []
     training_accuracies = []
     validation_losses = []
     validation_accuracies = []
+    
+    best_loss = float('inf')
+    best_val_losses = [float('inf') for _ in range(n_models)]
 
     epoch = 0
     while epoch < epochs:
-        if epoch % swap_interval == 0:
-            training_dataloader, validation_dataloader = pickHighestEntropyPairs(
-                full_dataset, batch_size
+        if epoch % (epochs // (swaps + 1)) == 0:
+            print("SWAP:", epoch)
+            train_subset = pick_highest_entropy_dataset(epoch, ensemble, train_dataset, math.ceil(dataset_size / (swaps + 1)))
+            training_dataloaders = distribute_data(
+                train_subset, batch_size, n_models
             )
 
         loss_across_models = 0
@@ -315,37 +371,82 @@ def train_ensemble(
         val_loss_across_models = 0
         val_acc_across_models = 0
 
-        for i, model in enumerate(ensemble.model_list):
-            train_loss, train_acc, val_loss, val_acc = model.train_step(
-                training_dataloader,
-                validation_dataloader,
-                ensemble_path + f"model_{epochs}_{i}.pth",
-            )
-            training_losses.append(train_loss)
-            training_accuracies.append(train_acc)
-            validation_losses.append(val_loss)
-            validation_accuracies.append(val_acc)
-            loss_across_models += train_loss
-            acc_across_models += train_acc
+        for i in range(n_models):
+            train_size = len(training_dataloaders[i].dataset)
+            val_size = len(validation_dataloader.dataset)
+
+            model = ensemble.model_list[i]
+            # Ensure loss is a tensor
+            model.train()
+
+            model_loss = 0.0
+            model_acc = 0.0
+
+            for (
+                batch_traj1,
+                batch_traj2,
+                batch_true_pref,
+                _,
+                _,
+            ) in training_dataloaders[i]:
+                rewards1 = model(batch_traj1)
+                rewards2 = model(batch_traj2)
+
+                predicted_probabilities = bradley_terry_model(rewards1, rewards2)
+                model_loss += preference_loss(predicted_probabilities, batch_true_pref)
+                model_acc += calculate_accuracy(predicted_probabilities, batch_true_pref)
+
+            model_loss /= train_size
+            model_acc /= train_size
+            loss_across_models += model_loss
+            acc_across_models += model_acc
+                
+
+            val_loss = 0.0
+            val_acc = 0.0
+            # Validation steps and logging
+            model.eval()
+            with torch.no_grad():
+                for (
+                    validation_traj1,
+                    validation_traj2,
+                    validation_true_pref,
+                    _,
+                    _,
+                ) in validation_dataloader:
+                    validation_rewards1 = model(validation_traj1)
+                    validation_rewards2 = model(validation_traj2)
+                    validation_predicted_probabilities = bradley_terry_model(
+                        validation_rewards1, validation_rewards2
+                    )
+                    val_loss += preference_loss(validation_predicted_probabilities, validation_true_pref)
+                    val_acc += calculate_accuracy(validation_predicted_probabilities, validation_true_pref)
+
+            val_loss /= val_size
+            val_acc /= val_size
             val_loss_across_models += val_loss
             val_acc_across_models += val_acc
 
-        # avg across models
-        average_training_loss = train_loss / len(ensemble.model_list)
-        average_validation_loss = val_loss / len(ensemble.model_list)
-        average_training_accuracy = train_acc / len(ensemble.model_list)
-        average_validation_accuracy = val_acc / len(ensemble.model_list)
+            if val_loss < best_val_losses[i]:
+                best_val_losses[i] = val_loss
+                torch.save(ensemble.model_list[i].state_dict(), ensemble_path + f"model_{epochs}_{i}.pth")
+                print(f"MODEL {i} SAVED AT EPOCH: {epoch}")
+                    
+        avg_train_loss = loss_across_models / n_models
+        avg_train_acc = acc_across_models / n_models
+        avg_val_loss = val_loss_across_models / n_models
+        avg_val_acc = val_acc_across_models / n_models
+        best_loss = min(best_loss, avg_train_loss)
 
-        best_val_loss = min(best_val_loss, average_training_loss)
         if epoch % 100 == 0:
             print(
-                f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {average_validation_loss.item()}, Train Acc: {average_training_accuracy}, Val Acc: {average_validation_accuracy}"
+                f"Epoch {epoch}/{epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}, Train Acc: {avg_train_acc}, Val Acc: {avg_val_acc}"
             )
         epoch += 1
 
         optimizer.zero_grad()
-        loss_across_models.backward()
-        torch.nn.utils.clip_grad_norm_(ensemble.parameters(), 1.0)
+        avg_train_loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         scheduler.step()
 
@@ -366,7 +467,7 @@ def train_ensemble(
     plt.legend()
     plt.savefig("figures/accuracy.png")
     plt.close()
-    return best_val_loss
+    return best_loss
 
 
 def train_model(
@@ -455,6 +556,7 @@ def train_model(
             if average_validation_loss < best_loss:
                 best_loss = average_validation_loss
                 torch.save(net.state_dict(), model_path)
+                print("MODEL SAVED AT EPOCH:", epoch)
             average_validation_accuracy = total_validation_accuracy / val_size
             validation_losses.append(average_validation_loss.item())
             validation_accuracies.append(average_validation_accuracy)
@@ -514,6 +616,7 @@ def train_model(
             epoch += 1
     except:
         torch.save(net.state_dict(), model_path)
+        print("EXCEPTION CAUGHT AND MODEL SAVED AT EPOCH:", epoch)
 
     plt.figure()
     plt.plot(training_losses, label="Train Loss")
@@ -543,7 +646,8 @@ def train_reward_function(
     if use_ensemble:
         ensemble_path = models_path + f"ensemble_{epochs}/"
         os.makedirs(ensemble_path, exist_ok=True)
-
+    
+    # OPTUNA
     if not parameters_path:
         print("RUNNING WITH OPTUNA:")
         global study
@@ -605,6 +709,7 @@ def train_reward_function(
         for file in glob.glob("best_ensemble/*"):
             os.remove(file)
 
+    # NO OPTUNA
     else:
         print("RUNNING WITHOUT OPTUNA:")
         with open(parameters_path, "r") as file:
@@ -613,12 +718,12 @@ def train_reward_function(
             learning_rate = data["learning_rate"]
             weight_decay = data["weight_decay"]
             dropout_prob = data["dropout_prob"]
-            swap_interval = data["swap_interval"]
+            swaps = data["swaps"]
             batch_size = data["batch_size"]
 
             if use_ensemble:
                 ensemble = Ensemble(
-                    input_size, ENSEMBLE_SIZE, hidden_size, dropout_prob
+                    input_size, ENSEMBLE_SIZE, None, hidden_size, dropout_prob
                 ).to(device)
                 # net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(device)
                 for param in ensemble.parameters():
@@ -633,7 +738,7 @@ def train_reward_function(
                 best_loss = train_ensemble(
                     ensemble,
                     epochs,
-                    swap_interval,
+                    swaps,
                     optimizer,
                     batch_size,
                     trajectories_file_path,
@@ -704,7 +809,7 @@ def ensemble_objective(trial):
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
     dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.0)
     batch_size = trial.suggest_int("batch_size", 128, 2048)
-    swap_interval = trial.suggest_int("swap_interval", 1, 100)
+    swaps = trial.suggest_int("swaps", 0, 10)
 
     ensemble = Ensemble(input_size, 3, hidden_size, dropout_prob).to(device)
     # net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(device)
@@ -716,7 +821,7 @@ def ensemble_objective(trial):
     )
 
     best_loss = train_ensemble(
-        ensemble, epochs, swap_interval, optimizer, study.user_attrs["file_path"]
+        ensemble, epochs, swaps, optimizer, study.user_attrs["file_path"]
     )
 
     # Save the best model parameters
@@ -747,6 +852,9 @@ if __name__ == "__main__":
     )
     parse.add_argument(
         "-e", "--epochs", type=int, help="Number of epochs to train the model"
+    )
+    parse.add_argument(
+        "-l", "--labels", type=int, help="Number of labels created"
     )
     parse.add_argument(
         "--ensemble", action="store_true", help="Train an ensemble of 3 predictors"

@@ -24,8 +24,6 @@ from plot import (
 from reward import (
     TrajectoryRewardNet,
     train_reward_function,
-    models_path,
-    ensemble_path,
 )
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -34,7 +32,7 @@ os.environ["WANDB_SILENT"] = "true"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 
-def start_simulation(config_path, max_generations, number_of_pairs, run_type, noHead):
+def start_simulation(config_path, max_generations, number_of_pairs, run_type, noHead, use_ensemble):
     # Set number of trajectories
     agent.number_of_pairs = number_of_pairs
 
@@ -45,6 +43,7 @@ def start_simulation(config_path, max_generations, number_of_pairs, run_type, no
             number_of_pairs=number_of_pairs,
             runType=run_type,
             noHead=noHead,
+            use_ensemble=use_ensemble
         ),
         agent.rules_followed,
     )
@@ -59,23 +58,6 @@ def parse_to_float(s):
             return numerator / denominator
         except (ValueError, ZeroDivisionError):
             raise ValueError(f"Cannot convert '{s}' to float")
-
-
-# def sample_from_database(num_pairs, database_path):
-#     with open(database_path, "rb") as f:
-#         database = pickle.load(f)
-#     total_pairs = len(database)
-
-#     if num_pairs == total_pairs:
-#         return database_path
-#     elif num_pairs < total_pairs:
-#         new_pairs = random.sample(database, num_pairs)
-#         new_database_path = trajectory_path + f"database_{num_pairs}.pkl"
-#         with open(new_database_path, "wb") as f:
-#             pickle.dump(new_pairs, f)
-#         return new_database_path
-#     else:
-#         return -1
 
 
 if __name__ == "__main__":
@@ -113,7 +95,7 @@ if __name__ == "__main__":
         "--headless", action="store_true", help="Run simulation without GUI"
     )
     parse.add_argument(
-        "--ensemble", action="store_true", help="Train an ensemble of 3 edictors"
+        "--ensemble", action="store_true", help="Train an ensemble of 3 predictors"
     )
     parse.add_argument(
         "-r",
@@ -184,6 +166,7 @@ if __name__ == "__main__":
             args.trajectories[0],
             "collect",
             args.headless,
+            args.ensemble,
         )
 
         print("Starting training on trajectories...")
@@ -193,13 +176,13 @@ if __name__ == "__main__":
 
         print("Finished training model...")
 
-        if args.parameters:
+        if not args.parameters:
             sys.exit()
         # run the simulation with the trained reward function
         if args.ensemble:
-            model_weights = ["QUICK", ensemble_path]
+            model_weights = ["QUICK", reward.ensemble_path]
         else:
-            model_weights = [(models_path + f"model_{args.epochs[0]}.pth")]
+            model_weights = [(reward.models_path + f"model_{args.epochs[0]}.pth")]
     else:
         model_weights = args.reward
 
@@ -211,6 +194,7 @@ if __name__ == "__main__":
         0,
         "trueRF",
         args.headless,
+        args.ensemble,
     )
 
     with open(
@@ -226,7 +210,7 @@ if __name__ == "__main__":
 
     # weights = torch.load(model_weights, map_location=device)
     # agent.reward_network.load_state_dict(weights)
-    load_models(model_weights)
+    load_models(model_weights, hidden_size)
 
     trainedPairs, trained_rules_followed = start_simulation(
         "./config/agent_config.txt",
@@ -234,12 +218,12 @@ if __name__ == "__main__":
         0,
         "trainedRF",
         args.headless,
+        args.ensemble,
     )
 
     model_info = {
         "net": agent.reward_network,
         "ensemble": agent.ensemble,
-        "net": None,
         "hidden-size": hidden_size,
         "epochs": -1 if args.epochs is None else args.epochs[0],
         "pairs-learned": -1 if args.trajectories is None else args.trajectories[0],
