@@ -131,10 +131,10 @@ class Car:
     def __init__(self, color="blue"):
         # Load Car Sprite and Rotate
         if color == "red":
-            self.sprite = pygame.image.load("red_car.png").convert()
+            self.sprite = pygame.image.load("sprites/red_car.png").convert()
         else:
             self.sprite = pygame.image.load(
-                "car.png"
+                "sprites/car.png"
             ).convert()  # Convert Speeds Up A Lot
         self.sprite = pygame.transform.scale(self.sprite, (CAR_SIZE_X, CAR_SIZE_Y))
         self.rotated_sprite = self.sprite
