@@ -18,3 +18,4 @@ figures/*
 test.py
 archive
 *.pth
+rl_zoo_weights/*

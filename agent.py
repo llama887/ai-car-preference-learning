@@ -868,7 +868,7 @@ def run_population(
                     data = pickle.load(file)
                     print("USING MASTER DB...")
                     saved_segments = data
-            except:
+            except Exception:
                 print("COULD NOT LOAD FROM MASTER DB")
                 saved_segments = []
 
