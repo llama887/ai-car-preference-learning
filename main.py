@@ -79,6 +79,12 @@ if __name__ == "__main__":
         help="Number of pairs of segments to collect",
     )
     parse.add_argument(
+        "-s",
+        "--segment",
+        type=int,
+        help="Length of segments",
+    )
+    parse.add_argument(
         "-g",
         "--generations",
         type=int,
@@ -156,6 +162,11 @@ if __name__ == "__main__":
         assert (
             sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1
         ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
+
+
+    if args.segment < 2:
+        raise Exception("Can not have segments with lenght < 2")
+    agent.train_trajectory_length = args.segment if args.segment else 2
 
     model_weights = ""
     if args.reward is None:
