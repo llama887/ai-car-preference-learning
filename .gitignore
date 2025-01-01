@@ -19,3 +19,7 @@ test.py
 archive
 *.pth
 rl_zoo_weights/*
+tensorboard_logs/*
+logs/*
+models/*
+.DS_Store

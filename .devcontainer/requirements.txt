@@ -7,3 +7,4 @@ wandb==0.18.3
 optuna==4.0.0
 scikit-learn==1.5.2
 rl_zoo3==2.4.0
+tensorboard==2.18.0

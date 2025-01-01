@@ -11,7 +11,7 @@ run_with_ensemble:
 	...
 
 run_pendulum:
-	...
+	python -m rl_zoo3.load_from_hub --algo ppo --env Pendulum-v1 -orga sb3 -f rl_zoo_weights/
 
 clean:
 	rm -rf wandb
