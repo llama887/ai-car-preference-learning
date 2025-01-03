@@ -3,3 +3,4 @@ dropout_prob: 0.0
 hidden_size: 743
 learning_rate: 0.000912164178445159
 weight_decay: 2.303811330725387e-05
+swaps: 3

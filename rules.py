@@ -4,7 +4,7 @@ import math
 NUMBER_OF_RULES = 2
 SEGMENT_DISTRIBUTION_BY_RULES = [1/3, 1/3, 1/3]
 
-def check_rules(segment, total_rules):
+def check_rules_one(segment, total_rules):
     rule_counter = 0
     rules_followed = []
 
@@ -35,3 +35,15 @@ def check_rules(segment, total_rules):
         int(rule_counter == total_rules),
         rules_followed if rules_followed != [] else [0],
     )
+
+def check_rules_long_segment(segment, total_rules):
+    rule_counts = []
+    total_reward = 0
+    rules_followed_list = []
+    for i in range(len(segment) - 1):
+        rule_counter, reward, rules_followed = check_rules_one(segment[i:i+2], total_rules)
+        rule_counts.append(rule_counter)
+        total_reward += reward
+        rules_followed_list.append(rules_followed)
+    return rule_counts, total_reward, rules_followed_list
+        

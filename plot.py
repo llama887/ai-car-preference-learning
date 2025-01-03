@@ -8,8 +8,7 @@ import random
 import re
 import shutil
 import statistics
-import zipfile
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -19,6 +18,13 @@ import torch
 import yaml
 
 import reward
+import glob
+import shutil
+import zipfile
+import re
+
+import agent
+from reward import TrajectoryRewardNet, prepare_single_trajectory, Ensemble
 import rules
 from reward import TrajectoryRewardNet, prepare_single_trajectory
 
@@ -31,6 +37,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 NET_SIZE = 16
 run_wandb = True
 epochs = None
+
+model = None
 
 
 # Todo:
@@ -83,92 +91,14 @@ def bradley_terry(r1, r2):
     return math.exp(r2) / (math.exp(r1) + math.exp(r2))
 
 
-def prepare_data(database_path, model_weights=None, net=None, hidden_size=None):
-    with open(database_path, "rb") as f:
-        trajectories = pickle.load(f)
-    if model_weights is not None:
-        model = TrajectoryRewardNet(NET_SIZE, hidden_size=int(hidden_size)).to(device)
-        model.load_state_dict(torch.load(model_weights))
-    elif net is not None:
-        model = net
-    else:
-        raise Exception(
-            "prepare_data expects either a path to model weights or the reward network"
-        )
-    model.eval()
-    true_min, true_max = float("inf"), float("-inf")
-    trained_min, trained_max = float("inf"), float("-inf")
+def break_into_segments(trajectory):
     trajectory_segments = []
-    trajectory_threshold = 150
-    for i, t in enumerate(trajectories):
-        if i > trajectory_threshold:
-            break
-        for segment in break_into_segments(t[0], single=True) + break_into_segments(
-            t[1], single=True
-        ):
-            trajectory_segments.append(segment)
-            true_reward = dist(segment)
-            true_min = min(true_min, true_reward)
-            true_max = max(true_max, true_reward)
-            trained_reward = model(prepare_single_trajectory(segment))
-            trained_min = min(trained_min, trained_reward)
-            trained_max = max(trained_max, trained_reward)
-    true_reward_normalizer = RewardNormalizer.from_min_max(true_min, true_max)
-    trained_reward_normalizer = RewardNormalizer.from_min_max(trained_min, trained_max)
-    random.shuffle(trajectory_segments)
-    if len(trajectory_segments) % 2 != 0:
-        trajectory_segments.pop()
-    false_true_bradley_terry = []
-    false_trained_bradley_terry = []
-    true_bradley_terry = []
-    bradley_terry_difference = []
-    ordered_segements = []
-    segment_threshold = 12000
-    output_size = (
-        segment_threshold
-        if len(trajectory_segments) > segment_threshold
-        else len(trajectory_segments)
-    )
-    # print("OUTPUT", output_size)
-    for i in range(0, output_size, 2):
-        distance_1 = dist(trajectory_segments[i])
-        distance_2 = dist(trajectory_segments[i + 1])
-        true_r1 = true_reward_normalizer.normalize(distance_1)
-        true_r2 = true_reward_normalizer.normalize(distance_2)
-        trained_r1 = trained_reward_normalizer.normalize(
-            model(prepare_single_trajectory(trajectory_segments[i]))
-        )
-        trained_r2 = trained_reward_normalizer.normalize(
-            model(prepare_single_trajectory(trajectory_segments[i + 1]))
-        )
-        true_preference = true_r1 > true_r2
-        trained_preference = trained_r1 > trained_r2
-        predicted_bradley_terry = bradley_terry(trained_r1, trained_r2)
-        true_bradley_terry = bradley_terry(true_r1, true_r2)
-        bradley_terry_difference.append(true_bradley_terry - predicted_bradley_terry)
-        ordered_segements.extend([[trained_r1, true_r1], [trained_r2, true_r2]])
-        if trained_preference != true_preference:
-            false_true_bradley_terry.append(true_bradley_terry)
-            false_trained_bradley_terry.append(predicted_bradley_terry)
-    ordered_segements = sorted(ordered_segements, key=lambda x: x[0])
-    return (
-        false_true_bradley_terry,
-        false_trained_bradley_terry,
-        bradley_terry_difference,
-        ordered_segements,
-    )
-
-
-def break_into_segments(trajectory, single=False):
-    trajectory_segments = []
-    prev = 0
-    curr = 1
-    while curr < len(trajectory):
-        trajectory_segments.append([trajectory[prev], trajectory[curr]])
-        prev += 1
-        curr += 1
+    current_segment = deque(trajectory[:agent.train_trajectory_length + 1])
+    for i in range(agent.train_trajectory_length + 1, len(trajectory)):
+        current_segment.popleft()
+        current_segment.append(trajectory[i])
+        trajectory_segments.append(list(current_segment))
     return trajectory_segments
-
 
 def dist(traj_segment):
     position_segment = [traj_segment[0].position, traj_segment[1].position]
@@ -190,8 +120,14 @@ def calculate_new_point(point, distance, angle):
 
 
 def populate_lists(true_database, trained_database, training_database, model_info):
-    model_weights = model_info["weights"]
-    net = model_info["net"]
+    global model
+    if model_info["net"]:
+        model = model_info["net"]
+    elif model_info["ensemble"]:
+        model = model_info["ensemble"]
+    else:
+        raise Exception("expecting either a net or ensemble")
+
     hidden_size = model_info["hidden-size"]
     agents_per_generation = model_info["agents-per-generation"]
 
@@ -224,17 +160,6 @@ def populate_lists(true_database, trained_database, training_database, model_inf
             training_trajectories = pickle.load(f)
             # print(training_trajectories[:10])
 
-    if model_weights is not None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = TrajectoryRewardNet(NET_SIZE, hidden_size=int(hidden_size)).to(device)
-        model.load_state_dict(torch.load(model_weights, map_location=device))
-    elif net is not None:
-        model = net
-    else:
-        raise Exception(
-            "prepare_data expects either a path to model weights or the reward network"
-        )
-
     # replace is just a fill in for if you don't have matching ground truth data (not sure when this is actually used at this point LOL)
     if not replace:
         num_true_trajectories = len(true_trajectories)
@@ -248,7 +173,7 @@ def populate_lists(true_database, trained_database, training_database, model_inf
                 gen_true_rewards.append(
                     sum(
                         [
-                            model(prepare_single_trajectory(segment)).item()
+                            model(prepare_single_trajectory(segment, agent.train_trajectory_length + 1)).item()
                             for segment in break_into_segments(trajectory.traj)
                         ]
                     )
@@ -270,13 +195,13 @@ def populate_lists(true_database, trained_database, training_database, model_inf
             gen_trained_rewards.append(trajectory.total_reward)
             for segment in break_into_segments(trajectory.traj):
                 trained_segment_rules_satisifed.append(
-                    rules.check_rules(
+                    rules.check_rules_one(
                         segment,
                         rules.NUMBER_OF_RULES,
                     )[0]
                 )
                 trained_segment_rewards.append(
-                    model(prepare_single_trajectory(segment)).item()
+                    model(prepare_single_trajectory(segment, agent.train_trajectory_length + 1)).item()
                 )
                 trained_segment_distances.append(dist(segment))
             count += 1
@@ -288,22 +213,22 @@ def populate_lists(true_database, trained_database, training_database, model_inf
     if training_database:
         for segment1, segment2, _, reward1, reward2 in training_trajectories:
             training_segment_rules_satisfied.append(
-                rules.check_rules(
+                rules.check_rules_one(
                     segment1,
                     rules.NUMBER_OF_RULES,
                 )[0]
             )
             training_segment_rules_satisfied.append(
-                rules.check_rules(
+                rules.check_rules_one(
                     segment2,
                     rules.NUMBER_OF_RULES,
                 )[0]
             )
             training_segment_rewards.append(
-                model(prepare_single_trajectory(segment1)).item()
+                model(prepare_single_trajectory(segment1, agent.train_trajectory_length + 1)).item()
             )
             training_segment_rewards.append(
-                model(prepare_single_trajectory(segment2)).item()
+                model(prepare_single_trajectory(segment2, agent.train_trajectory_length + 1)).item()
             )
             training_segment_distances.append(dist(segment1))
             training_segment_distances.append(dist(segment2))
@@ -346,8 +271,8 @@ def unzipper_chungus(num_rules):
         with zipfile.ZipFile(zip_file, "r") as zip_ref:
             # Extract all contents of the zip file to the specified folder
             zip_ref.extractall("temp_trajectories")
-            trueRF = glob.glob("temp_trajectories/trajectories/trueRF_*.pkl")[0]
-            trainedRF = glob.glob("temp_trajectories/trajectories/trainedRF_*.pkl")[0]
+            trueRF = glob.glob(f"temp_trajectories/trajectories/trueRF_*.pkl")[0]
+            trainedRF = glob.glob(f"temp_trajectories/trajectories/trainedRF_*.pkl")[0]
 
             with open(trueRF, "rb") as f:
                 true_trajectories = pickle.load(f)
@@ -415,10 +340,10 @@ def unzipper_chungus_deluxe(num_rules):
             with zipfile.ZipFile(zip_file, "r") as zip_ref:
                 # Extract all contents of the zip file to the specified folder
                 zip_ref.extractall("temp_trajectories")
-                trueRF = glob.glob("temp_trajectories/trajectories/trueRF_*.pkl")[0]
-                trainedRF = glob.glob("temp_trajectories/trajectories/trainedRF_*.pkl")[
-                    0
-                ]
+                trueRF = glob.glob(f"temp_trajectories/trajectories/trueRF_*.pkl")[0]
+                trainedRF = glob.glob(
+                    f"temp_trajectories/trajectories/trainedRF_*.pkl"
+                )[0]
 
                 with open(trueRF, "rb") as f:
                     true_trajectories = pickle.load(f)
@@ -543,8 +468,6 @@ def handle_plotting_rei(
     training_segment_rewards,
     training_segment_distances,
 ):
-    model_weights = model_info["weights"]
-    hidden_size = model_info["hidden-size"]
     epochs = model_info["epochs"]
     pairs_learned = model_info["pairs-learned"]
 
@@ -642,25 +565,11 @@ def handle_plotting_rei(
         )
     )
 
-    processes.append(
-        multiprocessing.Process(
-            target=graph_segment_distance_vs_reward,
-            args=(
-                "Training Dataset Distance vs Reward",
-                training_segment_distances,
-                training_segment_rewards,
-            ),
-        )
+    graph_segment_distance_vs_reward(
+        "Training Dataset Distance vs Reward",
+        training_segment_distances,
+        training_segment_rewards,
     )
-
-    # Start all processes
-    for process in processes:
-        print(f"Starting process {process}")
-        process.start()
-
-    # Wait for all processes to finish
-    for process in processes:
-        process.join()
 
 
 def graph_expert_segments_over_generations(averages, maxes):
@@ -1068,6 +977,44 @@ def graph_gap_over_pairs(
     plt.close()
 
 
+def load_models(reward_paths):
+    if len(reward_paths) == 1:
+        print("\nLoading reward network...")
+        reward_network = TrajectoryRewardNet(
+            NET_SIZE * 2,
+            hidden_size=hidden_size,
+        ).to(device)
+        weights = torch.load(reward_paths, map_location=torch.device(f"{device}"))
+        reward_network.load_state_dict(weights)
+        return reward_network, None
+    else:
+        print(f"\nLoading ensemble of {len(reward_paths)} models...")
+        if reward_paths[0] == "QUICK":
+            if len(reward_paths) > 2:
+                raise Exception("REWARD PATH ERROR (QUICK MODE)")
+            reward_paths = []
+            for file in glob.glob(reward_paths[1]):
+                reward_paths.append(file)
+
+        ensemble_nets = [
+            TrajectoryRewardNet(
+                NET_SIZE,
+                hidden_size=hidden_size,
+            ).to(device)
+            for _ in range(len(reward_paths))
+        ]
+        ensemble_weights = []
+        for reward_path in reward_paths:
+            ensemble_weights.append(
+                torch.load(reward_path, map_location=torch.device(f"{device}"))
+            )
+        for i in range(len(ensemble_nets)):
+            ensemble_nets[i].load_state_dict(ensemble_weights[i])
+            print(f"Loaded model #{i} from ensemble...")
+        ensemble = Ensemble(NET_SIZE * 2, len(ensemble_nets), ensemble_nets)
+        return None, ensemble
+
+
 if __name__ == "__main__":
     run_wandb = False
     parse = argparse.ArgumentParser(description="Generating Plots for trained model")
@@ -1082,6 +1029,7 @@ if __name__ == "__main__":
         "-r",
         "--reward",
         type=str,
+        action="append",
         help="Directory to reward function weights",
     )
     parse.add_argument(
@@ -1121,9 +1069,10 @@ if __name__ == "__main__":
         data = yaml.safe_load(file)
         hidden_size = data["hidden_size"]
 
+    reward_network, ensemble = load_models(args.reward, hidden_size)
     model_info = {
-        "weights": reward,
-        "net": None,
+        "net": reward_network,
+        "ensemble": ensemble,
         "hidden-size": hidden_size,
         "epochs": epochs,
         "pairs-learned": num_pairs_learned,

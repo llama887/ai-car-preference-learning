@@ -16,13 +16,14 @@ import yaml
 
 import reward
 import rules
-from reward import TrajectoryRewardNet, prepare_single_trajectory
+from collections import deque
+from reward import TrajectoryRewardNet, Ensemble, prepare_single_trajectory
 
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 trajectories_path = "trajectories/"
-master_database_path = "database_gargantuar.pkl"
+master_database = "database_gargantuar"
 
 os.makedirs(trajectories_path, exist_ok=True)
 # Constants
@@ -36,16 +37,16 @@ CAR_SIZE_Y = 60
 BORDER_COLOR = (255, 255, 255, 255)  # Color To Crash on Hit
 
 TRAJECTORY_LENGTH = 30 * 15
-TRAIN_TRAJECTORY_LENGTH = 2
+train_trajectory_length = 2
 NUM_RADARS = 5
 STATE_ACTION_SIZE = 8
 
 DEFAULT_MAX_GENERATIONS = 1000
-SEGMENTS_PER_PAIR = 5
 
 current_generation = 0  # Generation counter
 trajectory_path = "./trajectories/"
 reward_network = None
+ensemble = None
 num_pairs = 0
 population = ""
 run_type = "collect"
@@ -298,8 +299,8 @@ class Car:
         )
         self.trajectory.append(next_state_action)
 
-        rules_satisfied, is_expert, _ = rules.check_rules(
-            self.trajectory[-2:], total_rules=rules.NUMBER_OF_RULES
+        rules_satisfied, is_expert, _ = rules.check_rules_one(
+            self.trajectory[-2:], rules.NUMBER_OF_RULES
         )
         self.rules_per_step.append(rules_satisfied)
         self.expert_segments += is_expert
@@ -319,13 +320,16 @@ class Car:
         return self.alive
 
     def get_reward(self):
-        if len(self.trajectory) < 2:
+        if len(self.trajectory) < train_trajectory_length + 1:
             return 0
-        if reward_network is not None:
-            trajectory_tensor = prepare_single_trajectory(self.trajectory)
-            reward = reward_network(trajectory_tensor)
-            return reward.item()
-        return rules.check_rules(self.trajectory[-2:], rules.NUMBER_OF_RULES)[1]
+        if ensemble:
+            trajectory_tensor = prepare_single_trajectory(self.trajectory, train_trajectory_length + 1)
+            return ensemble(trajectory_tensor).item()
+        elif reward_network:
+            trajectory_tensor = prepare_single_trajectory(self.trajectory, train_trajectory_length + 1)
+            return reward_network(trajectory_tensor).item()
+
+        return rules.check_rules_one(self.trajectory[-2:], rules.NUMBER_OF_RULES)[1]
 
     def rotate_center(self, image, angle):
         # Rotate The Rectangle
@@ -355,7 +359,7 @@ class Car:
 def display_master_segments(saved_segments):
     print("MASTER DATABASE CURRENTLY HAS:")
     if not saved_segments:
-        print("NO SEGMENTS lol")
+        print("NO SEGMENTS")
     for i, seg in enumerate(saved_segments):
         print(i, "RULE SEGMENTS:", len(seg))
     print()
@@ -364,6 +368,9 @@ def display_master_segments(saved_segments):
 def display_requested_segments(number_of_pairs):
     print(
         f"SEGMENTS REQUESTED (Pairs Requested * distribution[i] * Segments Per Pair Multiplier (currently set to: {SEGMENTS_PER_PAIR})):"
+    )
+    print(
+        f"SEGMENTS REQUESTED (Pairs Requested * 2 * distribution[i]) (x10 for ensemble)):"
     )
     for i in range(rules.NUMBER_OF_RULES + 1):
         print(
@@ -375,24 +382,38 @@ def display_requested_segments(number_of_pairs):
                 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
             ),
         )
+        print(
+            i,
+            "RULE SEGMENTS:",
+            math.ceil(
+                number_of_pairs * 2
+                * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
+            ),
+        )
     print()
 
 
 def break_into_segments(trajectory, rules_per_step, done):
+    global train_trajectory_length
     trajectory_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
-    prev = 0
-    curr = 1
-    while curr < len(trajectory):
-        rules_satisfied = rules_per_step[prev]
-        segment = [trajectory[prev], trajectory[curr]]
-        trajectory_segments[rules_satisfied].append(segment)
-        prev += 1
-        curr += 1
+    if len(trajectory) < train_trajectory_length + 1:
+        return
+    
+    current_segment = trajectory[:train_trajectory_length + 1]
+    current_rule_sum = sum(rules_per_step[:train_trajectory_length])
+    current_rule_avg = int(round(current_rule_sum // train_trajectory_length))
+    trajectory_segments[current_rule_avg].append(current_segment)
+    current_segment = deque(current_segment)
 
+    for i in range(train_trajectory_length + 1, len(trajectory)):
+        current_segment.popleft()
+        current_segment.append(trajectory[i])
+        current_rule_sum += rules_per_step[i - 1] - rules_per_step[i - 1 - train_trajectory_length]
+        current_rule_avg = int(round(current_rule_sum // train_trajectory_length))
+        trajectory_segments[current_rule_avg].append(list(current_segment))
+    
     for i in range(rules.NUMBER_OF_RULES + 1):
-        if done[
-            i
-        ]:  # done collecting segments satisfying i rules, then don't collect them anymore
+        if done[i]:  
             trajectory_segments[i] = []
     return trajectory_segments
 
@@ -450,10 +471,11 @@ def trim_excess_segments():
 
 
 def sample_segments(saved_segments):
+    global num_pairs
     sampled_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
     for i in range(rules.NUMBER_OF_RULES + 1):
         segments_needed = math.ceil(
-            number_of_pairs * SEGMENTS_PER_PAIR * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
+            num_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
         )
         sampled_segments[i] = random.sample(saved_segments[i], segments_needed)
     return sampled_segments
@@ -462,7 +484,7 @@ def sample_segments(saved_segments):
 def generate_database(trajectory_path):
     trajectory_pairs = []
 
-    global run_type, saved_segments, number_of_pairs, saved_trajectories
+    global run_type, saved_segments, num_pairs, saved_trajectories
     if run_type == "collect":
         # Break trajectories into trajectory segments
         trajectory_segments = []
@@ -476,16 +498,16 @@ def generate_database(trajectory_path):
 
         if len(trajectory_segments) % 2 != 0:
             trajectory_segments.pop()
-
+        
         segment_generation_mode = "random"
         if segment_generation_mode == "random":
             random.shuffle(trajectory_segments)
             same_reward = 0
-            for i in range(0, number_of_pairs * 2, 2):
-                _, reward_1, _ = rules.check_rules(
+            for i in range(0, num_pairs * 2, 2):
+                _, reward_1, _ = rules.check_rules_long_segment(
                     trajectory_segments[i], rules.NUMBER_OF_RULES
                 )
-                _, reward_2, _ = rules.check_rules(
+                _, reward_2, _ = rules.check_rules_long_segment(
                     trajectory_segments[i + 1], rules.NUMBER_OF_RULES
                 )
                 if reward_1 == reward_2:
@@ -504,12 +526,12 @@ def generate_database(trajectory_path):
             print(
                 "Generated",
                 n - same_reward,
-                f"pairs with different rewards ({(n-same_reward)/n}%)",
+                f"pairs with different rewards ({(n - same_reward)/n}%)",
             )
 
-            if n > number_of_pairs:
-                print("soemthing is wrong unlucky pepperoni (too many pairs!)")
-                for i in range(n - number_of_pairs):
+            if n > num_pairs:
+                print("too many pairs!")
+                for i in range(n - num_pairs):
                     trajectory_pairs.pop()
 
         elif segment_generation_mode == "different":
@@ -520,6 +542,10 @@ def generate_database(trajectory_path):
                     trajectory_segments[i], rules.NUMBER_OF_RULES
                 )
                 _, reward_2, _ = rules.check_rules(
+                _, reward_1, _ = rules.check_rules_long_segment(
+                    trajectory_segments[i], rules.NUMBER_OF_RULES
+                )
+                _, reward_2, _ = rules.check_rules_long_segment(
                     trajectory_segments[i + 1], rules.NUMBER_OF_RULES
                 )
                 if reward_1 == reward_2:
@@ -546,9 +572,9 @@ def generate_database(trajectory_path):
 
             n = len(trajectory_pairs)
             print("Generated", n, "pairs with different reward.")
-            for i in range(n - number_of_pairs):
+            for i in range(n - num_pairs):
                 trajectory_pairs.pop()
-            fill = min(number_of_pairs - n, len(same_reward))
+            fill = min(num_pairs - n, len(same_reward))
             print("Remaining", fill, "pairs are between segments with same reward.")
             for i in range(fill):
                 trajectory_pairs.append(same_reward[i])
@@ -573,12 +599,12 @@ def generate_database(trajectory_path):
             pickle.dump(trajectory_pairs, f)
 
         # Delete old master database
-        if os.path.exists(master_database_path):
+        if os.path.exists(master_database):
             print("Removing old master database...")
-            os.remove(master_database_path)
+            os.remove(master_database)
 
         # Save new master database
-        with open(master_database_path, "wb") as f:
+        with open(master_database, "wb") as f:
             pickle.dump(saved_segments, f)
 
         return len(trajectory_pairs)
@@ -716,13 +742,12 @@ def run_simulation(genomes, config):
             old_lengths = [len(seg) for seg in saved_segments]
             for i, car in enumerate(cars):
                 car.save_trajectory()
-
             if run_type == "collect":
                 for i in range(rules.NUMBER_OF_RULES + 1):
                     print(
                         "THIS GENERATION PRODUCED",
                         len(saved_segments[i]) - old_lengths[i],
-                        f"SEGMENTS SATISFYING {i} RULES.",
+                        f"SEGMENTS SATISFYING {i} RULES ON AVERAGE.",
                     )
                 display_master_segments(saved_segments)
             break
@@ -797,32 +822,19 @@ def finished_collecting(number_of_pairs):
 
 def collection_status(number_of_pairs):
     rule_finished = [False] * (rules.NUMBER_OF_RULES + 1)
-    global saved_segments
+    global saved_segments, ensemble
     for i in range(rules.NUMBER_OF_RULES + 1):
         if (
             len(saved_segments[i])
-            >= number_of_pairs
-            * SEGMENTS_PER_PAIR
+            >= number_of_pairs * 2
             * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
         ):
             rule_finished[i] = True
     return rule_finished
 
 
-def trim_segment_counts(number_of_pairs):
-    global saved_segments
-    for i in range(rules.NUMBER_OF_RULES + 1):
-        while (
-            len(saved_segments[i])
-            > number_of_pairs
-            * SEGMENTS_PER_PAIR
-            * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
-        ):
-            saved_segments[i].pop()
-
-
 def run_population(
-    config_path, max_generations, number_of_pairs, runType, noHead=False
+    config_path, max_generations, number_of_pairs, runType, noHead=False, use_ensemble=False
 ):
     try:
         # Load Config
@@ -833,7 +845,9 @@ def run_population(
             neat.DefaultStagnation,
             config_path,
         )
-
+        global num_pairs
+        num_pairs = number_of_pairs * (10 if use_ensemble else 1)
+        
         global run_type, headless
         run_type = runType
         headless = noHead
@@ -849,22 +863,20 @@ def run_population(
             pass
 
         # Create Population And Add Reporters
-        global \
-            current_generation, \
-            population, \
-            saved_segments, \
-            saved_trajectories, \
-            num_pairs
+        global current_generation, population, saved_segments, saved_trajectories, master_database
         population = neat.Population(config)
         population.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
-        num_pairs = number_of_pairs
+
+        master_database += f'_{train_trajectory_length}.pkl'
+        reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
+        print(master_database)
 
         missing_segments = True
         if run_type == "collect":
             try:
-                with open(master_database_path, "rb") as file:
+                with open(master_database, "rb") as file:
                     data = pickle.load(file)
                     print("USING MASTER DB...")
                     saved_segments = data
@@ -879,6 +891,8 @@ def run_population(
                 saved_segments.append([])
 
             if finished_collecting(number_of_pairs):
+
+            if finished_collecting(num_pairs):
                 missing_segments = False
                 print("SEGMENT COUNT SATISFIED! Subsampling...")
             else:
@@ -891,7 +905,7 @@ def run_population(
         if run_type != "collect" or missing_segments:
             while True:
                 population.run(run_simulation, 1)
-                if run_type == "collect" and finished_collecting(number_of_pairs):
+                if run_type == "collect" and finished_collecting(num_pairs):
                     print(f"Stopping after {generation} generations.")
                     pygame.display.quit()
                     pygame.quit()
@@ -910,6 +924,46 @@ def run_population(
         generate_database(trajectory_path)
 
 
+def load_models(reward_paths, hidden_size):
+    global runType, reward_network, ensemble
+    if len(reward_paths) == 1:
+        print("\nLoading reward network...")
+        reward_network = TrajectoryRewardNet(
+            STATE_ACTION_SIZE * (train_trajectory_length + 1),
+            hidden_size=hidden_size,
+        ).to(device)
+        weights = torch.load(reward_paths[0], map_location=torch.device(f"{device}"))
+        reward_network.load_state_dict(weights)
+    else:
+        if reward_paths[0] == "QUICK":
+            if len(reward_paths) > 2:
+                raise Exception("REWARD PATH ERROR (QUICK MODE)")
+            ensemble_dir = reward_paths[1] + '*'
+            reward_paths = []
+            for file in glob.glob(ensemble_dir):
+                reward_paths.append(file)
+
+        print(f"\nLoading ensemble of {len(reward_paths)} models...")
+        ensemble_nets = [
+            TrajectoryRewardNet(
+                STATE_ACTION_SIZE * (train_trajectory_length + 1),
+                hidden_size=hidden_size,
+            ).to(device)
+            for _ in range(len(reward_paths))
+        ]
+        ensemble_weights = []
+        for reward_path in reward_paths:
+            ensemble_weights.append(
+                torch.load(reward_path, map_location=torch.device(f"{device}"))
+            )
+        for i in range(len(ensemble_nets)):
+            ensemble_nets[i].load_state_dict(ensemble_weights[i])
+            print(f"Loaded model #{i} from ensemble...")
+        ensemble = Ensemble(STATE_ACTION_SIZE * (train_trajectory_length + 1), len(ensemble_nets), ensemble_nets)
+
+    runType = "trainedRF"
+
+
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(description="AI Car Preference Learning")
     parse.add_argument(
@@ -924,6 +978,7 @@ if __name__ == "__main__":
         "-r",
         "--reward",
         type=str,
+        action="append",
         help="Directory to reward function weights",
     )
     parse.add_argument(
@@ -934,6 +989,12 @@ if __name__ == "__main__":
         "--big",
         action="store_true",
         help="flag for big mode",
+    )
+    parse.add_argument(
+        "-s",
+        "--segment",
+        type=int,
+        help="Length of segments",
     )
     args = parse.parse_args()
 
@@ -947,30 +1008,25 @@ if __name__ == "__main__":
         data = yaml.safe_load(file)
         hidden_size = data["hidden_size"]
 
-    if args.reward is not None:
-        print("\nLoading reward network...")
+    if args.reward:
+        load_models(args.reward, hidden_size)
 
-        reward_network = TrajectoryRewardNet(
-            STATE_ACTION_SIZE * 2,
-            hidden_size=hidden_size,
-        ).to(device)
-        weights = torch.load(args.reward, map_location=torch.device(f"{device}"))
-        reward_network.load_state_dict(weights)
-        runType = "trainedRF"
-        with open("scaler.pkl", "rb") as f:
-            reward.scaler = pickle.load(f)
-        if args.big:
-            runType = "big_mode"
+    if args.big:
+        runType = "big_mode"
 
     config_path = (
         "config/data_collection_config.txt"
         if reward_network is None
         else "config/agent_config.txt"
     )
-    # number_of_pairs = [-1]
+
     if args.trajectories[0] > 0:
         number_of_pairs = args.trajectories[0]
         runType = "collect"
+
+    if args.segment < 2:
+        raise Exception("Can not have segments with lenght < 2")
+    train_trajectory_length = args.segment if args.segment else 2
 
     run_population(
         config_path=config_path,
@@ -978,4 +1034,5 @@ if __name__ == "__main__":
         number_of_pairs=number_of_pairs,
         runType=runType,
         noHead=args.headless,
+        use_ensemble=args.ensemble,
     )
