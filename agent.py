@@ -997,9 +997,9 @@ if __name__ == "__main__":
         number_of_pairs = args.trajectories[0]
         runType = "collect"
 
-    if args.segment < 2:
+    if args.segment and args.segment < 1:
         raise Exception("Can not have segments with lenght < 2")
-    train_trajectory_length = args.segment if args.segment else 2
+    train_trajectory_length = args.segment if args.segment else 1
 
     run_population(
         config_path=config_path,

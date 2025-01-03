@@ -162,9 +162,9 @@ if __name__ == "__main__":
         ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
 
 
-    if args.segment < 2:
-        raise Exception("Can not have segments with lenght < 2")
-    agent.train_trajectory_length = args.segment if args.segment else 2
+    if args.segment and args.segment < 1:
+        raise Exception("Can not have segments with length < 1")
+    agent.train_trajectory_length = args.segment if args.segment else 1
 
     model_weights = ""
     if args.reward is None:
