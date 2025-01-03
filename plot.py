@@ -4,7 +4,7 @@ import os
 import pickle
 import random
 import statistics
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -19,6 +19,7 @@ import shutil
 import zipfile
 import re
 
+import agent
 from reward import TrajectoryRewardNet, prepare_single_trajectory, Ensemble
 import rules
 
@@ -85,16 +86,14 @@ def bradley_terry(r1, r2):
     return math.exp(r2) / (math.exp(r1) + math.exp(r2))
 
 
-def break_into_segments(trajectory, single=False):
+def break_into_segments(trajectory):
     trajectory_segments = []
-    prev = 0
-    curr = 1
-    while curr < len(trajectory):
-        trajectory_segments.append([trajectory[prev], trajectory[curr]])
-        prev += 1
-        curr += 1
+    current_segment = deque(trajectory[:agent.train_trajectory_length + 1])
+    for i in range(agent.train_trajectory_length + 1, len(trajectory)):
+        current_segment.popleft()
+        current_segment.append(trajectory[i])
+        trajectory_segments.append(list(current_segment))
     return trajectory_segments
-
 
 def dist(traj_segment):
     position_segment = [traj_segment[0].position, traj_segment[1].position]
@@ -169,7 +168,7 @@ def populate_lists(true_database, trained_database, training_database, model_inf
                 gen_true_rewards.append(
                     sum(
                         [
-                            model(prepare_single_trajectory(segment)).item()
+                            model(prepare_single_trajectory(segment, agent.train_trajectory_length + 1)).item()
                             for segment in break_into_segments(trajectory.traj)
                         ]
                     )
@@ -191,13 +190,13 @@ def populate_lists(true_database, trained_database, training_database, model_inf
             gen_trained_rewards.append(trajectory.total_reward)
             for segment in break_into_segments(trajectory.traj):
                 trained_segment_rules_satisifed.append(
-                    rules.check_rules(
+                    rules.check_rules_one(
                         segment,
                         rules.NUMBER_OF_RULES,
                     )[0]
                 )
                 trained_segment_rewards.append(
-                    model(prepare_single_trajectory(segment)).item()
+                    model(prepare_single_trajectory(segment, agent.train_trajectory_length + 1)).item()
                 )
                 trained_segment_distances.append(dist(segment))
             count += 1
@@ -209,22 +208,22 @@ def populate_lists(true_database, trained_database, training_database, model_inf
     if training_database:
         for segment1, segment2, _, reward1, reward2 in training_trajectories:
             training_segment_rules_satisfied.append(
-                rules.check_rules(
+                rules.check_rules_one(
                     segment1,
                     rules.NUMBER_OF_RULES,
                 )[0]
             )
             training_segment_rules_satisfied.append(
-                rules.check_rules(
+                rules.check_rules_one(
                     segment2,
                     rules.NUMBER_OF_RULES,
                 )[0]
             )
             training_segment_rewards.append(
-                model(prepare_single_trajectory(segment1)).item()
+                model(prepare_single_trajectory(segment1, agent.train_trajectory_length + 1)).item()
             )
             training_segment_rewards.append(
-                model(prepare_single_trajectory(segment2)).item()
+                model(prepare_single_trajectory(segment2, agent.train_trajectory_length + 1)).item()
             )
             training_segment_distances.append(dist(segment1))
             training_segment_distances.append(dist(segment2))

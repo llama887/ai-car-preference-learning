@@ -1,15 +1,7 @@
-var = 1
+VARIABLE = 10
 
+def b():
+    print(VARIABLE)
 
-def foo():
-    global var
-    var = 2
-
-
-def balls():
-    print(var)
-
-
-if __name__ == "__main__":
-    foo()
-    balls()
+def __main__():
+    pass

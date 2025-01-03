@@ -1,5 +1,9 @@
-from a import foo, balls
+import a
+from a import b
 
-if __name__ == "__main__":
-    foo()
-    balls()
+def __main__():
+    print("HI")
+    a.VARIABLE = 20
+    b()
+
+__main__()

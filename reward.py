@@ -614,9 +614,10 @@ def train_model(
                     f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {average_validation_loss.item()}, Train Acc: {average_training_accuracy}, Val Acc: {average_validation_accuracy}"
                 )
             epoch += 1
-    except:
+    except Exception as e:
         torch.save(net.state_dict(), model_path)
         print("EXCEPTION CAUGHT AND MODEL SAVED AT EPOCH:", epoch)
+        print(e)
 
     plt.figure()
     plt.plot(training_losses, label="Train Loss")
