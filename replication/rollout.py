@@ -1,10 +1,9 @@
+import pickle
+
 import gymnasium as gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
-
-# Define the output video file
-output_video_file = "ppo_pendulum_performance.mp4"
 
 # Load the trained model
 model_path = "./models/final_ppo_pendulum.zip"
@@ -19,8 +18,13 @@ env = DummyVecEnv([lambda: env])
 obs = env.reset()
 done = False
 
+observation_action_reward_triples = []
 # Run the agent in the environment and capture frames
-while not done:
+while not done and len(observation_action_reward_triples) < 1000:
     action, _ = model.predict(obs)
     obs, reward, done, info = env.step(action)
+    observation_action_reward_triples.append((obs, action, reward))
     env.render(mode="human")
+
+with open("pendulum_rollout.pkl", "wb") as f:
+    pickle.dump(observation_action_reward_triples, f)
