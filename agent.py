@@ -3,6 +3,7 @@
 # Code Adapted for preference learning for Emerge Lab research by Franklin Yiu & Alex Tang
 
 import argparse
+import glob
 import math
 import os
 import pickle
@@ -367,21 +368,9 @@ def display_master_segments(saved_segments):
 
 def display_requested_segments(number_of_pairs):
     print(
-        f"SEGMENTS REQUESTED (Pairs Requested * distribution[i] * Segments Per Pair Multiplier (currently set to: {SEGMENTS_PER_PAIR})):"
-    )
-    print(
         f"SEGMENTS REQUESTED (Pairs Requested * 2 * distribution[i]) (x10 for ensemble)):"
     )
     for i in range(rules.NUMBER_OF_RULES + 1):
-        print(
-            i,
-            "RULE SEGMENTS:",
-            math.ceil(
-                number_of_pairs
-                * SEGMENTS_PER_PAIR
-                * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
-            ),
-        )
         print(
             i,
             "RULE SEGMENTS:",
@@ -460,16 +449,6 @@ def calculate_new_point(point, distance, angle):
     return [x1, y1]
 
 
-def trim_excess_segments():
-    global saved_segments, number_of_pairs
-    for i in range(rules.NUMBER_OF_RULES + 1):
-        segments_needed = math.ceil(
-            number_of_pairs * SEGMENTS_PER_PAIR * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
-        )
-        if len(saved_segments[i]) >= segments_needed:
-            saved_segments[i] = saved_segments[i][:segments_needed]
-
-
 def sample_segments(saved_segments):
     global num_pairs
     sampled_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
@@ -538,10 +517,6 @@ def generate_database(trajectory_path):
             random.shuffle(trajectory_segments)
             same_reward = []
             for i in range(0, len(trajectory_segments), 2):
-                _, reward_1, _ = rules.check_rules(
-                    trajectory_segments[i], rules.NUMBER_OF_RULES
-                )
-                _, reward_2, _ = rules.check_rules(
                 _, reward_1, _ = rules.check_rules_long_segment(
                     trajectory_segments[i], rules.NUMBER_OF_RULES
                 )
@@ -889,8 +864,6 @@ def run_population(
 
             while len(saved_segments) < rules.NUMBER_OF_RULES + 1:
                 saved_segments.append([])
-
-            if finished_collecting(number_of_pairs):
 
             if finished_collecting(num_pairs):
                 missing_segments = False
