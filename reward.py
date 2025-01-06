@@ -735,7 +735,6 @@ def train_reward_function(
                 optimizer = torch.optim.Adam(
                     ensemble.parameters(), lr=learning_rate, weight_decay=weight_decay
                 )
-
                 best_loss = train_ensemble(
                     ensemble,
                     epochs,
@@ -744,6 +743,8 @@ def train_reward_function(
                     batch_size,
                     trajectories_file_path,
                 )
+                for i in range(len(ensemble.model_list)):
+                    torch.save(ensemble.model_list[i].state_dict(), ensemble_path + f"model_{epochs}_{i}.pth")
             else:
                 net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(
                     device
@@ -763,6 +764,9 @@ def train_reward_function(
                     optimizer=optimizer,
                     batch_size=batch_size,
                     model_path=models_path + f"model_{epochs}.pth",
+                )
+                torch.save(
+                    net.state_dict(), models_path + f"model_{epochs}.pth"
                 )
         return best_loss
 

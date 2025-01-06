@@ -463,7 +463,7 @@ def sample_segments(saved_segments):
 def generate_database(trajectory_path):
     trajectory_pairs = []
 
-    global run_type, saved_segments, num_pairs, saved_trajectories
+    global run_type, saved_segments, num_pairs, saved_trajectories, train_trajectory_length
     if run_type == "collect":
         # Break trajectories into trajectory segments
         trajectory_segments = []
@@ -559,7 +559,7 @@ def generate_database(trajectory_path):
         # Delete old database if it is redundant (same size)
         old_pairs_path = (
             trajectory_path
-            + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules.pkl"
+            + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
         )
         if os.path.exists(old_pairs_path):
             print("Removing old database with same pairs and rules...")
@@ -568,7 +568,7 @@ def generate_database(trajectory_path):
         # Save To Database
         with open(
             trajectory_path
-            + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules.pkl",
+            + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl",
             "wb",
         ) as f:
             pickle.dump(trajectory_pairs, f)
@@ -595,7 +595,7 @@ def generate_database(trajectory_path):
                 )
             )
 
-        old_trajectories_path = trajectory_path + f"{run_type}_{len(trajectories)}.pkl"
+        old_trajectories_path = trajectory_path + f"{run_type}_{len(trajectories)}_trajectories.pkl"
         if os.path.exists(old_trajectories_path):
             print("Removing old agent database with same number of trajectories...")
             try:
@@ -608,7 +608,7 @@ def generate_database(trajectory_path):
             except Exception as e:
                 print(f"Unexpected error: {e}")
 
-        with open(trajectory_path + f"{run_type}_{len(trajectories)}.pkl", "wb") as f:
+        with open(trajectory_path + f"{run_type}_{len(trajectories)}_trajectories.pkl", "wb") as f:
             if len(trajectories) > 0:
                 pickle.dump(trajectories, f)
                 pass
