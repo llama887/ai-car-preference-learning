@@ -7,13 +7,7 @@ import yaml
 import agent
 import reward
 import rules
-<<<<<<< HEAD
-
-from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
-from agent import STATE_ACTION_SIZE, run_population, trajectory_path, load_models
-=======
 from agent import load_models, run_population, trajectory_path
->>>>>>> 49b401f3 (partial reward experiment and simplex)
 from debug_plots import (
     handle_plotting_rei,
     populate_lists,
@@ -178,18 +172,10 @@ if __name__ == "__main__":
             sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1
         ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    # Data collection and training reward net
-=======
     if args.segment and args.segment < 1:
         raise Exception("Can not have segments with length < 1")
     agent.train_trajectory_length = args.segment if args.segment else 1
 
->>>>>>> f97fb842 ((feat) combining parallel runs)
-=======
-    # Data collection and training reward net
->>>>>>> 49b401f3 (partial reward experiment and simplex)
     model_weights = ""
     if args.reward is None:
         # start the simulation in data collecting mode
