@@ -38,6 +38,7 @@ if __name__ == "__main__":
     print(f"Number of database files processed: {len(databases)}")
 
     # Combine the databases
+    print(databases[0][0])
     combined_database = [[] for _ in range(len(databases[0]))]
     for rules_satisfied in range(len(databases[0])):
         for database in databases:

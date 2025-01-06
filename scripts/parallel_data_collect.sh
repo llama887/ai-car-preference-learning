@@ -40,3 +40,5 @@ done
 wait
 
 echo "All processes completed."
+
+eval "python combine_gargantuar.py -d tmp -o $database"
