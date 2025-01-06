@@ -844,7 +844,7 @@ def run_population(
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
 
-        master_database += f'_{train_trajectory_length}.pkl'
+        master_database += f'_{train_trajectory_length}_length.pkl'
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
         print(master_database)
 
