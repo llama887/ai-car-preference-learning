@@ -172,7 +172,10 @@ if __name__ == "__main__":
             sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1
         ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
 
-    # Data collection and training reward net
+    if args.segment and args.segment < 1:
+        raise Exception("Can not have segments with length < 1")
+    agent.train_trajectory_length = args.segment if args.segment else 1
+
     model_weights = ""
     if args.reward is None:
         # start the simulation in data collecting mode
