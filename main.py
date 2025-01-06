@@ -22,7 +22,14 @@ os.environ["WANDB_SILENT"] = "true"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 
-def start_simulation(config_path, max_generations, number_of_pairs, run_type, noHead, use_ensemble):
+def start_simulation(
+    config_path,
+    max_generations,
+    number_of_pairs,
+    run_type,
+    noHead=True,
+    use_ensemble=False,
+):
     # Set number of trajectories
     agent.number_of_pairs = number_of_pairs
 
@@ -33,7 +40,7 @@ def start_simulation(config_path, max_generations, number_of_pairs, run_type, no
             number_of_pairs=number_of_pairs,
             runType=run_type,
             noHead=noHead,
-            use_ensemble=use_ensemble
+            use_ensemble=use_ensemble,
         ),
         agent.rules_followed,
     )
@@ -151,7 +158,7 @@ if __name__ == "__main__":
             rules.SEGMENT_DISTRIBUTION_BY_RULES = [
                 parse_to_float(d) for d in args.distribution
             ]
-        except:
+        except Exception:
             print(
                 "Distribution input too advanced for Alex and Franklin's caveman parser. (or maybe you input something weird sry)"
             )
@@ -167,7 +174,14 @@ if __name__ == "__main__":
             sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1
         ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
 
+<<<<<<< HEAD
     # Data collection and training reward net
+=======
+    if args.segment and args.segment < 1:
+        raise Exception("Can not have segments with length < 1")
+    agent.train_trajectory_length = args.segment if args.segment else 1
+
+>>>>>>> f97fb842 ((feat) combining parallel runs)
     model_weights = ""
     if args.reward is None:
         # start the simulation in data collecting mode
