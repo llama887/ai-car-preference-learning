@@ -324,7 +324,7 @@ def calculate_accuracy(predicted_probabilities, true_preferences):
 
 
 def train_ensemble(
-    ensemble, epochs, swaps, optimizer, batch_size, trajectory_path
+    ensemble, epochs, swaps, optimizer, batch_size, trajectory_path, return_stat
 ):
     global ensemble_path
     ensemble_path = models_path + f'ensemble_{epochs}/'
@@ -450,13 +450,14 @@ def train_ensemble(
         optimizer.step()
         scheduler.step()
 
+    global figure_path
     plt.figure()
     plt.plot(training_losses, label="Train Loss")
     plt.plot(validation_losses, label="Validation Loss")
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
     plt.legend()
-    plt.savefig("figures/loss.png")
+    plt.savefig(f"{figure_path}loss.png")
     plt.close()
 
     plt.figure()
@@ -465,9 +466,13 @@ def train_ensemble(
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy")
     plt.legend()
-    plt.savefig("figures/accuracy.png")
+    plt.savefig(f"{figure_path}accuracy.png")
     plt.close()
-    return best_loss
+    
+    training_output = best_loss
+    if return_stat == "val_acc":
+        training_output = validation_accuracies[-1]
+    return training_output
 
 
 def train_model(
@@ -477,6 +482,7 @@ def train_model(
     optimizer=None,
     batch_size=256,
     model_path="best.pth",
+    return_stat=None,
 ):
     print("BATCH_SIZE:", batch_size, "| file path:", file_path, "| epochs:", epochs)
     wandb.init(project="Micro Preference")
@@ -619,13 +625,14 @@ def train_model(
         print("EXCEPTION CAUGHT AND MODEL SAVED AT EPOCH:", epoch)
         print(e)
 
+    global figure_path
     plt.figure()
     plt.plot(training_losses, label="Train Loss")
     plt.plot(validation_losses, label="Validation Loss")
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
     plt.legend()
-    plt.savefig("figures/loss.png")
+    plt.savefig(f"{figure_path}loss.png")
     plt.close()
 
     plt.figure()
@@ -634,20 +641,30 @@ def train_model(
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy")
     plt.legend()
-    plt.savefig("figures/accuracy.png")
+    plt.savefig(f"{figure_path}accuracy.png")
     plt.close()
 
-    return best_loss
+
+    training_output = best_loss
+    if return_stat == "val_acc":
+        training_output = validation_accuracies[-1]
+    return training_output
 
 
 def train_reward_function(
-    trajectories_file_path, epochs, parameters_path=None, use_ensemble=False
+    trajectories_file_path, epochs, parameters_path=None, use_ensemble=False, figure_folder_name=None, return_stat=None
 ):
+    training_output_stat = None
     input_size = INPUT_SIZE
     if use_ensemble:
         ensemble_path = models_path + f"ensemble_{epochs}/"
         os.makedirs(ensemble_path, exist_ok=True)
     
+    if figure_folder_name:
+        global figure_path
+        figure_path += figure_folder_name + '/'
+        os.makedirs(figure_path, exist_ok=True)
+
     # OPTUNA
     if not parameters_path:
         print("RUNNING WITH OPTUNA:")
@@ -735,13 +752,14 @@ def train_reward_function(
                 optimizer = torch.optim.Adam(
                     ensemble.parameters(), lr=learning_rate, weight_decay=weight_decay
                 )
-                best_loss = train_ensemble(
+                training_output_stat = train_ensemble(
                     ensemble,
                     epochs,
                     swaps,
                     optimizer,
                     batch_size,
                     trajectories_file_path,
+                    return_stat,
                 )
                 for i in range(len(ensemble.model_list)):
                     torch.save(ensemble.model_list[i].state_dict(), ensemble_path + f"model_{epochs}_{i}.pth")
@@ -757,18 +775,19 @@ def train_reward_function(
                 optimizer = torch.optim.Adam(
                     net.parameters(), lr=learning_rate, weight_decay=weight_decay
                 )
-                best_loss = train_model(
+                training_output_stat = train_model(
                     file_path=trajectories_file_path,
                     net=net,
                     epochs=epochs,
                     optimizer=optimizer,
                     batch_size=batch_size,
                     model_path=models_path + f"model_{epochs}.pth",
+                    return_stat=return_stat,
                 )
                 torch.save(
                     net.state_dict(), models_path + f"model_{epochs}.pth"
                 )
-        return best_loss
+        return training_output_stat
 
 
 def objective(trial):

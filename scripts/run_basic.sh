@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Default array of trajectories if none are provided as input
-TRAJECTORIES=(1000000 1000000 10000)
+TRAJECTORIES=(1000000 100000 10000)
 
 # Function to display usage
 usage() {
@@ -34,7 +34,7 @@ distribution=$(printf -- "-d \"1/%d\" " $(seq 1 $((rules+1)) | sed "s/.*/$((rule
 
 
 # Fixed parameters
-EPOCHS=200
+EPOCHS=400
 GENERATIONS=100
 PARAM_FILE="./best_params.yaml"
 MAIN_SCRIPT="main.py"

@@ -2,9 +2,13 @@ run_baseline:
 	./scripts/run_basic.sh -r 3
 	./scripts/run_basic.sh -r 2
 	./scripts/run_basic.sh -r 1
+	./scripts/run_plots.sh -r 3
 
 run_with_subsampling:
 	...
+
+run_with_partial_rewards:
+	./scripts/run_partial_rewards.sh -r 10
 
 run_with_ensemble:
 	...
