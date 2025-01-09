@@ -25,9 +25,6 @@ import rules
 
 AGENTS_PER_GENERATION = 20
 
-figure_path = reward.figure_path
-
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 NET_SIZE = 16
 run_wandb = True
@@ -413,7 +410,7 @@ def plot_trajectories(trajectories, title):
     plt.xlabel("X")
     plt.ylabel("Y")
     plt.grid(True)
-    plt.savefig(f"{figure_path}/{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png")
     plt.close()
 
 
@@ -425,7 +422,7 @@ def plot_bradley_terry(data1, title, data2=None):
     else:
         sns.histplot(data1, kde=True)
     plt.title(title)
-    plt.savefig(f"{figure_path}/{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png")
     plt.close()
 
 
@@ -446,7 +443,7 @@ def plot_trajectory_order(data, title):
     )
     plt.title("Sorted Trajectories: Trained vs Ground Truth Reward")
     plt.legend()
-    plt.savefig(f"{figure_path}/{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png")
     plt.close()
 
 
@@ -543,7 +540,7 @@ def graph_expert_segments_over_generations(averages, maxes):
     trueRF_average_expert_segments, trainedRF_average_expert_segments = averages
     trueRF_max_expert_segments, trainedRF_max_expert_segments = maxes
 
-    os.makedirs("figures", exist_ok=True)
+    os.makedirs(reward.figure_path, exist_ok=True)
 
     x_values = range(len(trainedRF_average_expert_segments))
 
@@ -554,7 +551,7 @@ def graph_expert_segments_over_generations(averages, maxes):
     plt.ylabel("Number of Expert Trajectories")
     plt.title("Ground Truth vs Trained Agent: Average Ground Truth Reward")
     plt.legend()
-    plt.savefig("figures/average.png")
+    plt.savefig(f"{reward.figure_path}average.png")
     plt.close()
 
     plt.figure()
@@ -564,7 +561,7 @@ def graph_expert_segments_over_generations(averages, maxes):
     plt.ylabel("Number of Expert Trajectories")
     plt.title("Ground Truth vs Trained Agents: Max Ground Truth Reward")
     plt.legend()
-    plt.savefig("figures/max.png")
+    plt.savefig(f"{reward.figure_path}max.png")
     plt.close()
 
 
@@ -572,7 +569,7 @@ def graph_against_trained_reward(averages, maxes):
     true_agent_reward_averages, trained_agent_reward_averages = averages
     true_agent_reward_maxes, trained_agent_reward_maxes = maxes
 
-    os.makedirs("figures", exist_ok=True)
+    os.makedirs(reward.figure_path, exist_ok=True)
 
     x_values = range(len(true_agent_reward_averages))
 
@@ -583,7 +580,7 @@ def graph_against_trained_reward(averages, maxes):
     plt.ylabel("Avg. Fitness Per Generation")
     plt.title("Avg. Fitness wrt Trained Reward")
     plt.legend()
-    plt.savefig("figures/average_trained_reward.png")
+    plt.savefig(f"{reward.figure_path}average_trained_reward.png")
     plt.close()
 
     plt.figure()
@@ -593,7 +590,7 @@ def graph_against_trained_reward(averages, maxes):
     plt.ylabel("Max Fitness Per Generation")
     plt.title("Max Fitness wrt Trained Reward")
     plt.legend()
-    plt.savefig("figures/max_trained_reward.png")
+    plt.savefig(f"{reward.figure_path}max_trained_reward.png")
     plt.close()
 
 
@@ -612,11 +609,11 @@ def graph_segment_rules_vs_reward(
     rewards_for_rules = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
 
     for i in range(len(segment_rules_satisfied)):
-        num_rules, reward = (
+        num_rules, segment_reward = (
             segment_rules_satisfied[i],
             segment_rewards[i],
         )
-        rewards_for_rules[num_rules].append(reward)
+        rewards_for_rules[num_rules].append(segment_reward)
 
     print(title)
     for i in range(rules.NUMBER_OF_RULES + 1):
@@ -639,7 +636,7 @@ def graph_segment_rules_vs_reward(
     )
     plt.title(title)
     plt.legend()
-    plt.savefig(f"figures/{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png")
     plt.close()
 
     log_wrong(segment_rules_satisfied, segment_rewards)
@@ -697,9 +694,9 @@ def graph_segment_distance_vs_reward(
 
     zipped_distance_reward = list(zip(segment_distances, segment_rewards))
     distRewards = defaultdict(list)
-    for distance, reward in zipped_distance_reward:
+    for distance, segment_reward in zipped_distance_reward:
         rounded_distance = round(distance, 1)
-        distRewards[rounded_distance].append(reward)
+        distRewards[rounded_distance].append(segment_reward)
 
     print(title)
     sorted_distances = sorted(list(distRewards.keys()))
@@ -715,7 +712,7 @@ def graph_segment_distance_vs_reward(
     for rounded_distance in sorted_distances:
         avg_reward_for_distances.append(statistics.mean(distRewards[rounded_distance]))
 
-    os.makedirs("figures", exist_ok=True)
+    os.makedirs(reward.figure_path, exist_ok=True)
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
     ax1.scatter(
@@ -735,7 +732,7 @@ def graph_segment_distance_vs_reward(
     plt.ylabel("Reward of Trajectory Segment")
     plt.title(title)
     plt.legend()
-    plt.savefig(f"figures/{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png")
     plt.close()
 
 
@@ -768,7 +765,7 @@ def plot_rules_followed_distribution(rules_followed, title):
     plt.legend(handles=legend_handles, title="Rules")
 
     # Save and close the plot
-    plt.savefig(f"figures/{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png")
 
 
 def handle_plotting_sana(
@@ -825,7 +822,7 @@ def graph_normalized_segments_over_generations(
     best_trueRF_max_expert_segments,
     aggregate_trainedRF_max_expert_segments,
 ):
-    os.makedirs("figures", exist_ok=True)
+    os.makedirs(reward.figure_path, exist_ok=True)
 
     for rule in best_trueRF_average_expert_segments.keys():
         x_values = range(len(best_trueRF_average_expert_segments[rule]))
@@ -876,7 +873,7 @@ def graph_normalized_segments_over_generations(
         plt.ylabel("Number of Expert Trajectories (Normalized by GT)")
         plt.title("Ground Truth vs Trained Reward: Average Number of Expert Segments")
         plt.legend()
-        plt.savefig(f"figures/average_norm_{rule}_rules.png")
+        plt.savefig(f"{reward.figure_path}average_norm_{rule}_rules.png")
         plt.close()
 
         plt.figure()
@@ -891,14 +888,14 @@ def graph_normalized_segments_over_generations(
         plt.ylabel("Number of Expert Trajectories (Normalized by GT)")
         plt.title("Ground Truth vs Trained Reward: Max Number of Expert Segments")
         plt.legend()
-        plt.savefig(f"figures/max_norm_{rule}_rules.png")
+        plt.savefig(f"{reward.figure_path}max_norm_{rule}_rules.png")
         plt.close()
 
 
 def graph_gap_over_pairs(
     best_trueRF_average_expert_segments, aggregate_trainedRF_average_expert_segments
 ):
-    os.makedirs("figures", exist_ok=True)
+    os.makedirs(reward.figure_path, exist_ok=True)
     plt.figure()
     for rule in best_trueRF_average_expert_segments.keys():
         x_values = sorted(aggregate_trainedRF_average_expert_segments[rule].keys())
@@ -940,7 +937,7 @@ def graph_gap_over_pairs(
     plt.ylabel("Average Gap in Reward (Reward_GT - Reward_Trained)")
     plt.title("Reward Gap vs. Trajectory Pairs")
     plt.legend()
-    plt.savefig("figures/gap.png")
+    plt.savefig(f"{reward.figure_path}gap.png")
     plt.close()
 
 
@@ -1078,10 +1075,10 @@ if __name__ == "__main__":
         training_segment_distances,
     )
 
-    # num_rules = rules.NUMBER_OF_RULES
-    # best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = unzipper_chungus_deluxe(num_rules)
+    num_rules = rules.NUMBER_OF_RULES
+    best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = unzipper_chungus_deluxe(num_rules)
 
-    # handle_plotting_sana(
-    #     best_true_agent_expert_segments,
-    #     aggregate_trained_agent_expert_segments,
-    # )
+    handle_plotting_sana(
+        best_true_agent_expert_segments,
+        aggregate_trained_agent_expert_segments,
+    )

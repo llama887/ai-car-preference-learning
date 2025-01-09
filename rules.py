@@ -3,6 +3,7 @@ import math
 
 NUMBER_OF_RULES = 2
 SEGMENT_DISTRIBUTION_BY_RULES = [1/3, 1/3, 1/3]
+PARTIAL_REWARD = False
 
 def check_rules_one(segment, total_rules):
     rule_counter = 0
@@ -32,7 +33,7 @@ def check_rules_one(segment, total_rules):
 
     return (
         rule_counter,
-        int(rule_counter == total_rules),
+        rule_counter if PARTIAL_REWARD else int(rule_counter == total_rules) ,
         rules_followed if rules_followed != [] else [0],
     )
 

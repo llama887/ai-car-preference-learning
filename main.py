@@ -2,22 +2,19 @@ import argparse
 import os
 import sys
 
-import torch
 import yaml
 
 import agent
 import reward
 import rules
 from agent import load_models, run_population, trajectory_path
-from plot import (
+from debug_plots import (
     handle_plotting_rei,
     populate_lists,
 )
 from reward import (
     train_reward_function,
 )
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 os.environ["WANDB_SILENT"] = "true"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -83,6 +80,12 @@ if __name__ == "__main__":
         help="Length of segments",
     )
     parse.add_argument(
+        "-f",
+        "--figure",
+        type=str,
+        help="Figure Folder Name",
+    )
+    parse.add_argument(
         "-g",
         "--generations",
         type=int,
@@ -131,12 +134,20 @@ if __name__ == "__main__":
         print("Invalid input. All arguments must be positive integers.")
         sys.exit(1)
 
+    # Display simulator or not
     if args.headless:
         os.environ["SDL_VIDEODRIVER"] = "dummy"
 
+    # Set segment length
+    if args.segment and args.segment < 1:
+        raise Exception("Can not have segments with length < 1")
+    agent.train_trajectory_length = args.segment if args.segment else 1
+
+    # Set distribution of segment rule satisfaction
     if args.composition and args.trajectories:
         rules.NUMBER_OF_RULES = args.composition
-        database_path = f"trajectories/database_{args.trajectories[0]}_pairs_{args.composition}_rules.pkl"
+        num_pairs = 10 * args.trajectories[0] if args.ensemble else args.trajectories[0]
+        database_path = f"trajectories/database_{num_pairs}_pairs_{args.composition}_rules_{agent.train_trajectory_length}_length.pkl"
     else:
         print("Missing either -c flag or -t flag")
 
@@ -161,10 +172,7 @@ if __name__ == "__main__":
             sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1
         ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
 
-    if args.segment and args.segment < 1:
-        raise Exception("Can not have segments with length < 1")
-    agent.train_trajectory_length = args.segment if args.segment else 1
-
+    # Data collection and training reward net
     model_weights = ""
     if args.reward is None:
         # start the simulation in data collecting mode
@@ -179,7 +187,7 @@ if __name__ == "__main__":
 
         print("Starting training on trajectories...")
         train_reward_function(
-            database_path, args.epochs[0], args.parameters, args.ensemble
+            database_path, args.epochs[0], args.parameters, args.ensemble, args.figure
         )
 
         print("Finished training model...")
@@ -212,12 +220,6 @@ if __name__ == "__main__":
         hidden_size = data["hidden_size"]
 
     print("Simulating on trained reward function...")
-    # agent.reward_network = TrajectoryRewardNet(
-    #     STATE_ACTION_SIZE * 2, hidden_size=hidden_size
-    # ).to(device)
-
-    # weights = torch.load(model_weights, map_location=device)
-    # agent.reward_network.load_state_dict(weights)
     load_models(model_weights, hidden_size)
 
     trainedPairs, trained_rules_followed = start_simulation(
@@ -238,8 +240,8 @@ if __name__ == "__main__":
         "agents-per-generation": 20,
     }
 
-    true_database = trajectory_path + f"trueRF_{truePairs}.pkl"
-    trained_database = trajectory_path + f"trainedRF_{trainedPairs}.pkl"
+    true_database = trajectory_path + f"trueRF_{truePairs}_trajectories.pkl"
+    trained_database = trajectory_path + f"trainedRF_{trainedPairs}_trajectories.pkl"
     (
         true_agent_expert_segments,
         true_agent_rewards,
@@ -272,11 +274,3 @@ if __name__ == "__main__":
         training_segment_rewards,
         training_segment_distances,
     )
-
-    # num_rules = NUMBER_OF_RULES
-    # best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = unzipper_chungus_deluxe(num_rules)
-
-    # handle_plotting_sana(
-    #     best_true_agent_expert_segments,
-    #     aggregate_trained_agent_expert_segments,
-    # )

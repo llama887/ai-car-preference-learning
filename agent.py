@@ -846,7 +846,6 @@ def run_population(
 
         master_database += f'_{train_trajectory_length}_length.pkl'
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
-        print(master_database)
 
         missing_segments = True
         if run_type == "collect":
@@ -883,7 +882,9 @@ def run_population(
                     pygame.display.quit()
                     pygame.quit()
                     break
-                elif generation == max_generations:
+                elif generation >= max_generations and (len(saved_trajectories) >= config.pop_size * max_generations):
+                    while len(saved_trajectories) > config.pop_size * max_generations:
+                        saved_trajectories.pop()
                     break
                 generation += 1
                 global big_car_distance, big_car_best_distance
@@ -998,7 +999,7 @@ if __name__ == "__main__":
         runType = "collect"
 
     if args.segment and args.segment < 1:
-        raise Exception("Can not have segments with lenght < 2")
+        raise Exception("Can not have segments with length < 2")
     train_trajectory_length = args.segment if args.segment else 1
 
     run_population(
