@@ -22,12 +22,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Find all files in the directory with "database" in the name and ".pkl" extension
-    file_pattern = os.path.join(args.directory, "*database*.pkl")
+    file_pattern = os.path.join(args.directory, "*master_database*.pkl")
     database_files = glob.glob(file_pattern)
 
     if not database_files:
         raise ValueError(
-            f"No files found in {args.directory} matching pattern '*database*.pkl'"
+            f"No files found in {args.directory} matching pattern '*master_database*.pkl'"
         )
 
     databases = []
@@ -38,7 +38,6 @@ if __name__ == "__main__":
     print(f"Number of database files processed: {len(databases)}")
 
     # Combine the databases
-    print(databases[0][0])
     combined_database = [[] for _ in range(len(databases[0]))]
     for rules_satisfied in range(len(databases[0])):
         for database in databases:

@@ -62,7 +62,7 @@ if __name__ == "__main__":
             sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1
         ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
     if args.database:
-        agent.master_database_path = args.database[0]
+        agent.master_database = args.database[0]
     if args.trajectory_path:
         agent.trajectory_path = args.trajectory_path[0]
     if args.trajectories is not None and args.trajectories[0] > 0:
