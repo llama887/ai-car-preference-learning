@@ -24,7 +24,7 @@ fi
 trajectories_per_process=$((trajectories / number_of_processes))
 
 # Create the list of distribution values
-distribution=$(printf "-d \"1/%d\" " $(seq 1 $((rules+1))))
+distribution=$(printf -- "-d \"1/%d\" " $(seq 1 $((rules+1)) | sed "s/.*/$((rules+1))/"))
 echo "Distribution: $distribution"
 
 # Create a temporary directory

@@ -588,7 +588,6 @@ def generate_database(trajectory_path):
 
         # Save new master database
         with open(master_database, "wb") as f:
-            print("Saving new master database...")
             pickle.dump(saved_segments, f)
 
         return len(trajectory_pairs)
