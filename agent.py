@@ -87,7 +87,7 @@ class StateActionPair:
 
     def __repr__(self):
         return (
-            "<Radars: "
+            "StateActionPair: <Radars: "
             + str([radar for radar in self.radars])
             + ", Action: "
             + str(self.action)
@@ -513,7 +513,7 @@ def generate_database(trajectory_path):
             print(
                 "Generated",
                 n - same_reward,
-                f"pairs with different rewards ({(n - same_reward)/n}%)",
+                f"pairs with different rewards ({(n - same_reward) / n}%)",
             )
 
             if n > num_pairs:

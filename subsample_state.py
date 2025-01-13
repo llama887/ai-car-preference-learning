@@ -22,6 +22,7 @@ from agent import (
     StateActionPair,
     trajectories_path,
 )
+from rules import check_rules_one
 
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 
@@ -179,6 +180,15 @@ def process_trajectory_segment(params):
     return trajectory_segments
 
 
+def split_by_rules(trajectory_segments):
+    MAX_RULES = 3
+    mini_gargantuar = [[], [], [], []]
+    for segment in trajectory_segments:
+        rule_counts, _, _ = check_rules_one(segment, MAX_RULES)
+        mini_gargantuar[rule_counts].append(segment)
+    return mini_gargantuar
+
+
 if __name__ == "__main__":
     start = time.time()
     parse = argparse.ArgumentParser(
@@ -207,12 +217,6 @@ if __name__ == "__main__":
     SECOND_ACTIONS = 4
     gridpoints = samples // ANGLES // SPEEDS // FIRST_ACTIONS // SECOND_ACTIONS
     if gridpoints < 1000:
-        ANGLE_STEP = 60
-        ANGLES = 360 // ANGLE_STEP
-        SPEED_STEP = 20
-        SPEEDS = 40 // SPEED_STEP
-    gridpoints = samples // ANGLES // SPEEDS // FIRST_ACTIONS // SECOND_ACTIONS
-    if gridpoints < 1000:
         raise ValueError(f"{gridpoints} is not enough points to subsample.")
 
     print(f"Searching for {gridpoints} samples")
@@ -237,16 +241,17 @@ if __name__ == "__main__":
             )
         )
 
-    print(results[0])
-    print("Results is of type", type(results[0]))
-    assert isinstance(
-        results[0][0], StateActionPair
-    ), f"Outcome is a 2d array of {type(results[0][0])}"
-    assert isinstance(
-        results[-1][-1], StateActionPair
-    ), f"Outcome is a 2d array of {type(results[0][0])}"
+    print("Splitting by rules...")
+    with multiprocessing.Pool() as pool:
+        split_results = list(tqdm(pool.imap_unordered(split_by_rules, results)))
 
-    with open(f"{trajectories_path}/subsampled_gargantuan.plk", "wb") as f:
-        pickle.dump(results, f)
+    gargantuar = [[], [], [], []]
+    for result in split_results:
+        for i in range(len(result)):
+            gargantuar[i].extend(result[i])
+    for i in range(len(gargantuar)):
+        print(f"{len(gargantuar[i])} segments of {i} rules followed")
+    with open(f"{trajectories_path}/subsampled_gargantuar_1_length.plk", "wb") as f:
+        pickle.dump(gargantuar, f)
     end = time.time()
     print(f"Finished in {end - start} seconds.")
