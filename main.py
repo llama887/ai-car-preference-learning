@@ -124,8 +124,18 @@ if __name__ == "__main__":
         action="append",
         help="Distribution of segments collected",
     )
+    parse.add_argument(
+        "-md",
+        "--master-database",
+        type=str,
+        help="Path to master database",
+    )
 
     args = parse.parse_args()
+
+    if args.master_database:
+        agent.master_database = args.master_database
+
     if (
         (args.trajectories is not None and args.trajectories[0] < 0)
         or (args.generations is not None and args.generations[0] < 0)
@@ -165,12 +175,12 @@ if __name__ == "__main__":
         rules.SEGMENT_DISTRIBUTION_BY_RULES = [
             d / sum_dist for d in rules.SEGMENT_DISTRIBUTION_BY_RULES
         ]
-        assert (
-            len(rules.SEGMENT_DISTRIBUTION_BY_RULES) == rules.NUMBER_OF_RULES + 1
-        ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {rules.NUMBER_OF_RULES}"
-        assert (
-            sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1
-        ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
+        assert len(rules.SEGMENT_DISTRIBUTION_BY_RULES) == rules.NUMBER_OF_RULES + 1, (
+            f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {rules.NUMBER_OF_RULES}"
+        )
+        assert sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1, (
+            f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
+        )
 
     if args.segment and args.segment < 1:
         raise Exception("Can not have segments with length < 1")

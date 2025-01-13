@@ -20,7 +20,6 @@ from agent import (
     WIDTH,
     Car,
     StateActionPair,
-    trajectories_path,
 )
 from rules import check_rules_one
 
@@ -243,15 +242,21 @@ if __name__ == "__main__":
 
     print("Splitting by rules...")
     with multiprocessing.Pool() as pool:
-        split_results = list(tqdm(pool.imap_unordered(split_by_rules, results)))
+        split_results = list(
+            tqdm(pool.imap_unordered(split_by_rules, results), total=len(results))
+        )
 
     gargantuar = [[], [], [], []]
     for result in split_results:
         for i in range(len(result)):
             gargantuar[i].extend(result[i])
+
     for i in range(len(gargantuar)):
         print(f"{len(gargantuar[i])} segments of {i} rules followed")
-    with open(f"{trajectories_path}/subsampled_gargantuar_1_length.plk", "wb") as f:
+    total_segments = sum([len(gargantuar[i]) for i in range(len(gargantuar))])
+    print(f"{total_segments} total segments")
+    print("Saving to subsampled_gargantuar_1_length.pkl...")
+    with open("subsampled_gargantuar_1_length.pkl", "wb") as f:
         pickle.dump(gargantuar, f)
     end = time.time()
     print(f"Finished in {end - start} seconds.")
