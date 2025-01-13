@@ -866,7 +866,7 @@ def run_population(
         population.add_reporter(stats)
 
         # sometimes you want to force master database to be a certain value
-        if master_database.find("_length.pkl") == -1:
+        if master_database.find(".pkl") == -1:
             master_database += f"_{train_trajectory_length}_length.pkl"
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
 

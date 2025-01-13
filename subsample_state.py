@@ -25,6 +25,8 @@ from rules import check_rules_one
 
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 
+number_of_rules = 3
+
 
 def parallel_subsample_state(image_path, number_of_points=100000, epsilon=0.0001):
     def binary_search(lower_bound, upper_bound, target):
@@ -180,10 +182,9 @@ def process_trajectory_segment(params):
 
 
 def split_by_rules(trajectory_segments):
-    MAX_RULES = 3
     mini_gargantuar = [[], [], [], []]
     for segment in trajectory_segments:
-        rule_counts, _, _ = check_rules_one(segment, MAX_RULES)
+        rule_counts, _, _ = check_rules_one(segment, number_of_rules)
         mini_gargantuar[rule_counts].append(segment)
     return mini_gargantuar
 
@@ -200,8 +201,18 @@ if __name__ == "__main__":
         nargs=1,
         help="Number of samples",
     )
-
+    parse.add_argument(
+        "-r",
+        "--rules",
+        type=int,
+        nargs=1,
+        help="Number of rules",
+    )
     args = parse.parse_args()
+
+    if args.rules:
+        number_of_rules = args.rules[0]
+
     if args.samples and args.samples[0] > 0:
         samples = args.samples[0]
     else:
@@ -255,8 +266,8 @@ if __name__ == "__main__":
         print(f"{len(gargantuar[i])} segments of {i} rules followed")
     total_segments = sum([len(gargantuar[i]) for i in range(len(gargantuar))])
     print(f"{total_segments} total segments")
-    print("Saving to subsampled_gargantuar_1_length.pkl...")
-    with open("subsampled_gargantuar_1_length.pkl", "wb") as f:
+    print(f"Saving to subsampled_gargantuar_1_length_{number_of_rules}_rules.pkl...")
+    with open(f"subsampled_gargantuar_1_length_{number_of_rules}_rules.pkl", "wb") as f:
         pickle.dump(gargantuar, f)
     end = time.time()
     print(f"Finished in {end - start} seconds.")
