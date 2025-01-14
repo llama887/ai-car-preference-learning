@@ -8,7 +8,7 @@ from agent import run_population
 from reward import (
     train_reward_function,
 )
-import plotly.figure_factory as ff
+import pickle
 
 rules.PARTIAL_REWARD = True
 rules.NUMBER_OF_RULES = 2
@@ -33,15 +33,41 @@ def start_simulation(config_path, max_generations, number_of_pairs, run_type, no
     )
 
 
-def parse_to_float(s):
-    try:
-        return float(s)
-    except ValueError:
+def process_distribution(args):
+    a, b, c, i, num_pairs, config_path, epochs, parameters, headless, total_iterations = args
+    if c >= 0:
+        print(f"Distribution {i + 1}/{total_iterations}")
+        distributions = [[], [], []]
+        distributions[0].append(a)
+        distributions[1].append(b)
+        distributions[2].append(c)
+        rules.SEGMENT_DISTRIBUTION_BY_RULES = [a, b, c]
+
+        agent.trajectories_path = f"trajectories_partial_{i + 1}/"
+        database_path = f"{agent.trajectories_path}database_{num_pairs}_pairs_2_rules_{agent.train_trajectory_length}_length.pkl"
+
+        # Start the simulation
+        start_simulation(
+            config_path, num_pairs, num_pairs, "collect", headless, False
+        )
+
         try:
-            numerator, denominator = map(float, s.split("/"))
-            return numerator / denominator
-        except (ValueError, ZeroDivisionError):
-            raise ValueError(f"Cannot convert '{s}' to float")
+            val_acc = train_reward_function(
+                database_path, epochs, parameters, False, None, "acc"
+            )
+            return (a, b, c, val_acc)
+        except Exception as e:
+            print(f"Error in processing distribution {i + 1}: {e}")
+    return None
+
+
+def calculate_iterations(res):
+    i = 0
+    step = 1 / res
+    for a in np.arange(0, 1 + step, step):
+        for b in np.arange(0, 1 - a + step, step):
+            i += 1
+    return i
 
 
 if __name__ == "__main__":
@@ -69,11 +95,32 @@ if __name__ == "__main__":
         help="Resolution of gridding",
     )
     parse.add_argument(
+        "-a",
+        type=float,
+        help="dist for 0 rule",
+    )
+    parse.add_argument(
+        "-b",
+        type=float,
+        help="dist for 1 rule",
+    )
+    parse.add_argument(
+        "-c",
+        type=float,
+        help="dist for 2 rule",
+    )
+    parse.add_argument(
+        "-i",
+        type=int,
+        help="index",
+    )
+    parse.add_argument(
         "-p",
         "--parameters",
         type=str,
         help="Directory to hyperparameter yaml file",
     )
+    
     parse.add_argument(
         "--headless", action="store_true", help="Run simulation without GUI"
     )
@@ -81,7 +128,6 @@ if __name__ == "__main__":
     args = parse.parse_args()
     if (
         (args.trajectories is not None and args.trajectories[0] < 0)
-        or (args.generations is not None and args.generations[0] < 0)
         or (args.epochs is not None and args.epochs[0] < 0)
     ):
         print("Invalid input. All arguments must be positive integers.")
@@ -91,52 +137,23 @@ if __name__ == "__main__":
     if args.headless:
         os.environ["SDL_VIDEODRIVER"] = "dummy"
 
-
-    # Set distribution of segment rule satisfaction
-    if args.trajectories and args.parameters:
-        num_pairs = args.trajectories[0]
-        database_path = f"trajectories/database_{num_pairs}_pairs_{args.composition}_rules_{agent.train_trajectory_length}_length.pkl"
-    else:
+    # Check flags
+    if not (args.trajectories and args.parameters):
         print("Missing either -p flag or -t flag")
         sys.exit()
 
-    if args.resolution < 1:
-        raise Exception("Resolution must be greater than 1")
+    a, b, c, i = args.a, args.b, args.c, args.i 
+    
+    num_pairs = args.trajectories[0]
+    total_iterations = calculate_iterations(args.resolution)
+    task =  (a, b, c, i, num_pairs, "./config/data_collection_config.txt", args.epochs[0], args.parameters, args.headless, total_iterations)
+    result = process_distribution(task)
+    a, b, c, accs = result
 
-    grid_points = 1
-    distributions = [[] for _ in range(2)]
-    val_accs = []
-    step = 1 / args.resolution
-    for a in np.arange(0, 1 + step, step):
-        for b in np.arange(0, 1 - a + step, step):
-            c = 1 - a - b
-            if c >= 0:
-                distributions[0].append(a)
-                distributions[1].append(b)
-                distributions[2].append(c)
-                rules.SEGMENT_DISTRIBUTION_BY_RULES = [a, b, c]
+    with open(
+            agent.trajectories_path
+            + f"result.pkl",
+            "wb",
+        ) as f:
+            pickle.dump((a,b,c,accs), f)
 
-                # start the simulation in data collecting mode
-                num_traj, collecting_rules_followed = start_simulation(
-                    "./config/data_collection_config.txt",
-                    args.trajectories[0],
-                    args.trajectories[0],
-                    "collect",
-                    args.headless,
-                    args.ensemble,
-                )
-
-                print("Starting training on trajectories...")
-                val_accs.append(train_reward_function(
-                    database_path, args.epochs[0], args.parameters, args.ensemble, None, "val_acc"
-                ))
-                print("Finished training model...")
-            grid_points += 1
-    fig = ff.create_ternary_contour(np.array(distributions), val_accs,
-                                pole_labels=['0 Rule', '1 Rule', '2 Rule'],
-                                interp_mode='cartesian',
-                                showscale=True,
-                                title=dict(
-                                  text='Final Validation for Various Database Distributions'
-                                ))
-    fig.write_image("figures/simplex.png")

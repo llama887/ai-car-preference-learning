@@ -101,9 +101,9 @@ def unzipper_chungus_deluxe(num_rules):
             with zipfile.ZipFile(zip_file, "r") as zip_ref:
                 # Extract all contents of the zip file to the specified folder
                 zip_ref.extractall("temp_trajectories")
-                trueRF = glob.glob(f"temp_trajectories/trajectories/trueRF_*.pkl")[0]
+                trueRF = glob.glob(f"temp_trajectories/trajectories*/trueRF_*.pkl")[0]
                 trainedRF = glob.glob(
-                    f"temp_trajectories/trajectories/trainedRF_*.pkl"
+                    f"temp_trajectories/trajectories*/trainedRF_*.pkl"
                 )[0]
 
                 with open(trueRF, "rb") as f:
@@ -111,7 +111,7 @@ def unzipper_chungus_deluxe(num_rules):
                 with open(trainedRF, "rb") as f:
                     trained_trajectories = pickle.load(f)
 
-                num_true_trajectories = 2000
+                num_true_trajectories = len(true_trajectories)
                 count = 0
                 while count < num_true_trajectories:
                     gen_true_expert_segments = []

@@ -26,7 +26,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 trajectories_path = "trajectories/"
 master_database = "database_gargantuar"
 
-os.makedirs(trajectories_path, exist_ok=True)
 # Constants
 
 WIDTH = 1920
@@ -38,20 +37,20 @@ CAR_SIZE_Y = 60
 BORDER_COLOR = (255, 255, 255, 255)  # Color To Crash on Hit
 
 TRAJECTORY_LENGTH = 30 * 15
-train_trajectory_length = 2
+train_trajectory_length = 1
 NUM_RADARS = 5
 STATE_ACTION_SIZE = 8
 
 DEFAULT_MAX_GENERATIONS = 1000
 
 current_generation = 0  # Generation counter
-trajectory_path = "./trajectories/"
 reward_network = None
 ensemble = None
 num_pairs = 0
 population = ""
 run_type = "collect"
 headless = False
+subsample = True
 saved_segments = []
 saved_trajectories = []
 big_car_best_distance = 0
@@ -573,14 +572,26 @@ def generate_database(trajectory_path):
         ) as f:
             pickle.dump(trajectory_pairs, f)
 
-        # Delete old master database
-        if os.path.exists(master_database):
-            print("Removing old master database...")
-            os.remove(master_database)
+        if subsample:
+            # Create a temporary file path
+            temp_database = f"{trajectory_path}_master_temp_{len(trajectory_pairs)}.pkl"
 
-        # Save new master database
-        with open(master_database, "wb") as f:
-            pickle.dump(saved_segments, f)
+            # Save new master database to a temporary file
+            with open(temp_database, "wb") as f:
+                pickle.dump(saved_segments, f)
+
+            if os.path.exists(temp_database):
+                try:
+                    print("Replacing old master database with the new one...")
+                    if os.path.exists(master_database):
+                        print("Removing old master database...")
+                        os.remove(master_database)
+                    os.rename(temp_database, master_database)
+                    print("Master database updated successfully.")
+                except Exception as e:
+                    print(f"Error during database update: {e}")
+            else:
+                print("Failed to create the temporary database file.")
 
         return len(trajectory_pairs)
 
@@ -811,6 +822,9 @@ def collection_status(number_of_pairs):
 def run_population(
     config_path, max_generations, number_of_pairs, runType, noHead=False, use_ensemble=False
 ):
+    global trajectories_path
+    trajectory_path = trajectories_path
+    os.makedirs(trajectories_path, exist_ok=True)
     try:
         # Load Config
         config = neat.config.Config(
@@ -844,18 +858,21 @@ def run_population(
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
 
-        master_database += f'_{train_trajectory_length}_length.pkl'
+        master_database = f'database_gargantuar_{train_trajectory_length}_length.pkl'
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
 
         missing_segments = True
         if run_type == "collect":
-            try:
-                with open(master_database, "rb") as file:
-                    data = pickle.load(file)
-                    print("USING MASTER DB...")
-                    saved_segments = data
-            except Exception:
-                print("COULD NOT LOAD FROM MASTER DB")
+            if subsample:
+                try:
+                    with open(master_database, "rb") as file:
+                        data = pickle.load(file)
+                        print(f"USING MASTER DB: {master_database}")
+                        saved_segments = data
+                except Exception:
+                    print(f"COULD NOT LOAD FROM MASTER DB: {master_database}")
+                    saved_segments = []
+            else:
                 saved_segments = []
 
             display_master_segments(saved_segments)
@@ -895,7 +912,13 @@ def run_population(
 
         return numTrajPairs
     except KeyboardInterrupt:
-        generate_database(trajectory_path)
+        print("\nKeyboardInterrupt detected. Do you want to save the database? (y/n): ", end="")
+        user_input = input().strip().lower()
+        if user_input == 'y':
+            generate_database()
+        else:
+            print("Exiting without saving the database.")
+        sys.exit()
 
 
 def load_models(reward_paths, hidden_size):
@@ -965,6 +988,11 @@ if __name__ == "__main__":
         help="flag for big mode",
     )
     parse.add_argument(
+        "--generate",
+        action="store_true",
+        help="flag for generating trajectories rather than sampling",
+    )
+    parse.add_argument(
         "-s",
         "--segment",
         type=int,
@@ -987,6 +1015,9 @@ if __name__ == "__main__":
 
     if args.big:
         runType = "big_mode"
+    
+    if args.generate:
+        subsample = False
 
     config_path = (
         "config/data_collection_config.txt"

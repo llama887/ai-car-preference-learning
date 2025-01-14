@@ -9,7 +9,7 @@ import reward
 import rules
 
 from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
-from agent import STATE_ACTION_SIZE, run_population, trajectory_path, load_models
+from agent import STATE_ACTION_SIZE, run_population, load_models
 from debug_plots import (
     handle_plotting_rei,
     populate_lists,
@@ -81,6 +81,11 @@ if __name__ == "__main__":
         help="Figure Folder Name",
     )
     parse.add_argument(
+        "--trajectory",
+        type=str,
+        help="Trajectory Folder Name",
+    )
+    parse.add_argument(
         "-g",
         "--generations",
         type=int,
@@ -133,6 +138,11 @@ if __name__ == "__main__":
     if args.headless:
         os.environ["SDL_VIDEODRIVER"] = "dummy"
 
+    if args.trajectory:
+        agent.trajectories_path = args.trajectory + "/"
+        os.makedirs(agent.trajectories_path, exist_ok=True)
+    trajectory_path = agent.trajectories_path
+
     # Set segment length
     if args.segment and args.segment < 1:
         raise Exception("Can not have segments with length < 1")
@@ -142,7 +152,7 @@ if __name__ == "__main__":
     if args.composition and args.trajectories:
         rules.NUMBER_OF_RULES = args.composition
         num_pairs = 10 * args.trajectories[0] if args.ensemble else args.trajectories[0]
-        database_path = f"trajectories/database_{num_pairs}_pairs_{args.composition}_rules_{agent.train_trajectory_length}_length.pkl"
+        database_path = f"{agent.trajectories_path}database_{num_pairs}_pairs_{args.composition}_rules_{agent.train_trajectory_length}_length.pkl"
     else:
         print("Missing either -c flag or -t flag")
 

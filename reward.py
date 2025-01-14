@@ -19,6 +19,7 @@ import math
 import wandb
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+os.environ["TORCH_USE_CUDA_DSA"] = "1"
 os.environ["WANDB_SILENT"] = "true"
 INPUT_SIZE = 8 * 2
 OPTUNA_N_TRIALS = 10
@@ -322,6 +323,17 @@ def calculate_accuracy(predicted_probabilities, true_preferences):
     accuracy = correct_predictions / true_preferences.size(0)
     return accuracy.item()
 
+def calculate_adjusted_accuracy(predicted_probabilities, true_preferences, first_rewards, second_rewards):
+    differing_rewards_mask = (first_rewards != second_rewards)
+    filtered_predicted_probabilities = predicted_probabilities[differing_rewards_mask]
+    filtered_true_preferences = true_preferences[differing_rewards_mask]
+    if filtered_true_preferences.size(0) == 0:
+        return 0.0
+    predicted_preferences = (filtered_predicted_probabilities > 0.5).float()
+    correct_predictions = (predicted_preferences == filtered_true_preferences).float().sum()
+    adjusted_accuracy = correct_predictions / filtered_true_preferences.size(0)
+    return adjusted_accuracy.item()
+
 
 def train_ensemble(
     ensemble, epochs, swaps, optimizer, batch_size, trajectory_path, return_stat
@@ -351,8 +363,10 @@ def train_ensemble(
 
     training_losses = []
     training_accuracies = []
+    adjusted_training_accuracies = []
     validation_losses = []
     validation_accuracies = []
+    adjusted_validation_accuracies = []
     
     best_loss = float('inf')
     best_val_losses = [float('inf') for _ in range(n_models)]
@@ -368,8 +382,10 @@ def train_ensemble(
 
         loss_across_models = 0
         acc_across_models = 0
+        adjusted_acc_across_models = 0
         val_loss_across_models = 0
         val_acc_across_models = 0
+        adjusted_val_acc_across_models = 0
 
         for i in range(n_models):
             train_size = len(training_dataloaders[i].dataset)
@@ -381,29 +397,35 @@ def train_ensemble(
 
             model_loss = 0.0
             model_acc = 0.0
+            model_adjusted_acc = 0.0
 
             for (
                 batch_traj1,
                 batch_traj2,
                 batch_true_pref,
-                _,
-                _,
+                batch_reward1,
+                batch_reward2,
             ) in training_dataloaders[i]:
                 rewards1 = model(batch_traj1)
                 rewards2 = model(batch_traj2)
 
                 predicted_probabilities = bradley_terry_model(rewards1, rewards2)
                 model_loss += preference_loss(predicted_probabilities, batch_true_pref)
-                model_acc += calculate_accuracy(predicted_probabilities, batch_true_pref)
+                model_acc += calculate_accuracy(predicted_probabilities, batch_true_pref) * batch_true_pref.size(0)
+                model_adjusted_acc += calculate_adjusted_accuracy(predicted_probabilities, batch_true_pref, batch_reward1, batch_reward2) * batch_true_pref.size(0)
 
             model_loss /= train_size
             model_acc /= train_size
+            model_adjusted_acc /= train_size
             loss_across_models += model_loss
             acc_across_models += model_acc
+            adjusted_acc_across_models += model_adjusted_acc
                 
 
             val_loss = 0.0
             val_acc = 0.0
+            val_adjusted_acc = 0.0
+
             # Validation steps and logging
             model.eval()
             with torch.no_grad():
@@ -411,8 +433,8 @@ def train_ensemble(
                     validation_traj1,
                     validation_traj2,
                     validation_true_pref,
-                    _,
-                    _,
+                    validation_reward1,
+                    validation_reward2,
                 ) in validation_dataloader:
                     validation_rewards1 = model(validation_traj1)
                     validation_rewards2 = model(validation_traj2)
@@ -420,12 +442,15 @@ def train_ensemble(
                         validation_rewards1, validation_rewards2
                     )
                     val_loss += preference_loss(validation_predicted_probabilities, validation_true_pref)
-                    val_acc += calculate_accuracy(validation_predicted_probabilities, validation_true_pref)
+                    val_acc += calculate_accuracy(validation_predicted_probabilities, validation_true_pref) * validation_true_pref.size(0)
+                    val_adjusted_acc += calculate_adjusted_accuracy(validation_predicted_probabilities, validation_true_pref, validation_reward1, validation_reward2) * validation_true_pref.size(0)
 
             val_loss /= val_size
             val_acc /= val_size
+            val_adjusted_acc /= val_size
             val_loss_across_models += val_loss
             val_acc_across_models += val_acc
+            adjusted_val_acc_across_models += val_adjusted_acc
 
             if val_loss < best_val_losses[i]:
                 best_val_losses[i] = val_loss
@@ -434,13 +459,22 @@ def train_ensemble(
                     
         avg_train_loss = loss_across_models / n_models
         avg_train_acc = acc_across_models / n_models
+        avg_adjusted_train_acc = adjusted_acc_across_models / n_models
         avg_val_loss = val_loss_across_models / n_models
         avg_val_acc = val_acc_across_models / n_models
+        avg_adjusted_val_acc = adjusted_val_acc_across_models / n_models
         best_loss = min(best_loss, avg_train_loss)
+
+        training_losses.append(avg_train_loss)
+        validation_losses.append(avg_val_loss)
+        training_accuracies.append(avg_train_acc)
+        adjusted_training_accuracies.append(avg_adjusted_train_acc)
+        validation_accuracies.append(avg_val_acc)
+        adjusted_validation_accuracies.append(avg_adjusted_val_acc)
 
         if epoch % 100 == 0:
             print(
-                f"Epoch {epoch}/{epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}, Train Acc: {avg_train_acc}, Val Acc: {avg_val_acc}"
+                f"Epoch {epoch}/{epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}, Train Acc: {avg_train_acc} (adjusted: {avg_adjusted_train_acc}), Val Acc: {avg_val_acc} (adjusted: {avg_adjusted_val_acc})"
             )
         epoch += 1
 
@@ -463,6 +497,8 @@ def train_ensemble(
     plt.figure()
     plt.plot(training_accuracies, label="Train Accuracy")
     plt.plot(validation_accuracies, label="Validation Accuracy")
+    plt.plot(adjusted_training_accuracies, label="Adjusted Training Accuracy")
+    plt.plot(adjusted_validation_accuracies, label="Adjusted Validation Accuracy")
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy")
     plt.legend()
@@ -470,8 +506,14 @@ def train_ensemble(
     plt.close()
     
     training_output = best_loss
-    if return_stat == "val_acc":
-        training_output = validation_accuracies[-1]
+    if return_stat == "acc":
+        training_output = {
+            "final_training_acc" : training_accuracies[-1],
+            "final_validation_acc" : validation_accuracies[-1],
+            "final_adjusted_training_acc" : adjusted_training_accuracies[-1],
+            "final_adjusted_validation_acc" : adjusted_validation_accuracies[-1],
+        }
+    print("Training over, returning:", training_output)
     return training_output
 
 
@@ -523,6 +565,8 @@ def train_model(
     validation_losses = []
     training_accuracies = []
     validation_accuracies = []
+    adjusted_training_accuracies = []
+    adjusted_validation_accuracies = []
 
     scheduler = lr_scheduler.LinearLR(
         optimizer, start_factor=1.0, end_factor=0.01, total_iters=epochs
@@ -535,6 +579,7 @@ def train_model(
             net.eval()
             total_validation_loss = 0.0
             total_validation_accuracy = 0.0
+            total_adjusted_validation_accuracy = 0.0
             with torch.no_grad():
                 for (
                     validation_traj1,
@@ -557,6 +602,7 @@ def train_model(
                     total_validation_accuracy += calculate_accuracy(
                         validation_predicted_probabilities, validation_true_pref
                     ) * validation_true_pref.size(0)
+                    total_adjusted_validation_accuracy += calculate_adjusted_accuracy(validation_predicted_probabilities, validation_true_pref, validation_score1, validation_score2) * validation_true_pref.size(0)
 
             average_validation_loss = total_validation_loss / val_size
             if average_validation_loss < best_loss:
@@ -564,12 +610,15 @@ def train_model(
                 torch.save(net.state_dict(), model_path)
                 print("MODEL SAVED AT EPOCH:", epoch)
             average_validation_accuracy = total_validation_accuracy / val_size
+            average_adjusted_validation_accuracy = total_adjusted_validation_accuracy / val_size
             validation_losses.append(average_validation_loss.item())
             validation_accuracies.append(average_validation_accuracy)
+            adjusted_validation_accuracies.append(average_adjusted_validation_accuracy)
 
             net.train()
             total_loss = 0.0
             total_accuracy = 0.0
+            total_adjusted_accuracy = 0.0
             total_probability = 0.0
 
             for (
@@ -588,7 +637,9 @@ def train_model(
                 total_loss += loss.item()
 
                 accuracy = calculate_accuracy(predicted_probabilities, batch_true_pref)
+                adjusted_accuracy = calculate_adjusted_accuracy(predicted_probabilities, batch_true_pref, batch_score1, batch_score2)
                 total_accuracy += accuracy * batch_true_pref.size(0)
+                total_adjusted_accuracy += adjusted_accuracy * batch_true_pref.size(0)
 
                 loss.backward()
                 # plot_activations_and_gradients(net)
@@ -603,7 +654,9 @@ def train_model(
             training_losses.append(average_training_loss)
 
             average_training_accuracy = total_accuracy / train_size
+            average_adjusted_training_accuracy = total_adjusted_accuracy / train_size
             training_accuracies.append(average_training_accuracy)
+            adjusted_training_accuracies.append(average_adjusted_training_accuracy)
 
             wandb.log(
                 {
@@ -611,13 +664,15 @@ def train_model(
                     "Validation Loss": average_validation_loss.item(),
                     "Train Accuracy": average_training_accuracy,
                     "Validation Accuracy": average_validation_accuracy,
+                    "Adjusted Train Accuracy": average_adjusted_training_accuracy,
+                    "Adjusted Validation Accuracy": average_adjusted_validation_accuracy,
                 },
                 step=epoch,
             )
 
             if epoch % 100 == 0:
                 print(
-                    f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {average_validation_loss.item()}, Train Acc: {average_training_accuracy}, Val Acc: {average_validation_accuracy}"
+                    f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {average_validation_loss.item()}, Train Acc: {average_training_accuracy} (adjusted: {average_adjusted_training_accuracy}), Val Acc: {average_validation_accuracy} (adjusted: {average_adjusted_validation_accuracy})"
                 )
             epoch += 1
     except Exception as e:
@@ -638,6 +693,8 @@ def train_model(
     plt.figure()
     plt.plot(training_accuracies, label="Train Accuracy")
     plt.plot(validation_accuracies, label="Validation Accuracy")
+    plt.plot(adjusted_training_accuracies, label="Adjusted Train Accuracy")
+    plt.plot(adjusted_validation_accuracies, label="Adjusted Validation Accuracy")
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy")
     plt.legend()
@@ -646,8 +703,14 @@ def train_model(
 
 
     training_output = best_loss
-    if return_stat == "val_acc":
-        training_output = validation_accuracies[-1]
+    if return_stat == "acc":
+        training_output = {
+            "final_training_acc" : training_accuracies[-1],
+            "final_validation_acc" : validation_accuracies[-1],
+            "final_adjusted_training_acc" : adjusted_training_accuracies[-1],
+            "final_adjusted_validation_acc" : adjusted_validation_accuracies[-1],
+        }
+    print("Training over, returning:", training_output)
     return training_output
 
 
@@ -662,7 +725,7 @@ def train_reward_function(
     
     if figure_folder_name:
         global figure_path
-        figure_path += figure_folder_name + '/'
+        figure_path = figure_folder_name + '/'
         os.makedirs(figure_path, exist_ok=True)
 
     # OPTUNA

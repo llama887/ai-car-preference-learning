@@ -4,11 +4,20 @@ run_baseline:
 	./scripts/run_basic.sh -r 1
 	./scripts/run_plots.sh -r 3
 
+
+run_baseline_parallel:
+	# ./scripts/run_basic.sh -r 3 -p
+	./scripts/run_basic.sh -r 2 -p
+	./scripts/run_basic.sh -r 1 -p
+	./scripts/run_plots.sh -r 3
+
+
 run_with_subsampling:
 	...
 
 run_with_partial_rewards:
-	./scripts/run_partial_rewards.sh -r 10
+	./scripts/run_partial_rewards.sh -r 5 -p 3
+	python simplex.py
 
 run_with_ensemble:
 	...
