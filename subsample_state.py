@@ -189,6 +189,42 @@ def split_by_rules(trajectory_segments):
     return mini_gargantuar
 
 
+def get_grid_points(samples):
+    # Load subsampled grid points
+    ANGLE_STEP = 40
+    ANGLES = 360 // ANGLE_STEP
+    SPEED_STEP = 10
+    SPEEDS = 40 // SPEED_STEP
+    FIRST_ACTIONS = 4
+    SECOND_ACTIONS = 4
+    gridpoints = samples // ANGLES // SPEEDS // FIRST_ACTIONS // SECOND_ACTIONS
+    if gridpoints < 1000:
+        raise ValueError(f"{gridpoints} is not enough points to subsample.")
+
+    print(f"Searching for {gridpoints} samples")
+    points = parallel_subsample_state("maps/map.png", gridpoints)
+    print(f"Found {len(points)} points.")
+    _ = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
+
+    # Prepare parameters for multiprocessing
+    params = [
+        (point, angle, speed, CAR_SIZE_X, CAR_SIZE_Y, WIDTH, HEIGHT, "maps/map.png")
+        for point in points
+        for angle in range(0, 360, ANGLE_STEP)
+        for speed in range(10, 50, SPEED_STEP)
+    ]
+    print("Starting segment subsampling...")
+    # Use multiprocessing to process trajectory segments
+    with multiprocessing.Pool() as pool:
+        results = list(
+            tqdm(
+                pool.imap_unordered(process_trajectory_segment, params),
+                total=len(params),
+            )
+        )
+    return results
+
+
 if __name__ == "__main__":
     start = time.time()
     parse = argparse.ArgumentParser(
@@ -218,38 +254,7 @@ if __name__ == "__main__":
     else:
         samples = 1000000
 
-    # Load subsampled grid points
-    ANGLE_STEP = 40
-    ANGLES = 360 // ANGLE_STEP
-    SPEED_STEP = 10
-    SPEEDS = 40 // SPEED_STEP
-    FIRST_ACTIONS = 4
-    SECOND_ACTIONS = 4
-    gridpoints = samples // ANGLES // SPEEDS // FIRST_ACTIONS // SECOND_ACTIONS
-    if gridpoints < 1000:
-        raise ValueError(f"{gridpoints} is not enough points to subsample.")
-
-    print(f"Searching for {gridpoints} samples")
-    points = parallel_subsample_state("maps/map.png", gridpoints)
-    print(f"Found {len(points)} points.")
-    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
-
-    # Prepare parameters for multiprocessing
-    params = [
-        (point, angle, speed, CAR_SIZE_X, CAR_SIZE_Y, WIDTH, HEIGHT, "maps/map.png")
-        for point in points
-        for angle in range(0, 360, ANGLE_STEP)
-        for speed in range(10, 50, SPEED_STEP)
-    ]
-    print("Starting segment subsampling...")
-    # Use multiprocessing to process trajectory segments
-    with multiprocessing.Pool() as pool:
-        results = list(
-            tqdm(
-                pool.imap_unordered(process_trajectory_segment, params),
-                total=len(params),
-            )
-        )
+    results = get_grid_points(samples)
 
     print("Splitting by rules...")
     with multiprocessing.Pool() as pool:
