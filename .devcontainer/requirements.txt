@@ -10,3 +10,4 @@ rl_zoo3==2.4.0
 tensorboard==2.18.0
 shapely==2.0.6
 imageio==2.36.0
+scikit-image==0.25.0

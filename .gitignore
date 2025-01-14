@@ -28,4 +28,5 @@ logs/*
 models/*
 .DS_Store
 tmp/*
+*.pkl
 *.png

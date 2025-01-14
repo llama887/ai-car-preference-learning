@@ -26,12 +26,13 @@ trajectories_per_process=$((trajectories / number_of_processes))
 # Create the list of distribution values
 distribution=$(printf -- "-d \"1/%d\" " $(seq 1 $((rules+1)) | sed "s/.*/$((rules+1))/"))
 echo "Distribution: $distribution"
+
 # Create a temporary directory
 mkdir -p tmp
 
 # Run Python scripts in parallel
 for ((i=0; i<number_of_processes; i++)); do
-    cmd="stdbuf -oL python collect_data.py -t $trajectories_per_process $distribution -db tmp/master_database_$i -tp tmp/trajectory_${i}_ --headless"
+    cmd="stdbuf -oL python -u collect_data.py -t $trajectories_per_process $distribution -db tmp/master_database_${i} -tp tmp/trajectory_${i}_ --headless"
     echo "Executing: $cmd"
     eval $cmd | tee tmp/output_$i.log &
 done
@@ -40,3 +41,5 @@ done
 wait
 
 echo "All processes completed."
+
+eval "python combine_gargantuar.py -d tmp -o database_gargantuar_1_length.pkl"

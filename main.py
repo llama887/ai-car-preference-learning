@@ -22,7 +22,14 @@ os.environ["WANDB_SILENT"] = "true"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 
-def start_simulation(config_path, max_generations, number_of_pairs, run_type, noHead, use_ensemble):
+def start_simulation(
+    config_path,
+    max_generations,
+    number_of_pairs,
+    run_type,
+    noHead=True,
+    use_ensemble=False,
+):
     # Set number of trajectories
     agent.number_of_pairs = number_of_pairs
 
@@ -33,7 +40,7 @@ def start_simulation(config_path, max_generations, number_of_pairs, run_type, no
             number_of_pairs=number_of_pairs,
             runType=run_type,
             noHead=noHead,
-            use_ensemble=use_ensemble
+            use_ensemble=use_ensemble,
         ),
         agent.rules_followed,
     )
@@ -124,8 +131,18 @@ if __name__ == "__main__":
         action="append",
         help="Distribution of segments collected",
     )
+    parse.add_argument(
+        "-md",
+        "--master-database",
+        type=str,
+        help="Path to master database",
+    )
 
     args = parse.parse_args()
+
+    if args.master_database:
+        agent.master_database = args.master_database
+
     if (
         (args.trajectories is not None and args.trajectories[0] < 0)
         or (args.generations is not None and args.generations[0] < 0)
@@ -161,7 +178,7 @@ if __name__ == "__main__":
             rules.SEGMENT_DISTRIBUTION_BY_RULES = [
                 parse_to_float(d) for d in args.distribution
             ]
-        except:
+        except Exception:
             print(
                 "Distribution input too advanced for Alex and Franklin's caveman parser. (or maybe you input something weird sry)"
             )
@@ -170,14 +187,17 @@ if __name__ == "__main__":
         rules.SEGMENT_DISTRIBUTION_BY_RULES = [
             d / sum_dist for d in rules.SEGMENT_DISTRIBUTION_BY_RULES
         ]
-        assert (
-            len(rules.SEGMENT_DISTRIBUTION_BY_RULES) == rules.NUMBER_OF_RULES + 1
-        ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {rules.NUMBER_OF_RULES}"
-        assert (
-            sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1
-        ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
+        assert len(rules.SEGMENT_DISTRIBUTION_BY_RULES) == rules.NUMBER_OF_RULES + 1, (
+            f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {rules.NUMBER_OF_RULES}"
+        )
+        assert sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1, (
+            f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
+        )
 
-    # Data collection and training reward net
+    if args.segment and args.segment < 1:
+        raise Exception("Can not have segments with length < 1")
+    agent.train_trajectory_length = args.segment if args.segment else 1
+
     model_weights = ""
     if args.reward is None:
         # start the simulation in data collecting mode

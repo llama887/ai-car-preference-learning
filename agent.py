@@ -9,6 +9,7 @@ import os
 import pickle
 import random
 import sys
+from collections import deque
 
 import neat
 import pygame
@@ -17,8 +18,7 @@ import yaml
 
 import reward
 import rules
-from collections import deque
-from reward import TrajectoryRewardNet, Ensemble, prepare_single_trajectory
+from reward import Ensemble, TrajectoryRewardNet, prepare_single_trajectory
 
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
@@ -86,7 +86,7 @@ class StateActionPair:
 
     def __repr__(self):
         return (
-            "<Radars: "
+            "StateActionPair: <Radars: "
             + str([radar for radar in self.radars])
             + ", Action: "
             + str(self.action)
@@ -323,10 +323,14 @@ class Car:
         if len(self.trajectory) < train_trajectory_length + 1:
             return 0
         if ensemble:
-            trajectory_tensor = prepare_single_trajectory(self.trajectory, train_trajectory_length + 1)
+            trajectory_tensor = prepare_single_trajectory(
+                self.trajectory, train_trajectory_length + 1
+            )
             return ensemble(trajectory_tensor).item()
         elif reward_network:
-            trajectory_tensor = prepare_single_trajectory(self.trajectory, train_trajectory_length + 1)
+            trajectory_tensor = prepare_single_trajectory(
+                self.trajectory, train_trajectory_length + 1
+            )
             return reward_network(trajectory_tensor).item()
 
         return rules.check_rules_one(self.trajectory[-2:], rules.NUMBER_OF_RULES)[1]
@@ -367,16 +371,13 @@ def display_master_segments(saved_segments):
 
 def display_requested_segments(number_of_pairs):
     print(
-        f"SEGMENTS REQUESTED (Pairs Requested * 2 * distribution[i]) (x10 for ensemble)):"
+        "SEGMENTS REQUESTED (Pairs Requested * 2 * distribution[i]) (x10 for ensemble)):"
     )
     for i in range(rules.NUMBER_OF_RULES + 1):
         print(
             i,
             "RULE SEGMENTS:",
-            math.ceil(
-                number_of_pairs * 2
-                * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
-            ),
+            math.ceil(number_of_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]),
         )
     print()
 
@@ -386,8 +387,8 @@ def break_into_segments(trajectory, rules_per_step, done):
     trajectory_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
     if len(trajectory) < train_trajectory_length + 1:
         return
-    
-    current_segment = trajectory[:train_trajectory_length + 1]
+
+    current_segment = trajectory[: train_trajectory_length + 1]
     current_rule_sum = sum(rules_per_step[:train_trajectory_length])
     current_rule_avg = int(round(current_rule_sum // train_trajectory_length))
     trajectory_segments[current_rule_avg].append(current_segment)
@@ -396,12 +397,14 @@ def break_into_segments(trajectory, rules_per_step, done):
     for i in range(train_trajectory_length + 1, len(trajectory)):
         current_segment.popleft()
         current_segment.append(trajectory[i])
-        current_rule_sum += rules_per_step[i - 1] - rules_per_step[i - 1 - train_trajectory_length]
+        current_rule_sum += (
+            rules_per_step[i - 1] - rules_per_step[i - 1 - train_trajectory_length]
+        )
         current_rule_avg = int(round(current_rule_sum // train_trajectory_length))
         trajectory_segments[current_rule_avg].append(list(current_segment))
-    
+
     for i in range(rules.NUMBER_OF_RULES + 1):
-        if done[i]:  
+        if done[i]:
             trajectory_segments[i] = []
     return trajectory_segments
 
@@ -462,7 +465,12 @@ def sample_segments(saved_segments):
 def generate_database(trajectory_path):
     trajectory_pairs = []
 
-    global run_type, saved_segments, num_pairs, saved_trajectories, train_trajectory_length
+    global \
+        run_type, \
+        saved_segments, \
+        num_pairs, \
+        saved_trajectories, \
+        train_trajectory_length
     if run_type == "collect":
         # Break trajectories into trajectory segments
         trajectory_segments = []
@@ -476,7 +484,7 @@ def generate_database(trajectory_path):
 
         if len(trajectory_segments) % 2 != 0:
             trajectory_segments.pop()
-        
+
         segment_generation_mode = "random"
         if segment_generation_mode == "random":
             random.shuffle(trajectory_segments)
@@ -504,7 +512,7 @@ def generate_database(trajectory_path):
             print(
                 "Generated",
                 n - same_reward,
-                f"pairs with different rewards ({(n - same_reward)/n}%)",
+                f"pairs with different rewards ({(n - same_reward) / n}%)",
             )
 
             if n > num_pairs:
@@ -606,7 +614,9 @@ def generate_database(trajectory_path):
                 )
             )
 
-        old_trajectories_path = trajectory_path + f"{run_type}_{len(trajectories)}_trajectories.pkl"
+        old_trajectories_path = (
+            trajectory_path + f"{run_type}_{len(trajectories)}_trajectories.pkl"
+        )
         if os.path.exists(old_trajectories_path):
             print("Removing old agent database with same number of trajectories...")
             try:
@@ -619,7 +629,9 @@ def generate_database(trajectory_path):
             except Exception as e:
                 print(f"Unexpected error: {e}")
 
-        with open(trajectory_path + f"{run_type}_{len(trajectories)}_trajectories.pkl", "wb") as f:
+        with open(
+            trajectory_path + f"{run_type}_{len(trajectories)}_trajectories.pkl", "wb"
+        ) as f:
             if len(trajectories) > 0:
                 pickle.dump(trajectories, f)
                 pass
@@ -812,15 +824,19 @@ def collection_status(number_of_pairs):
     for i in range(rules.NUMBER_OF_RULES + 1):
         if (
             len(saved_segments[i])
-            >= number_of_pairs * 2
-            * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
+            >= number_of_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
         ):
             rule_finished[i] = True
     return rule_finished
 
 
 def run_population(
-    config_path, max_generations, number_of_pairs, runType, noHead=False, use_ensemble=False
+    config_path,
+    max_generations,
+    number_of_pairs,
+    runType,
+    noHead=False,
+    use_ensemble=False,
 ):
     global trajectories_path
     trajectory_path = trajectories_path
@@ -836,7 +852,7 @@ def run_population(
         )
         global num_pairs
         num_pairs = number_of_pairs * (10 if use_ensemble else 1)
-        
+
         global run_type, headless
         run_type = runType
         headless = noHead
@@ -852,7 +868,12 @@ def run_population(
             pass
 
         # Create Population And Add Reporters
-        global current_generation, population, saved_segments, saved_trajectories, master_database
+        global \
+            current_generation, \
+            population, \
+            saved_segments, \
+            saved_trajectories, \
+            master_database
         population = neat.Population(config)
         population.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
@@ -899,7 +920,9 @@ def run_population(
                     pygame.display.quit()
                     pygame.quit()
                     break
-                elif generation >= max_generations and (len(saved_trajectories) >= config.pop_size * max_generations):
+                elif generation >= max_generations and (
+                    len(saved_trajectories) >= config.pop_size * max_generations
+                ):
                     while len(saved_trajectories) > config.pop_size * max_generations:
                         saved_trajectories.pop()
                     break
@@ -935,7 +958,7 @@ def load_models(reward_paths, hidden_size):
         if reward_paths[0] == "QUICK":
             if len(reward_paths) > 2:
                 raise Exception("REWARD PATH ERROR (QUICK MODE)")
-            ensemble_dir = reward_paths[1] + '*'
+            ensemble_dir = reward_paths[1] + "*"
             reward_paths = []
             for file in glob.glob(ensemble_dir):
                 reward_paths.append(file)
@@ -956,7 +979,11 @@ def load_models(reward_paths, hidden_size):
         for i in range(len(ensemble_nets)):
             ensemble_nets[i].load_state_dict(ensemble_weights[i])
             print(f"Loaded model #{i} from ensemble...")
-        ensemble = Ensemble(STATE_ACTION_SIZE * (train_trajectory_length + 1), len(ensemble_nets), ensemble_nets)
+        ensemble = Ensemble(
+            STATE_ACTION_SIZE * (train_trajectory_length + 1),
+            len(ensemble_nets),
+            ensemble_nets,
+        )
 
     runType = "trainedRF"
 

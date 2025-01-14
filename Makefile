@@ -27,6 +27,10 @@ run_pendulum:
 	python ./replication/train_agent.py
 	...
 
+collect_data:
+	./scripts/parallel_data_collect.sh -t 10000000 -r 3 -n 10
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length.pkl
+
 clean:
 	rm -rf wandb
 	rm -rf __pycache__
@@ -34,5 +38,6 @@ clean:
 	rm -rf trajectories
 	rm -rf logs
 	rm -rf rl_zoo_weights
+	rm -rf tmp
 	find . -type f -name '*.zip' -delete
 	find . -type f -name '*.pth' -delete
