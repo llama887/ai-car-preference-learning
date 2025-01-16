@@ -2,8 +2,9 @@
 import math
 
 NUMBER_OF_RULES = 2
-SEGMENT_DISTRIBUTION_BY_RULES = [1/3, 1/3, 1/3]
+SEGMENT_DISTRIBUTION_BY_RULES = [1 / 3, 1 / 3, 1 / 3]
 PARTIAL_REWARD = False
+
 
 def check_rules_one(segment, total_rules):
     rule_counter = 0
@@ -19,7 +20,7 @@ def check_rules_one(segment, total_rules):
     point1 = segment[0].position
     point2 = segment[1].position
     distance = math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
-    rule_counter += evaluate(1, lambda: distance > 30)
+    rule_counter += evaluate(1, lambda: distance >= 25)
 
     # Rule 2: Check if left radar is greater than right radar
     left_radar = segment[1].radars[0]
@@ -33,18 +34,20 @@ def check_rules_one(segment, total_rules):
 
     return (
         rule_counter,
-        rule_counter if PARTIAL_REWARD else int(rule_counter == total_rules) ,
+        rule_counter if PARTIAL_REWARD else int(rule_counter == total_rules),
         rules_followed if rules_followed != [] else [0],
     )
+
 
 def check_rules_long_segment(segment, total_rules):
     rule_counts = []
     total_reward = 0
     rules_followed_list = []
     for i in range(len(segment) - 1):
-        rule_counter, reward, rules_followed = check_rules_one(segment[i:i+2], total_rules)
+        rule_counter, reward, rules_followed = check_rules_one(
+            segment[i : i + 2], total_rules
+        )
         rule_counts.append(rule_counter)
         total_reward += reward
         rules_followed_list.append(rules_followed)
     return rule_counts, total_reward, rules_followed_list
-        
