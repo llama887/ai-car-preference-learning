@@ -25,11 +25,14 @@ os.environ["SDL_AUDIODRIVER"] = "dummy"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 trajectories_path = "trajectories/"
 master_database = "database_gargantuar"
+sampled_database = None
 
 # Constants
 
 WIDTH = 1920
 HEIGHT = 1080
+
+AGENTS_PER_GENERATION = 20
 
 CAR_SIZE_X = 60
 CAR_SIZE_Y = 60
@@ -572,10 +575,10 @@ def generate_database(trajectory_path):
             print("Removing old database with same pairs and rules...")
             os.remove(old_pairs_path)
 
+        database_to_save = trajectory_path + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl" if subsample else sampled_database
         # Save To Database
         with open(
-            trajectory_path
-            + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl",
+            database_to_save,
             "wb",
         ) as f:
             pickle.dump(trajectory_pairs, f)
@@ -614,13 +617,19 @@ def generate_database(trajectory_path):
                 )
             )
 
-        old_trajectories_path = (
-            trajectory_path + f"{run_type}_{len(trajectories)}_trajectories.pkl"
-        )
-        if os.path.exists(old_trajectories_path):
-            print("Removing old agent database with same number of trajectories...")
+        trajectory_file_path = ""
+        if run_type == "trueRF":
+            os.makedirs("trueRF_trajectories/")
+            trajectory_file_path = f"trueRF_trajectories/{run_type}_{len(trajectories)}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+        elif run_type == "trainedRF":
+            trajectory_file_path = trajectory_path + f"{run_type}_{len(trajectories)}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+        else:
+            raise Exception("Invalid run type.")
+        
+        if os.path.exists(trajectory_file_path):
+            print("Removing old agent database with same number of trajectories and rules...")
             try:
-                os.remove(old_trajectories_path)
+                os.remove(trajectory_file_path)
                 print("File removed successfully.")
             except PermissionError:
                 print("Permission denied: could not remove the file.")
@@ -630,8 +639,8 @@ def generate_database(trajectory_path):
                 print(f"Unexpected error: {e}")
 
         with open(
-            trajectory_path + f"{run_type}_{len(trajectories)}_trajectories.pkl", "wb"
-        ) as f:
+                trajectory_file_path, "wb"
+            ) as f:
             if len(trajectories) > 0:
                 pickle.dump(trajectories, f)
                 pass
@@ -840,6 +849,7 @@ def run_population(
 ):
     global trajectories_path
     trajectory_path = trajectories_path
+    print("TRAJECTORY PATH:", trajectory_path)
     os.makedirs(trajectories_path, exist_ok=True)
     try:
         # Load Config
@@ -1015,6 +1025,12 @@ if __name__ == "__main__":
         help="flag for big mode",
     )
     parse.add_argument(
+        "-db",
+        "--database",
+        type=str,
+        help="Optional path to saved database",
+    )
+    parse.add_argument(
         "--generate",
         action="store_true",
         help="flag for generating trajectories rather than sampling",
@@ -1045,6 +1061,9 @@ if __name__ == "__main__":
     
     if args.generate:
         subsample = False
+
+    if args.database:
+        sampled_database = args.database
 
     config_path = (
         "config/data_collection_config.txt"

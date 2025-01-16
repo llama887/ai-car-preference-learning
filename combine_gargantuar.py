@@ -2,6 +2,8 @@ import argparse
 import glob
 import os
 import pickle
+import random
+import rules
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -19,7 +21,27 @@ if __name__ == "__main__":
         required=True,
         help="Output file for combined database.",
     )
+    parser.add_argument(
+        "-r",
+        "--rules",
+        type=int,
+        help="Number of rules",
+    )
+    parser.add_argument(
+        "-p",
+        "--pair",
+        action="store_true",
+        help="Database is paired",
+    )
+    parser.add_argument(
+        "--partial",
+        action="store_true",
+        help="Partial reward",
+    )
     args = parser.parse_args()
+
+    if args.pair and not args.rules:
+        raise Exception("Need to provide number of rules if pairing!")
 
     # Find all files in the directory with "database" in the name and ".pkl" extension
     file_pattern = os.path.join(args.directory, "*master_database*.pkl")
@@ -37,11 +59,19 @@ if __name__ == "__main__":
 
     print(f"Number of database files processed: {len(databases)}")
 
-    # Combine the databases
-    combined_database = [[] for _ in range(len(databases[0]))]
-    for rules_satisfied in range(len(databases[0])):
-        for database in databases:
-            combined_database[rules_satisfied].extend(database[rules_satisfied])
+    if args.pair:
+        rules.NUMBER_OF_RULES = args.rules
+        rules.PARTIAL_REWARD = True if args.partial else False
+        combined_database = []
+        for pairs in databases:
+            combined_database.extend(pairs)
+    else:
+         # Combine the databases
+        combined_database = [[] for _ in range(len(databases[0]))]
+        for rules_satisfied in range(len(databases[0])):
+            for database in databases:
+                combined_database[rules_satisfied].extend(database[rules_satisfied])
+
 
     # Save the combined database
     with open(args.output, "wb") as f:

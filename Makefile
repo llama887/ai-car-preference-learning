@@ -6,16 +6,31 @@ run_baseline:
 
 
 run_baseline_parallel:
-	# ./scripts/run_basic.sh -r 3 -p
+	./scripts/run_basic.sh -r 3 -p
 	./scripts/run_basic.sh -r 2 -p
 	./scripts/run_basic.sh -r 1 -p
 	./scripts/run_plots.sh -r 3
 
 
+run_generate_trueRF:
+	./scripts/run_trueRF.sh
+
+
+run_generate_trueRF_parallel:
+	./scripts/run_trueRF.sh -p 
+
+
 run_with_subsampling:
 	...
 
-run_with_partial_rewards:
+
+all: run_with_partial_rewards
+
+database_test.pkl:
+	./scripts/parallel_data_collect.sh -t 1000000 -r 2 -n 10 -p -g
+	python ./combine_gargantuar.py -d tmp -o database_test.pkl -r 2 -p --partial
+
+run_with_partial_rewards: database_test.pkl
 	./scripts/run_partial_rewards.sh -r 5 -p 3
 	python simplex.py
 

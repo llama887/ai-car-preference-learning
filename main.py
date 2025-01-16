@@ -9,7 +9,7 @@ import reward
 import rules
 
 from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
-from agent import STATE_ACTION_SIZE, run_population, load_models
+from agent import STATE_ACTION_SIZE, AGENTS_PER_GENERATION, run_population, load_models
 from debug_plots import (
     handle_plotting_rei,
     populate_lists,
@@ -20,7 +20,6 @@ from reward import (
 
 os.environ["WANDB_SILENT"] = "true"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-
 
 def start_simulation(
     config_path,
@@ -125,6 +124,12 @@ if __name__ == "__main__":
         help="number of rules",
     )
     parse.add_argument(
+        "-db",
+        "--database",
+        type=str,
+        help="Optional path to saved database",
+    )
+    parse.add_argument(
         "-d",
         "--distribution",
         type=str,
@@ -142,6 +147,9 @@ if __name__ == "__main__":
 
     if args.master_database:
         agent.master_database = args.master_database
+
+    if args.database:
+        sampled_database = args.database
 
     if (
         (args.trajectories is not None and args.trajectories[0] < 0)
@@ -227,17 +235,22 @@ if __name__ == "__main__":
     else:
         model_weights = args.reward
 
-    # run the simulation with the true reward function
-    print("Simulating on true reward function...")
-    truePairs, true_rules_followed = start_simulation(
-        "./config/agent_config.txt",
-        args.generations[0],
-        0,
-        "trueRF",
-        args.headless,
-        args.ensemble,
-    )
 
+    # run the simulation with the true reward function (if trajectories do not exist yet)
+    if os.path.exists(f"trueRF_trajectories/trueRF_{args.generations * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"):
+        truePairs = args.generations * AGENTS_PER_GENERATION
+    else:
+        print("Simulating on true reward function...")
+        truePairs, true_rules_followed = start_simulation(
+            "./config/agent_config.txt",
+            args.generations[0],
+            0,
+            "trueRF",
+            args.headless,
+            args.ensemble,
+        )
+
+    # run simulation on trained reward function
     with open(
         args.parameters if args.parameters is not None else "best_params.yaml", "r"
     ) as file:
@@ -256,6 +269,9 @@ if __name__ == "__main__":
         args.ensemble,
     )
 
+    true_database = f"trueRF_trajectories/trueRF_{truePairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+    trained_database = trajectory_path + f"trainedRF_{trainedPairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+
     model_info = {
         "net": agent.reward_network,
         "ensemble": agent.ensemble,
@@ -265,8 +281,6 @@ if __name__ == "__main__":
         "agents-per-generation": 20,
     }
 
-    true_database = trajectory_path + f"trueRF_{truePairs}_trajectories.pkl"
-    trained_database = trajectory_path + f"trainedRF_{trainedPairs}_trajectories.pkl"
     (
         true_agent_expert_segments,
         true_agent_rewards,

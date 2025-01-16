@@ -948,7 +948,7 @@ def load_models(reward_paths):
             NET_SIZE * 2,
             hidden_size=hidden_size,
         ).to(device)
-        weights = torch.load(reward_paths, map_location=torch.device(f"{device}"))
+        weights = torch.load(reward_paths[0], map_location=torch.device(f"{device}"))
         reward_network.load_state_dict(weights)
         return reward_network, None
     else:

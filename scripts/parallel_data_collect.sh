@@ -3,13 +3,17 @@
 trajectories=""
 rules=""
 number_of_processes=""
+partial_rewards=false
+generate=false
 
-while getopts "t:r:n:" flag; do
+while getopts "t:r:n:pg" flag; do
     case "${flag}" in
         t) trajectories=${OPTARG};;
         r) rules=${OPTARG};;
         n) number_of_processes=${OPTARG};;
-        *) echo "Usage: $0 -t trajectories -r rules -n number_of_processes" >&2
+        p) partial_rewards=true;;
+        g) generate=true;;
+        *) echo "Usage: $0 -t trajectories -r rules -n number_of_processes [-p for partial rewards] [-g for generating db from scratch]" >&2
            exit 1 ;;
     esac
 done
@@ -32,7 +36,13 @@ mkdir -p tmp
 
 # Run Python scripts in parallel
 for ((i=0; i<number_of_processes; i++)); do
-    cmd="stdbuf -oL python -u collect_data.py -t $trajectories_per_process $distribution -db tmp/master_database_${i} -tp tmp/trajectory_${i}_ --headless"
+    cmd="stdbuf -oL python -u collect_data.py -t $trajectories_per_process $distribution -db tmp/master_database_${i}.pkl -tp tmp/trajectory_${i}/ --headless"
+    if $partial_rewards; then
+        cmd="$cmd -p"
+    fi
+    if $generate; then
+        cmd="$cmd -g"
+    fi
     echo "Executing: $cmd"
     eval $cmd | tee tmp/output_$i.log &
 done
@@ -41,5 +51,3 @@ done
 wait
 
 echo "All processes completed."
-
-eval "python combine_gargantuar.py -d tmp -o database_gargantuar_1_length.pkl"

@@ -40,8 +40,24 @@ if __name__ == "__main__":
         nargs=1,
         help="Path to save trajectory pkl files",
     )
-
+    parse.add_argument(
+        "-p",
+        "--partial",
+        action="store_true",
+        help="partial reward",
+    )
+    parse.add_argument(
+        "-g",
+        "--generate",
+        action="store_true",
+        help="Do not first subsample",
+    )
     args = parse.parse_args()
+
+    if args.partial:
+        rules.PARTIAL_REWARD = True
+    if args.generate:
+        agent.subsample = False
 
     if args.distribution:
         try:
@@ -61,10 +77,14 @@ if __name__ == "__main__":
         assert (
             sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1
         ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
+    
     if args.database:
-        agent.master_database = args.database[0]
+        if args.generate:
+            agent.sampled_database = args.database[0]
+        else:
+            agent.master_database = args.database[0]
     if args.trajectory_path:
-        agent.trajectory_path = args.trajectory_path[0]
+        agent.trajectories_path = args.trajectory_path[0]
     if args.trajectories is not None and args.trajectories[0] > 0:
         num_traj, collecting_rules_followed = start_simulation(
             "./config/data_collection_config.txt",

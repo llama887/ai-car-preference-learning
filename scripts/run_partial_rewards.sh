@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Fixed parameters
-EPOCHS=200
+EPOCHS=100
 TRAJ=500000
 PARAM_FILE="./best_params.yaml"
 MAIN_SCRIPT="partial_rewards.py"
@@ -35,6 +35,7 @@ if ! [[ "$PARALLELISM" =~ ^[0-9]+$ ]] || [ "$PARALLELISM" -le 0 ]; then
 fi
 
 rm -rf trajectories_partial*
+mkdir trajectories_partial
 
 STEP=$(echo "scale=10; 1 / $RESOLUTION" | bc)
 I=0

@@ -11,7 +11,9 @@ import re
 
 zips_path = "zips/"
 
-AGENTS_PER_GENERATION = 20
+import agent
+from agent import AGENTS_PER_GENERATION
+
 def unzipper_chungus(num_rules):
     best_true_agent_expert_segments = [[0]]
     aggregate_trained_agent_expert_segments = {}
@@ -271,8 +273,7 @@ def graph_normalized_segments_over_generations(
                 label=f"{num_pairs} pairs",
             )
         plt.xlabel("Generation")
-        plt.ylabel("Number of Expert Trajectories (Normalized by GT)")
-        plt.title("Ground Truth vs Trained Reward: Average Number of Expert Segments")
+        plt.ylabel("Ground Truth Reward (wrt GT Agent)")
         plt.legend()
         plt.savefig(f"{reward.figure_path}average_norm_{rule}_rules.png")
         plt.close()
@@ -286,8 +287,7 @@ def graph_normalized_segments_over_generations(
                 label=f"{num_pairs} pairs",
             )
         plt.xlabel("Generation")
-        plt.ylabel("Number of Expert Trajectories (Normalized by GT)")
-        plt.title("Ground Truth vs Trained Reward: Max Number of Expert Segments")
+        plt.ylabel("Ground Truth Reward (wrt GT Agent)")
         plt.legend()
         plt.savefig(f"{reward.figure_path}max_norm_{rule}_rules.png")
         plt.close()
@@ -336,7 +336,6 @@ def graph_gap_over_pairs(
     plt.xlabel("Number of Trajectory Pairs (Log Scale)")
     plt.xscale("log")
     plt.ylabel("Average Gap in Reward (Reward_GT - Reward_Trained)")
-    plt.title("Reward Gap vs. Trajectory Pairs")
     plt.legend()
     plt.savefig(f"{reward.figure_path}gap.png")
     plt.close()
