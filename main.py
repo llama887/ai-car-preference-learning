@@ -7,9 +7,7 @@ import yaml
 import agent
 import reward
 import rules
-
-from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
-from agent import STATE_ACTION_SIZE, run_population, load_models
+from agent import load_models, run_population
 from debug_plots import (
     handle_plotting_rei,
     populate_lists,
@@ -211,6 +209,9 @@ if __name__ == "__main__":
         )
 
         print("Starting training on trajectories...")
+        print(
+            f"train_reward_function({database_path}, {args.epochs[0]}, {args.parameters}, {args.ensemble}, {args.figure})"
+        )
         train_reward_function(
             database_path, args.epochs[0], args.parameters, args.ensemble, args.figure
         )

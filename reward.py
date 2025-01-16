@@ -1,8 +1,8 @@
 import argparse
 import glob
+import math
 import os
 import pickle
-from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,9 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim.lr_scheduler as lr_scheduler
 import yaml
-from sklearn.preprocessing import StandardScaler
-from torch.utils.data import DataLoader, Dataset, random_split, RandomSampler
-import math
+from torch.utils.data import DataLoader, Dataset, random_split
 
 import wandb
 
@@ -194,10 +192,10 @@ class TrajectoryDataset(Dataset):
             self.labels = variance_pairs["labels"]
             self.score1 = variance_pairs["score1"]
             self.score2 = variance_pairs["score2"]
-        else:    
+        else:
             with open(file_path, "rb") as f:
                 self.trajectory_pairs = pickle.load(f)
-            
+
             for trajectory_pair in self.trajectory_pairs:
                 trajectory1_flat = [
                     [item for sublist in trajectory_pair[0] for item in sublist]
@@ -252,27 +250,31 @@ def pick_highest_entropy_dataset(epoch, ensemble, train_dataset, subset_size):
             model_probabilities.append(bradley_terry_model(model(traj1), model(traj2)))
         variance = torch.var(torch.stack(model_probabilities)).item()
         return variance
-        
+
     new_train_size = int(subset_size * train_ratio)
 
     if epoch == 0:
-        train_sampler, _ = random_split(train_dataset, [new_train_size, len(train_dataset) - new_train_size])   
+        train_sampler, _ = random_split(
+            train_dataset, [new_train_size, len(train_dataset) - new_train_size]
+        )
     else:
         pairs_w_variance = []
-        for idx, (traj1, traj2, label, score1, score2) in enumerate(train_dataset.dataset):
+        for idx, (traj1, traj2, label, score1, score2) in enumerate(
+            train_dataset.dataset
+        ):
             pair_variance = get_variance(traj1, traj2)
             pairs_w_variance.append((idx, pair_variance))
-        
+
         pairs_w_variance = sorted(pairs_w_variance, key=lambda x: x[1], reverse=True)
 
         top_indices = [item[0] for item in pairs_w_variance[:new_train_size]]
-        
+
         variance_pairs = {
-            "first_trajectories" : [],
-            "second_trajectories" : [],
-            "labels" : [],
-            "score1" : [],
-            "score2" : [],
+            "first_trajectories": [],
+            "second_trajectories": [],
+            "labels": [],
+            "score1": [],
+            "score2": [],
         }
 
         for index in top_indices:
@@ -284,22 +286,29 @@ def pick_highest_entropy_dataset(epoch, ensemble, train_dataset, subset_size):
             variance_pairs["score2"].append(score2)
 
         train_sampler = TrajectoryDataset("", variance_pairs)
-        
+
     return train_sampler
+
 
 def distribute_data(train_subset, batch_size, num_models):
     train_sizes = [len(train_subset) // num_models for _ in range(num_models)]
     print("TRAIN_SIZES:", train_sizes)
-    first_train_size = len(train_subset) - num_models * (len(train_subset) // num_models)
+    first_train_size = len(train_subset) - num_models * (
+        len(train_subset) // num_models
+    )
     train_sizes[0] += first_train_size
     train_datasets = random_split(train_subset, train_sizes)
-    train_dataloaders = [DataLoader(
-        train_datasets[i],
-        batch_size=train_sizes[i] if train_sizes[i] < batch_size else batch_size,
-        shuffle=True,
-        pin_memory=False,
-    ) for i in range(num_models)]
+    train_dataloaders = [
+        DataLoader(
+            train_datasets[i],
+            batch_size=train_sizes[i] if train_sizes[i] < batch_size else batch_size,
+            shuffle=True,
+            pin_memory=False,
+        )
+        for i in range(num_models)
+    ]
     return train_dataloaders
+
 
 def prepare_single_trajectory(trajectory, max_length=2):
     def truncate(trajectory, max_length):
@@ -323,14 +332,19 @@ def calculate_accuracy(predicted_probabilities, true_preferences):
     accuracy = correct_predictions / true_preferences.size(0)
     return accuracy.item()
 
-def calculate_adjusted_accuracy(predicted_probabilities, true_preferences, first_rewards, second_rewards):
-    differing_rewards_mask = (first_rewards != second_rewards)
+
+def calculate_adjusted_accuracy(
+    predicted_probabilities, true_preferences, first_rewards, second_rewards
+):
+    differing_rewards_mask = first_rewards != second_rewards
     filtered_predicted_probabilities = predicted_probabilities[differing_rewards_mask]
     filtered_true_preferences = true_preferences[differing_rewards_mask]
     if filtered_true_preferences.size(0) == 0:
         return 0.0
     predicted_preferences = (filtered_predicted_probabilities > 0.5).float()
-    correct_predictions = (predicted_preferences == filtered_true_preferences).float().sum()
+    correct_predictions = (
+        (predicted_preferences == filtered_true_preferences).float().sum()
+    )
     adjusted_accuracy = correct_predictions / filtered_true_preferences.size(0)
     return adjusted_accuracy.item()
 
@@ -339,7 +353,7 @@ def train_ensemble(
     ensemble, epochs, swaps, optimizer, batch_size, trajectory_path, return_stat
 ):
     global ensemble_path
-    ensemble_path = models_path + f'ensemble_{epochs}/'
+    ensemble_path = models_path + f"ensemble_{epochs}/"
     os.makedirs(ensemble_path, exist_ok=True)
 
     n_models = len(ensemble.model_list)
@@ -367,18 +381,18 @@ def train_ensemble(
     validation_losses = []
     validation_accuracies = []
     adjusted_validation_accuracies = []
-    
-    best_loss = float('inf')
-    best_val_losses = [float('inf') for _ in range(n_models)]
+
+    best_loss = float("inf")
+    best_val_losses = [float("inf") for _ in range(n_models)]
 
     epoch = 0
     while epoch < epochs:
         if epoch % (epochs // (swaps + 1)) == 0:
             print("SWAP:", epoch)
-            train_subset = pick_highest_entropy_dataset(epoch, ensemble, train_dataset, math.ceil(dataset_size / (swaps + 1)))
-            training_dataloaders = distribute_data(
-                train_subset, batch_size, n_models
+            train_subset = pick_highest_entropy_dataset(
+                epoch, ensemble, train_dataset, math.ceil(dataset_size / (swaps + 1))
             )
+            training_dataloaders = distribute_data(train_subset, batch_size, n_models)
 
         loss_across_models = 0
         acc_across_models = 0
@@ -411,8 +425,15 @@ def train_ensemble(
 
                 predicted_probabilities = bradley_terry_model(rewards1, rewards2)
                 model_loss += preference_loss(predicted_probabilities, batch_true_pref)
-                model_acc += calculate_accuracy(predicted_probabilities, batch_true_pref) * batch_true_pref.size(0)
-                model_adjusted_acc += calculate_adjusted_accuracy(predicted_probabilities, batch_true_pref, batch_reward1, batch_reward2) * batch_true_pref.size(0)
+                model_acc += calculate_accuracy(
+                    predicted_probabilities, batch_true_pref
+                ) * batch_true_pref.size(0)
+                model_adjusted_acc += calculate_adjusted_accuracy(
+                    predicted_probabilities,
+                    batch_true_pref,
+                    batch_reward1,
+                    batch_reward2,
+                ) * batch_true_pref.size(0)
 
             model_loss /= train_size
             model_acc /= train_size
@@ -420,7 +441,6 @@ def train_ensemble(
             loss_across_models += model_loss
             acc_across_models += model_acc
             adjusted_acc_across_models += model_adjusted_acc
-                
 
             val_loss = 0.0
             val_acc = 0.0
@@ -441,9 +461,18 @@ def train_ensemble(
                     validation_predicted_probabilities = bradley_terry_model(
                         validation_rewards1, validation_rewards2
                     )
-                    val_loss += preference_loss(validation_predicted_probabilities, validation_true_pref)
-                    val_acc += calculate_accuracy(validation_predicted_probabilities, validation_true_pref) * validation_true_pref.size(0)
-                    val_adjusted_acc += calculate_adjusted_accuracy(validation_predicted_probabilities, validation_true_pref, validation_reward1, validation_reward2) * validation_true_pref.size(0)
+                    val_loss += preference_loss(
+                        validation_predicted_probabilities, validation_true_pref
+                    )
+                    val_acc += calculate_accuracy(
+                        validation_predicted_probabilities, validation_true_pref
+                    ) * validation_true_pref.size(0)
+                    val_adjusted_acc += calculate_adjusted_accuracy(
+                        validation_predicted_probabilities,
+                        validation_true_pref,
+                        validation_reward1,
+                        validation_reward2,
+                    ) * validation_true_pref.size(0)
 
             val_loss /= val_size
             val_acc /= val_size
@@ -454,9 +483,12 @@ def train_ensemble(
 
             if val_loss < best_val_losses[i]:
                 best_val_losses[i] = val_loss
-                torch.save(ensemble.model_list[i].state_dict(), ensemble_path + f"model_{epochs}_{i}.pth")
+                torch.save(
+                    ensemble.model_list[i].state_dict(),
+                    ensemble_path + f"model_{epochs}_{i}.pth",
+                )
                 print(f"MODEL {i} SAVED AT EPOCH: {epoch}")
-                    
+
         avg_train_loss = loss_across_models / n_models
         avg_train_acc = acc_across_models / n_models
         avg_adjusted_train_acc = adjusted_acc_across_models / n_models
@@ -504,14 +536,14 @@ def train_ensemble(
     plt.legend()
     plt.savefig(f"{figure_path}accuracy.png")
     plt.close()
-    
+
     training_output = best_loss
     if return_stat == "acc":
         training_output = {
-            "final_training_acc" : training_accuracies[-1],
-            "final_validation_acc" : validation_accuracies[-1],
-            "final_adjusted_training_acc" : adjusted_training_accuracies[-1],
-            "final_adjusted_validation_acc" : adjusted_validation_accuracies[-1],
+            "final_training_acc": training_accuracies[-1],
+            "final_validation_acc": validation_accuracies[-1],
+            "final_adjusted_training_acc": adjusted_training_accuracies[-1],
+            "final_adjusted_validation_acc": adjusted_validation_accuracies[-1],
         }
     print("Training over, returning:", training_output)
     return training_output
@@ -602,7 +634,12 @@ def train_model(
                     total_validation_accuracy += calculate_accuracy(
                         validation_predicted_probabilities, validation_true_pref
                     ) * validation_true_pref.size(0)
-                    total_adjusted_validation_accuracy += calculate_adjusted_accuracy(validation_predicted_probabilities, validation_true_pref, validation_score1, validation_score2) * validation_true_pref.size(0)
+                    total_adjusted_validation_accuracy += calculate_adjusted_accuracy(
+                        validation_predicted_probabilities,
+                        validation_true_pref,
+                        validation_score1,
+                        validation_score2,
+                    ) * validation_true_pref.size(0)
 
             average_validation_loss = total_validation_loss / val_size
             if average_validation_loss < best_loss:
@@ -610,7 +647,9 @@ def train_model(
                 torch.save(net.state_dict(), model_path)
                 print("MODEL SAVED AT EPOCH:", epoch)
             average_validation_accuracy = total_validation_accuracy / val_size
-            average_adjusted_validation_accuracy = total_adjusted_validation_accuracy / val_size
+            average_adjusted_validation_accuracy = (
+                total_adjusted_validation_accuracy / val_size
+            )
             validation_losses.append(average_validation_loss.item())
             validation_accuracies.append(average_validation_accuracy)
             adjusted_validation_accuracies.append(average_adjusted_validation_accuracy)
@@ -637,7 +676,9 @@ def train_model(
                 total_loss += loss.item()
 
                 accuracy = calculate_accuracy(predicted_probabilities, batch_true_pref)
-                adjusted_accuracy = calculate_adjusted_accuracy(predicted_probabilities, batch_true_pref, batch_score1, batch_score2)
+                adjusted_accuracy = calculate_adjusted_accuracy(
+                    predicted_probabilities, batch_true_pref, batch_score1, batch_score2
+                )
                 total_accuracy += accuracy * batch_true_pref.size(0)
                 total_adjusted_accuracy += adjusted_accuracy * batch_true_pref.size(0)
 
@@ -701,31 +742,35 @@ def train_model(
     plt.savefig(f"{figure_path}accuracy.png")
     plt.close()
 
-
     training_output = best_loss
     if return_stat == "acc":
         training_output = {
-            "final_training_acc" : training_accuracies[-1],
-            "final_validation_acc" : validation_accuracies[-1],
-            "final_adjusted_training_acc" : adjusted_training_accuracies[-1],
-            "final_adjusted_validation_acc" : adjusted_validation_accuracies[-1],
+            "final_training_acc": training_accuracies[-1],
+            "final_validation_acc": validation_accuracies[-1],
+            "final_adjusted_training_acc": adjusted_training_accuracies[-1],
+            "final_adjusted_validation_acc": adjusted_validation_accuracies[-1],
         }
     print("Training over, returning:", training_output)
     return training_output
 
 
 def train_reward_function(
-    trajectories_file_path, epochs, parameters_path=None, use_ensemble=False, figure_folder_name=None, return_stat=None
+    trajectories_file_path,
+    epochs,
+    parameters_path=None,
+    use_ensemble=False,
+    figure_folder_name=None,
+    return_stat=None,
 ):
     training_output_stat = None
     input_size = INPUT_SIZE
     if use_ensemble:
         ensemble_path = models_path + f"ensemble_{epochs}/"
         os.makedirs(ensemble_path, exist_ok=True)
-    
+
     if figure_folder_name:
         global figure_path
-        figure_path = figure_folder_name + '/'
+        figure_path = figure_folder_name + "/"
         os.makedirs(figure_path, exist_ok=True)
 
     # OPTUNA
@@ -825,7 +870,10 @@ def train_reward_function(
                     return_stat,
                 )
                 for i in range(len(ensemble.model_list)):
-                    torch.save(ensemble.model_list[i].state_dict(), ensemble_path + f"model_{epochs}_{i}.pth")
+                    torch.save(
+                        ensemble.model_list[i].state_dict(),
+                        ensemble_path + f"model_{epochs}_{i}.pth",
+                    )
             else:
                 net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(
                     device
@@ -847,9 +895,7 @@ def train_reward_function(
                     model_path=models_path + f"model_{epochs}.pth",
                     return_stat=return_stat,
                 )
-                torch.save(
-                    net.state_dict(), models_path + f"model_{epochs}.pth"
-                )
+                torch.save(net.state_dict(), models_path + f"model_{epochs}.pth")
         return training_output_stat
 
 
@@ -940,9 +986,7 @@ if __name__ == "__main__":
     parse.add_argument(
         "-e", "--epochs", type=int, help="Number of epochs to train the model"
     )
-    parse.add_argument(
-        "-l", "--labels", type=int, help="Number of labels created"
-    )
+    parse.add_argument("-l", "--labels", type=int, help="Number of labels created")
     parse.add_argument(
         "--ensemble", action="store_true", help="Train an ensemble of 3 predictors"
     )
