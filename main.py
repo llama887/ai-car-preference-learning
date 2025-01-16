@@ -7,9 +7,13 @@ import yaml
 import agent
 import reward
 import rules
+<<<<<<< HEAD
 
 from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
 from agent import STATE_ACTION_SIZE, AGENTS_PER_GENERATION, run_population, load_models
+=======
+from agent import load_models, run_population
+>>>>>>> 9954aad7 (i dont know what is going on with the heatmap :()
 from debug_plots import (
     handle_plotting_rei,
     populate_lists,
@@ -219,6 +223,9 @@ if __name__ == "__main__":
         )
 
         print("Starting training on trajectories...")
+        print(
+            f"train_reward_function({database_path}, {args.epochs[0]}, {args.parameters}, {args.ensemble}, {args.figure})"
+        )
         train_reward_function(
             trajectories_file_path=database_path, 
             epochs=args.epochs[0], 

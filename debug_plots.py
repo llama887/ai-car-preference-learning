@@ -1,9 +1,13 @@
 import argparse
+import glob
 import math
 import os
 import pickle
 import random
+import re
+import shutil
 import statistics
+import zipfile
 from collections import Counter, defaultdict, deque
 
 import matplotlib.patches as mpatches
@@ -13,15 +17,10 @@ import seaborn as sns
 import torch
 import yaml
 
-import reward
-import glob
-import shutil
-import zipfile
-import re
-
 import agent
-from reward import TrajectoryRewardNet, prepare_single_trajectory, Ensemble
+import reward
 import rules
+from reward import Ensemble, TrajectoryRewardNet, prepare_single_trajectory
 
 AGENTS_PER_GENERATION = 20
 
@@ -85,12 +84,13 @@ def bradley_terry(r1, r2):
 
 def break_into_segments(trajectory):
     trajectory_segments = []
-    current_segment = deque(trajectory[:agent.train_trajectory_length + 1])
+    current_segment = deque(trajectory[: agent.train_trajectory_length + 1])
     for i in range(agent.train_trajectory_length + 1, len(trajectory)):
         current_segment.popleft()
         current_segment.append(trajectory[i])
         trajectory_segments.append(list(current_segment))
     return trajectory_segments
+
 
 def dist(traj_segment):
     position_segment = [traj_segment[0].position, traj_segment[1].position]
@@ -165,7 +165,11 @@ def populate_lists(true_database, trained_database, training_database, model_inf
                 gen_true_rewards.append(
                     sum(
                         [
-                            model(prepare_single_trajectory(segment, agent.train_trajectory_length + 1)).item()
+                            model(
+                                prepare_single_trajectory(
+                                    segment, agent.train_trajectory_length + 1
+                                )
+                            ).item()
                             for segment in break_into_segments(trajectory.traj)
                         ]
                     )
@@ -193,7 +197,11 @@ def populate_lists(true_database, trained_database, training_database, model_inf
                     )[0]
                 )
                 trained_segment_rewards.append(
-                    model(prepare_single_trajectory(segment, agent.train_trajectory_length + 1)).item()
+                    model(
+                        prepare_single_trajectory(
+                            segment, agent.train_trajectory_length + 1
+                        )
+                    ).item()
                 )
                 trained_segment_distances.append(dist(segment))
             count += 1
@@ -217,10 +225,18 @@ def populate_lists(true_database, trained_database, training_database, model_inf
                 )[0]
             )
             training_segment_rewards.append(
-                model(prepare_single_trajectory(segment1, agent.train_trajectory_length + 1)).item()
+                model(
+                    prepare_single_trajectory(
+                        segment1, agent.train_trajectory_length + 1
+                    )
+                ).item()
             )
             training_segment_rewards.append(
-                model(prepare_single_trajectory(segment2, agent.train_trajectory_length + 1)).item()
+                model(
+                    prepare_single_trajectory(
+                        segment2, agent.train_trajectory_length + 1
+                    )
+                ).item()
             )
             training_segment_distances.append(dist(segment1))
             training_segment_distances.append(dist(segment2))
@@ -249,6 +265,160 @@ def populate_lists(true_database, trained_database, training_database, model_inf
     )
 
 
+<<<<<<< HEAD
+=======
+def unzipper_chungus(num_rules):
+    best_true_agent_expert_segments = [[0]]
+    aggregate_trained_agent_expert_segments = {}
+
+    zip_files = glob.glob(f"trajectories_*_pairs_{num_rules}_rules.zip")
+    for zip_file in zip_files:
+        num_pairs = int(re.search(r"trajectories_(\d+)_pairs", zip_file).group(1))
+
+        true_agent_expert_segments = []
+        trained_agent_expert_segments = []
+        os.makedirs("temp_trajectories", exist_ok=True)
+        with zipfile.ZipFile(zip_file, "r") as zip_ref:
+            # Extract all contents of the zip file to the specified folder
+            zip_ref.extractall("temp_trajectories")
+            trueRF = glob.glob("temp_trajectories/trajectories/trueRF_*.pkl")[0]
+            trainedRF = glob.glob("temp_trajectories/trajectories/trainedRF_*.pkl")[0]
+
+            with open(trueRF, "rb") as f:
+                true_trajectories = pickle.load(f)
+            with open(trainedRF, "rb") as f:
+                trained_trajectories = pickle.load(f)
+
+            num_true_trajectories = len(true_trajectories)
+            count = 0
+            while count < num_true_trajectories:
+                gen_true_expert_segments = []
+                for _ in range(AGENTS_PER_GENERATION // 2):
+                    trajectory_pair = true_trajectories[count]
+                    gen_true_expert_segments.extend(
+                        [trajectory_pair.e1, trajectory_pair.e2]
+                    )
+                    count += 1
+                if gen_true_expert_segments:
+                    true_agent_expert_segments.append(gen_true_expert_segments)
+
+            num_trained_trajectories = len(trained_trajectories)
+
+            count = 0
+            while count < num_trained_trajectories:
+                gen_trained_expert_segments = []
+                for _ in range(AGENTS_PER_GENERATION // 2):
+                    trajectory_pair = trained_trajectories[count]
+                    gen_trained_expert_segments.extend(
+                        [trajectory_pair.e1, trajectory_pair.e2]
+                    )
+                    count += 1
+                if gen_trained_expert_segments:
+                    trained_agent_expert_segments.append(gen_trained_expert_segments)
+
+            if max(
+                [sum(generation) for generation in true_agent_expert_segments]
+            ) > max(
+                [sum(generation) for generation in best_true_agent_expert_segments]
+            ):
+                best_true_agent_expert_segments = true_agent_expert_segments.copy()
+            aggregate_trained_agent_expert_segments[num_pairs] = (
+                trained_agent_expert_segments.copy()
+            )
+
+        shutil.rmtree("temp_trajectories")
+    return (
+        best_true_agent_expert_segments,
+        aggregate_trained_agent_expert_segments,
+    )
+
+
+def unzipper_chungus_deluxe(num_rules):
+    best_true_agent_expert_segments = {}
+    aggregate_trained_agent_expert_segments = {}
+    for rule_count in range(1, num_rules + 1):
+        rule_best_true_agent_segments = [[0]]
+        rule_aggregate_segments = {}
+
+        zip_files = glob.glob(f"trajectories_*_pairs_{rule_count}_rules.zip")
+        for zip_file in zip_files:
+            num_pairs = int(re.search(r"trajectories_(\d+)_pairs", zip_file).group(1))
+            true_agent_expert_segments = []
+            trained_agent_expert_segments = []
+
+            os.makedirs("temp_trajectories", exist_ok=True)
+            with zipfile.ZipFile(zip_file, "r") as zip_ref:
+                # Extract all contents of the zip file to the specified folder
+                zip_ref.extractall("temp_trajectories")
+                trueRF = glob.glob("temp_trajectories/trajectories/trueRF_*.pkl")[0]
+                trainedRF = glob.glob("temp_trajectories/trajectories/trainedRF_*.pkl")[
+                    0
+                ]
+
+                with open(trueRF, "rb") as f:
+                    true_trajectories = pickle.load(f)
+                with open(trainedRF, "rb") as f:
+                    trained_trajectories = pickle.load(f)
+
+                num_true_trajectories = len(true_trajectories)
+                count = 0
+                while count < num_true_trajectories:
+                    gen_true_expert_segments = []
+                    for _ in range(AGENTS_PER_GENERATION):
+                        trajectory = true_trajectories[count]
+                        gen_true_expert_segments.append(trajectory.num_expert_segments)
+                        count += 1
+                    if gen_true_expert_segments:
+                        true_agent_expert_segments.append(gen_true_expert_segments)
+
+                num_trained_trajectories = len(trained_trajectories)
+                count = 0
+                while count < num_trained_trajectories:
+                    gen_trained_expert_segments = []
+                    for _ in range(AGENTS_PER_GENERATION):
+                        trajectory = trained_trajectories[count]
+                        gen_trained_expert_segments.append(
+                            trajectory.num_expert_segments
+                        )
+                        count += 1
+                    if gen_trained_expert_segments:
+                        trained_agent_expert_segments.append(
+                            gen_trained_expert_segments
+                        )
+
+                if max(
+                    [sum(generation) for generation in true_agent_expert_segments]
+                ) > max(
+                    [sum(generation) for generation in rule_best_true_agent_segments]
+                ):
+                    rule_best_true_agent_segments = true_agent_expert_segments.copy()
+                rule_aggregate_segments[num_pairs] = (
+                    trained_agent_expert_segments.copy()
+                )
+
+            shutil.rmtree("temp_trajectories")
+        best_true_agent_expert_segments[rule_count] = (
+            rule_best_true_agent_segments.copy()
+        )
+        aggregate_trained_agent_expert_segments[rule_count] = rule_aggregate_segments
+
+    s = 0
+    for i in range(len(best_true_agent_expert_segments[1])):
+        best_true_sum = sum(best_true_agent_expert_segments[1][i])
+        trained_sum = sum(aggregate_trained_agent_expert_segments[1][1000000][i])
+        diff = best_true_sum - trained_sum
+
+        # Use f-strings to format with fixed width
+        print(f"{i:<5} {best_true_sum:<15} {trained_sum:<15} {diff:<15} {s:<15}")
+        s += diff
+
+    return (
+        best_true_agent_expert_segments,
+        aggregate_trained_agent_expert_segments,
+    )
+
+
+>>>>>>> 9954aad7 (i dont know what is going on with the heatmap :()
 # Define a function to plot trajectories
 def plot_trajectories(trajectories, title):
     plt.figure(figsize=(10, 6))
@@ -641,7 +811,7 @@ def load_models(reward_paths):
     if len(reward_paths) == 1:
         print("\nLoading reward network...")
         reward_network = TrajectoryRewardNet(
-            NET_SIZE * 2,
+            agent.STATE_ACTION_SIZE * 2,
             hidden_size=hidden_size,
         ).to(device)
         weights = torch.load(reward_paths[0], map_location=torch.device(f"{device}"))
@@ -769,4 +939,18 @@ if __name__ == "__main__":
         training_segment_rules_satisfied,
         training_segment_rewards,
         training_segment_distances,
+<<<<<<< HEAD
     )
+=======
+    )
+
+    num_rules = rules.NUMBER_OF_RULES
+    best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = (
+        unzipper_chungus_deluxe(num_rules)
+    )
+
+    handle_plotting_sana(
+        best_true_agent_expert_segments,
+        aggregate_trained_agent_expert_segments,
+    )
+>>>>>>> 9954aad7 (i dont know what is going on with the heatmap :()
