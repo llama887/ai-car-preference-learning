@@ -1,41 +1,62 @@
+import random
 import time
 
 import matplotlib.pyplot as plt
+import torch
 import yaml
+from tqdm import tqdm
 
 import debug_plots
-from agent import prepare_single_trajectory
 from debug_plots import load_models
 from rules import check_rules_one
 from subsample_state import get_grid_points
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def segment_to_tensor(segment):
+    flatten = []
+    for state_action_pair in segment:
+        flatten.extend([radar for radar in state_action_pair.radars])
+        flatten.append(state_action_pair.action)
+        flatten.extend(state_action_pair.position)
+    return torch.tensor(flatten, dtype=torch.float32).to(device)
+
 
 def accuracy_per_xy(trajectory_segments, number_of_rules, reward_model_directory):
-    import ipdb
-
     # Split by x and y
     print("Splitting by x and y...")
     count1 = 0
     count2 = 0
+    count_diff = 0
+    diff_xys = []
     xy_dict = {}
     for segment in trajectory_segments:
         _, reward, _ = check_rules_one(segment, number_of_rules)
+        assert reward in [0, 1]
         x = segment[0].position[0]
         y = segment[0].position[1]
         if (x, y) not in xy_dict:
             xy_dict[(x, y)] = [[], []]
         xy_dict[(x, y)][reward].append(segment)
+        if (
+            len(xy_dict[(x, y)][reward]) == 1
+            and len(xy_dict[(x, y)][int(not bool(reward))]) != 0
+        ):
+            count_diff += 1
+            diff_xys.append((x, y))
         if reward == 1:
             count1 += 1
         else:
             count2 += 1
+    print(
+        f"Out of {len(xy_dict)} xy points, {count_diff} have segments that satisfy both rewards."
+    )
     print(f"Found {count1} 1 and {count2} 0 examples.")
-    ipdb.set_trace()
     # make pairs
     print("Making pairs...")
     paired_dict = {}
     for xy in xy_dict:
-        ipdb.set_trace()
         number_of_pairs = min(len(xy_dict[xy][0]), len(xy_dict[xy][1]))
         xy_dict[xy][0] = xy_dict[xy][0][:number_of_pairs]
         xy_dict[xy][1] = xy_dict[xy][1][:number_of_pairs]
@@ -48,6 +69,8 @@ def accuracy_per_xy(trajectory_segments, number_of_rules, reward_model_directory
     print("Removing xy with no pairs...")
     start_count = len(xy_dict)
     for xy in list(xy_dict.keys()):
+        random.shuffle(xy_dict[xy][0])
+        random.shuffle(xy_dict[xy][1])
         if len(xy_dict[xy][0]) == 0 or len(xy_dict[xy][1]) == 0:
             del xy_dict[xy]
     end_count = len(xy_dict)
@@ -60,18 +83,18 @@ def accuracy_per_xy(trajectory_segments, number_of_rules, reward_model_directory
     # evaluate accuracy
     print("Evaluating accuracy...")
     model, _ = load_models([reward_model_directory])
-    for xy in paired_dict:
+    for xy in tqdm(paired_dict):
         x.append(xy[0])
         y.append(xy[1])
         xy_accuracy = [
             int(
                 model(
-                    prepare_single_trajectory(
+                    segment_to_tensor(
                         pair[0],
                     )
                 ).item()
                 < model(
-                    prepare_single_trajectory(
+                    segment_to_tensor(
                         pair[1],
                     )
                 ).item()
@@ -88,13 +111,15 @@ def plot_reward_heatmap(samples, reward_model_directory, number_of_rules):
     print("Getting accuracies...")
     x, y, accuracy = accuracy_per_xy(samples, number_of_rules, reward_model_directory)
 
-    plt.figure()
-    plt.imshow(accuracy, cmap="viridis", extent=[x.min(), x.max(), y.min(), y.max()])
+    print("Plotting...")
+    plt.scatter(x, y, c=accuracy, cmap="viridis")
+    plt.colorbar()
+    plt.title("Reward Heatmap")
     plt.xlabel("X")
     plt.ylabel("Y")
-    plt.title("Reward Heatmap")
-    plt.savefig("reward_heatmap.png")
-    plt.close()
+    plt.xlim(min(x), max(x))
+    plt.ylim(min(y), max(y))
+    plt.savefig("reward_heatmap.png", dpi=300)
 
 
 if __name__ == "__main__":
