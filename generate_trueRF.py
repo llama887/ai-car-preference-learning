@@ -85,5 +85,5 @@ if __name__ == "__main__":
             0,
             "trueRF",
             args.headless,
-            args.ensemble,
+            False,
         )

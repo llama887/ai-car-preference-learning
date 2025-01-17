@@ -57,7 +57,7 @@ run_instance() {
     TRAJECTORY_DIR="trajectories_t$TRAJ"
 
     # Remove the directories to prepare for the next run
-    rm -rf figures* trajectories*
+    rm -rf figures* trajectories trajectories_t*
 
     echo "Running with ${TRAJ} trajectories..."
 

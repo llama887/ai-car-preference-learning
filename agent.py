@@ -619,7 +619,7 @@ def generate_database(trajectory_path):
 
         trajectory_file_path = ""
         if run_type == "trueRF":
-            os.makedirs("trueRF_trajectories/")
+            os.makedirs("trueRF_trajectories/", exist_ok=True)
             trajectory_file_path = f"trueRF_trajectories/{run_type}_{len(trajectories)}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
         elif run_type == "trainedRF":
             trajectory_file_path = trajectory_path + f"{run_type}_{len(trajectories)}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
@@ -849,7 +849,6 @@ def run_population(
 ):
     global trajectories_path
     trajectory_path = trajectories_path
-    print("TRAJECTORY PATH:", trajectory_path)
     os.makedirs(trajectories_path, exist_ok=True)
     try:
         # Load Config
