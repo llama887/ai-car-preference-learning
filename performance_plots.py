@@ -11,76 +11,7 @@ import re
 
 zips_path = "zips/"
 
-import agent
 from agent import AGENTS_PER_GENERATION
-
-def unzipper_chungus(num_rules):
-    best_true_agent_expert_segments = [[0]]
-    aggregate_trained_agent_expert_segments = {}
-
-    zip_files = glob.glob(f"{zips_path}trajectories_t*_r{num_rules}.zip")
-    for zip_file in zip_files:
-        if not zip_file:
-            raise Exception("Zip files missing")
-        num_pairs = int(re.search(r"trajectories_(\d+)_pairs", zip_file).group(1))
-
-        true_agent_expert_segments = []
-        trained_agent_expert_segments = []
-        os.makedirs("temp_trajectories", exist_ok=True)
-        with zipfile.ZipFile(zip_file, "r") as zip_ref:
-            # Extract all contents of the zip file to the specified folder
-            zip_ref.extractall("temp_trajectories")
-            trueRF = glob.glob(f"temp_trajectories/trajectories/trueRF_*.pkl")[0]
-            trainedRF = glob.glob(f"temp_trajectories/trajectories/trainedRF_*.pkl")[0]
-
-            with open(trueRF, "rb") as f:
-                true_trajectories = pickle.load(f)
-            with open(trainedRF, "rb") as f:
-                trained_trajectories = pickle.load(f)
-
-            num_true_trajectories = len(true_trajectories)
-            count = 0
-            while count < num_true_trajectories:
-                gen_true_expert_segments = []
-                for _ in range(AGENTS_PER_GENERATION // 2):
-                    trajectory_pair = true_trajectories[count]
-                    gen_true_expert_segments.extend(
-                        [trajectory_pair.e1, trajectory_pair.e2]
-                    )
-                    count += 1
-                if gen_true_expert_segments:
-                    true_agent_expert_segments.append(gen_true_expert_segments)
-
-            num_trained_trajectories = len(trained_trajectories)
-
-            count = 0
-            while count < num_trained_trajectories:
-                gen_trained_expert_segments = []
-                for _ in range(AGENTS_PER_GENERATION // 2):
-                    trajectory_pair = trained_trajectories[count]
-                    gen_trained_expert_segments.extend(
-                        [trajectory_pair.e1, trajectory_pair.e2]
-                    )
-                    count += 1
-                if gen_trained_expert_segments:
-                    trained_agent_expert_segments.append(gen_trained_expert_segments)
-
-            if max(
-                [sum(generation) for generation in true_agent_expert_segments]
-            ) > max(
-                [sum(generation) for generation in best_true_agent_expert_segments]
-            ):
-                best_true_agent_expert_segments = true_agent_expert_segments.copy()
-            aggregate_trained_agent_expert_segments[num_pairs] = (
-                trained_agent_expert_segments.copy()
-            )
-
-        shutil.rmtree("temp_trajectories")
-    return (
-        best_true_agent_expert_segments,
-        aggregate_trained_agent_expert_segments,
-    )
-
 
 def unzipper_chungus_deluxe(num_rules):
     best_true_agent_expert_segments = {}
@@ -90,12 +21,11 @@ def unzipper_chungus_deluxe(num_rules):
         rule_aggregate_segments = {}
 
         zip_files = glob.glob(f"{zips_path}trajectories_t*_r{rule_count}.zip")
-        print(zip_files)
+        print(f"{rule_count} rule files:", zip_files)
         for zip_file in zip_files:
             if not zip_file:
                 raise Exception("Zip files missing")
             num_pairs = int(re.search(r"trajectories_t(\d+)*", zip_file).group(1))
-            print(num_pairs)
             true_agent_expert_segments = []
             trained_agent_expert_segments = []
 
@@ -103,17 +33,19 @@ def unzipper_chungus_deluxe(num_rules):
             with zipfile.ZipFile(zip_file, "r") as zip_ref:
                 # Extract all contents of the zip file to the specified folder
                 zip_ref.extractall("temp_trajectories")
-                trueRF = glob.glob(f"temp_trajectories/trajectories*/trueRF_*.pkl")[0]
                 trainedRF = glob.glob(
                     f"temp_trajectories/trajectories*/trainedRF_*.pkl"
                 )[0]
 
-                with open(trueRF, "rb") as f:
-                    true_trajectories = pickle.load(f)
                 with open(trainedRF, "rb") as f:
                     trained_trajectories = pickle.load(f)
 
-                num_true_trajectories = len(true_trajectories)
+                num_trajectories = len(trained_trajectories)
+                trueRF = glob.glob(f"trueRF_trajectories/trueRF_{num_trajectories}_trajectories_{num_rules}.pkl")[0]
+                with open(trueRF, "rb") as f:
+                    true_trajectories = pickle.load(f)
+
+                num_true_trajectories = len(trained_trajectories)
                 count = 0
                 while count < num_true_trajectories:
                     gen_true_expert_segments = []
