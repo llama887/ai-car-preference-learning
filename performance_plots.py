@@ -41,7 +41,7 @@ def unzipper_chungus_deluxe(num_rules):
                     trained_trajectories = pickle.load(f)
 
                 num_trajectories = len(trained_trajectories)
-                trueRF = glob.glob(f"trueRF_trajectories/trueRF_{num_trajectories}_trajectories_{num_rules}.pkl")[0]
+                trueRF = glob.glob(f"trueRF_trajectories/trueRF_{num_trajectories}_trajectories_{num_rules}_rules.pkl")[0]
                 with open(trueRF, "rb") as f:
                     true_trajectories = pickle.load(f)
 

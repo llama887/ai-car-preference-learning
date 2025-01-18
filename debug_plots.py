@@ -357,7 +357,7 @@ def handle_plotting_rei(
     )
 
     graph_segment_rules_vs_reward(
-        "Agent Segment Rules Satisfied vs Reward",
+        "training",
         trained_segment_rules_satisifed,
         trained_segment_rewards,
         epochs,
@@ -365,13 +365,13 @@ def handle_plotting_rei(
     )
 
     graph_segment_rules_vs_reward(
-        "Training Dataset Rules Satisfied vs Reward",
+        "retrained",
         training_segment_rules_satisfied,
         training_segment_rewards,
     )
 
     graph_segment_distance_vs_reward(
-        "retrained",
+        "Agent Segment Distance vs. Reward",
         trained_segment_distances,
         trained_segment_rewards,
         epochs,
@@ -379,7 +379,7 @@ def handle_plotting_rei(
     )
 
     graph_segment_distance_vs_reward(
-        "training",
+        "Training Segment Distances vs. Reward",
         training_segment_distances,
         training_segment_rewards,
     )
