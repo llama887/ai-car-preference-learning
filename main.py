@@ -220,7 +220,12 @@ if __name__ == "__main__":
 
         print("Starting training on trajectories...")
         train_reward_function(
-            database_path, args.epochs[0], args.parameters, args.ensemble, args.figure
+            trajectories_file_path=database_path, 
+            epochs=args.epochs[0], 
+            parameters_path=args.parameters, 
+            use_ensemble=args.ensemble,
+            figure_folder_name=args.figure, 
+            return_stat=None,
         )
 
         print("Finished training model...")

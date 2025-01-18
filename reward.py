@@ -715,7 +715,7 @@ def train_model(
 
 
 def train_reward_function(
-    trajectories_file_path, epochs, parameters_path=None, use_ensemble=False, figure_folder_name=None, return_stat=None
+    trajectories_file_path, epochs, parameters_path=None, use_ensemble=False, figure_folder_name=None, return_stat=None, save_at_end=True,
 ):
     training_output_stat = None
     input_size = INPUT_SIZE
@@ -824,8 +824,9 @@ def train_reward_function(
                     trajectories_file_path,
                     return_stat,
                 )
-                for i in range(len(ensemble.model_list)):
-                    torch.save(ensemble.model_list[i].state_dict(), ensemble_path + f"model_{epochs}_{i}.pth")
+                if save_at_end:
+                    for i in range(len(ensemble.model_list)):
+                        torch.save(ensemble.model_list[i].state_dict(), ensemble_path + f"model_{epochs}_{i}.pth")
             else:
                 net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(
                     device
@@ -847,9 +848,10 @@ def train_reward_function(
                     model_path=models_path + f"model_{epochs}.pth",
                     return_stat=return_stat,
                 )
-                torch.save(
-                    net.state_dict(), models_path + f"model_{epochs}.pth"
-                )
+                if save_at_end:
+                    torch.save(
+                        net.state_dict(), models_path + f"model_{epochs}.pth"
+                    )
         return training_output_stat
 
 
