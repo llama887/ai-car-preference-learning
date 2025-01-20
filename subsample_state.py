@@ -219,10 +219,10 @@ def get_grid_points(samples):
         for speed in range(10, 50, SPEED_STEP)
     ]
 
-    point_set = set()
-    for param in params:
-        point_set.add(tuple(param[0].tolist()))
-    print(f"Found {len(point_set)} unique points.")
+    # point_set = set()
+    # for param in params:
+    #     point_set.add(tuple(param[0].tolist()))
+    # print(f"Found {len(point_set)} unique points.")
 
     print("Starting segment subsampling...")
     # Use multiprocessing to process trajectory segments
