@@ -20,7 +20,7 @@ def check_rules_one(segment, total_rules):
     point1 = segment[0].position
     point2 = segment[1].position
     distance = math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
-    rule_counter += evaluate(1, lambda: distance >= 25)
+    rule_counter += evaluate(1, lambda: distance > 30)
 
     # Rule 2: Check if left radar is greater than right radar
     left_radar = segment[1].radars[0]

@@ -892,7 +892,11 @@ def run_population(
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
 
+<<<<<<< HEAD
         master_database = f'database_gargantuar_{train_trajectory_length}_length_{rules.NUMBER_OF_RULES}_rules.pkl'
+=======
+        master_database = f"database_gargantuar_{train_trajectory_length}_length.pkl"
+>>>>>>> 1e56aac7 ((fix) wahoo, we dont make a bunch of extra points in subsampling)
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
 
         missing_segments = True
@@ -952,9 +956,12 @@ def run_population(
 
         return numTrajPairs
     except KeyboardInterrupt:
-        print("\nKeyboardInterrupt detected. Do you want to save the database? (y/n): ", end="")
+        print(
+            "\nKeyboardInterrupt detected. Do you want to save the database? (y/n): ",
+            end="",
+        )
         user_input = input().strip().lower()
-        if user_input == 'y':
+        if user_input == "y":
             generate_database()
         else:
             print("Exiting without saving the database.")
@@ -1065,7 +1072,7 @@ if __name__ == "__main__":
 
     if args.big:
         runType = "big_mode"
-    
+
     if args.generate:
         subsample = False
 
