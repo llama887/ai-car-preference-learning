@@ -120,27 +120,30 @@ def subsample_state(image_path, grid_resolution, tolerance=1.0):
 
 
 def process_trajectory_segment(params):
+    point_thing = None
+    position_thing = None
     """Process a single trajectory segment for a given point, angle, and speed."""
     point, angle, speed, CAR_SIZE_X, CAR_SIZE_Y, WIDTH, HEIGHT, game_map_path = params
     trajectory_segments = []
 
     # Initialize car object
     car = Car()
-    car.position = [point[1] - CAR_SIZE_X / 2, point[0] - CAR_SIZE_Y / 2]
-    car.speed = speed
-    car.angle = angle
-    car.radars.clear()
-    car.rotated_sprite = car.rotate_center(car.sprite, car.angle)
-
-    # Precompute cos/sin for angles
-    cos_angle = np.cos(np.radians(360 - car.angle))
-    sin_angle = np.sin(np.radians(360 - car.angle))
 
     # Load game map
     game_map = pygame.image.load(game_map_path).convert()
 
     # Generate trajectory segments
     for first_action in range(0, 4):
+        car.position = [point[1] - CAR_SIZE_X / 2, point[0] - CAR_SIZE_Y / 2]
+        car.speed = speed
+        car.angle = angle
+        car.radars.clear()
+        car.rotated_sprite = car.rotate_center(car.sprite, car.angle)
+
+        # Precompute cos/sin for angles
+        cos_angle = np.cos(np.radians(360 - car.angle))
+        sin_angle = np.sin(np.radians(360 - car.angle))
+
         car.check_radar(car.angle, game_map)
         first_state_action_pair = StateActionPair(
             [car.check_radar(d, game_map) for d in range(-90, 120, 45)],
@@ -148,6 +151,8 @@ def process_trajectory_segment(params):
             car.position,
             True,
         )
+        point_thing = tuple(point.tolist())
+        position_thing = tuple(car.position)
 
         # Apply action
         if first_action == 0:
@@ -178,7 +183,7 @@ def process_trajectory_segment(params):
                 [first_state_action_pair, last_state_action_pair]
             )
 
-    return trajectory_segments
+    return trajectory_segments, point_thing, position_thing
 
 
 def split_by_rules(trajectory_segments):
@@ -201,7 +206,7 @@ def get_grid_points(samples):
     if gridpoints < 1000:
         raise ValueError(f"{gridpoints} is not enough points to subsample.")
 
-    print(f"Searching for {gridpoints} samples")
+    print(f"Searching for {gridpoints} grid points")
     points = parallel_subsample_state("maps/map.png", gridpoints)
     print(f"Found {len(points)} points.")
     _ = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
@@ -213,15 +218,43 @@ def get_grid_points(samples):
         for angle in range(0, 360, ANGLE_STEP)
         for speed in range(10, 50, SPEED_STEP)
     ]
+
+    point_set = set()
+    for param in params:
+        point_set.add(tuple(param[0].tolist()))
+    print(f"Found {len(point_set)} unique points.")
+
     print("Starting segment subsampling...")
     # Use multiprocessing to process trajectory segments
     with multiprocessing.Pool() as pool:
-        results = list(
+        tmp_results = list(
             tqdm(
                 pool.imap_unordered(process_trajectory_segment, params),
                 total=len(params),
             )
         )
+    results = []
+    point_set = set()
+    position_set = set()
+    for result in tmp_results:
+        r, point, position = result
+        results.append(r)
+        point_set.add(point)
+        position_set.add(position)
+
+    # print(f"Found {len(point_set)} unique points after processing.")
+    # print(f"Found {len(position_set)} unique positions after processing.")
+    # point_set = set()
+    # flattened_results = [item for sublist in results for item in sublist]
+    # for segment in flattened_results:
+    #     # print(segment)
+    #     point_set.add(
+    #         tuple([round(segment[0].position[0], 3), round(segment[0].position[1], 3)])
+    #     )
+    #     point_set.add(
+    #         tuple([round(segment[1].position[0], 3), round(segment[1].position[1], 3)])
+    #     )
+    # print(f"Found {len(point_set)} unique points.")
     return results
 
 
