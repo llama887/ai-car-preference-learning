@@ -4,6 +4,7 @@ import time
 import matplotlib.pyplot as plt
 import torch
 import yaml
+from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
 import debug_plots
@@ -80,31 +81,44 @@ def accuracy_per_xy(trajectory_segments, number_of_rules, reward_model_directory
     y = []
     accuracy = []
 
-    # evaluate accuracy
-    print("Evaluating accuracy...")
+    # Evaluate accuracy with batching
+    print("Evaluating accuracy with batching...")
     model, _ = load_models([reward_model_directory])
+    batch_size = 64  # You can adjust this based on your GPU/CPU memory capacity
+
+    # Prepare data for batching
+    all_x, all_y, all_pairs = [], [], []
+
     for xy in tqdm(paired_dict):
-        x.append(xy[0])
-        y.append(xy[1])
-        xy_accuracy = [
-            int(
-                model(
-                    segment_to_tensor(
-                        pair[0],
-                    )
-                ).item()
-                < model(
-                    segment_to_tensor(
-                        pair[1],
-                    )
-                ).item()
-            )
-            for pair in paired_dict[xy]
-        ]
-        accuracy.append(
-            (sum(xy_accuracy) / len(xy_accuracy) if len(xy_accuracy) > 0 else 0)
-        )
-    return x, y, accuracy
+        all_x.append(xy[0])
+        all_y.append(xy[1])
+        all_pairs.extend(paired_dict[xy])
+
+    # Convert pairs to tensors
+    tensor_pairs_0 = [segment_to_tensor(pair[0]) for pair in all_pairs]
+    tensor_pairs_1 = [segment_to_tensor(pair[1]) for pair in all_pairs]
+
+    # Create dataset and dataloader for batching
+    dataset = TensorDataset(torch.stack(tensor_pairs_0), torch.stack(tensor_pairs_1))
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
+    # Run batched inference
+    batch_accuracies = []
+    for batch_0, batch_1 in tqdm(dataloader, desc="Processing batches"):
+        outputs_0 = model(batch_0).detach().cpu().numpy()
+        outputs_1 = model(batch_1).detach().cpu().numpy()
+        batch_accuracies.extend((outputs_0 < outputs_1).astype(int))
+
+    # Map batch results back to XY pairs
+    accuracy = []
+    current_index = 0
+    for xy in paired_dict:
+        num_pairs = len(paired_dict[xy])
+        xy_accuracy = batch_accuracies[current_index : current_index + num_pairs]
+        accuracy.append(sum(xy_accuracy) / len(xy_accuracy))
+        current_index += num_pairs
+
+    return all_x, all_y, accuracy
 
 
 def plot_reward_heatmap(samples, reward_model_directory, number_of_rules):
