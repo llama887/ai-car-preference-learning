@@ -904,7 +904,7 @@ def objective(trial):
     hidden_size = trial.suggest_int("hidden_size", 64, 1024)
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
-    dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.0)
+    dropout_prob = trial.suggest_float("dropout_prob", 0.1, 0.8)
     batch_size = trial.suggest_int("batch_size", 128, 2048)
 
     net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob=0).to(device)
@@ -940,7 +940,7 @@ def ensemble_objective(trial):
     hidden_size = trial.suggest_int("hidden_size", 64, 1024)
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
-    dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.0)
+    dropout_prob = trial.suggest_float("dropout_prob", 0.1, 0.8)
     batch_size = trial.suggest_int("batch_size", 128, 2048)
     swaps = trial.suggest_int("swaps", 0, 10)
 
@@ -1005,6 +1005,6 @@ if __name__ == "__main__":
     if args.epochs:
         epochs = args.epochs
     else:
-        epochs = 1000
+        epochs = 50
 
     train_reward_function(data_path, epochs, args.parameters, args.ensemble)
