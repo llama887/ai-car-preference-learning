@@ -145,6 +145,6 @@ if __name__ == "__main__":
 
     print("Flattening samples...")
     flatted_samples = [item for sublist in samples for item in sublist]
-    plot_reward_heatmap(flatted_samples, "models/model_1.pth", 1)
+    plot_reward_heatmap(flatted_samples, "models/model_50.pth", 1)
     end = time.time()
     print(f"Finished in {end - start} seconds.")
