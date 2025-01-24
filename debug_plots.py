@@ -4,10 +4,7 @@ import math
 import os
 import pickle
 import random
-import re
-import shutil
 import statistics
-import zipfile
 from collections import Counter, defaultdict, deque
 
 import matplotlib.patches as mpatches
@@ -161,7 +158,9 @@ def populate_lists(true_database, trained_database, training_database, model_inf
             gen_true_rewards = []
             for _ in range(agents_per_generation):
                 trajectory = true_trajectories[count]
-                gen_true_satisfaction_segments.append(trajectory.num_satisfaction_segments)
+                gen_true_satisfaction_segments.append(
+                    trajectory.num_satisfaction_segments
+                )
                 gen_true_rewards.append(
                     sum(
                         [
@@ -187,7 +186,9 @@ def populate_lists(true_database, trained_database, training_database, model_inf
         gen_trained_rewards = []
         for _ in range(agents_per_generation):
             trajectory = trained_trajectories[count]
-            gen_trained_satisfaction_segments.append(trajectory.num_satisfaction_segments)
+            gen_trained_satisfaction_segments.append(
+                trajectory.num_satisfaction_segments
+            )
             gen_trained_rewards.append(trajectory.total_reward)
             for segment in break_into_segments(trajectory.traj):
                 trained_segment_rules_satisifed.append(
@@ -206,7 +207,9 @@ def populate_lists(true_database, trained_database, training_database, model_inf
                 trained_segment_distances.append(dist(segment))
             count += 1
         if gen_trained_satisfaction_segments:
-            trained_agent_satisfaction_segments.append(gen_trained_satisfaction_segments)
+            trained_agent_satisfaction_segments.append(
+                gen_trained_satisfaction_segments
+            )
         if gen_trained_rewards:
             trained_agent_rewards.append(gen_trained_rewards)
 
@@ -248,7 +251,9 @@ def populate_lists(true_database, trained_database, training_database, model_inf
         ]
 
     last_distance = true_agent_satisfaction_segments[-1][-1]
-    while len(true_agent_satisfaction_segments) < len(trained_agent_satisfaction_segments):
+    while len(true_agent_satisfaction_segments) < len(
+        trained_agent_satisfaction_segments
+    ):
         true_agent_satisfaction_segments.append([last_distance * agents_per_generation])
 
     return (
@@ -263,6 +268,7 @@ def populate_lists(true_database, trained_database, training_database, model_inf
         training_segment_rewards,
         training_segment_distances,
     )
+
 
 # Define a function to plot trajectories
 def plot_trajectories(trajectories, title):
@@ -401,7 +407,9 @@ def handle_plotting_rei(
 
 
 def graph_satisfaction_segments_over_generations(averages, maxes):
-    trueRF_average_satisfaction_segments, trainedRF_average_satisfaction_segments = averages
+    trueRF_average_satisfaction_segments, trainedRF_average_satisfaction_segments = (
+        averages
+    )
     trueRF_max_satisfaction_segments, trainedRF_max_satisfaction_segments = maxes
 
     os.makedirs(reward.figure_path, exist_ok=True)
@@ -459,7 +467,11 @@ def graph_against_trained_reward(averages, maxes):
 
 
 def graph_segment_rules_vs_reward(
-    segment_type, segment_rules_satisfied, segment_rewards, epochs=None, pairs_learned=None
+    segment_type,
+    segment_rules_satisfied,
+    segment_rewards,
+    epochs=None,
+    pairs_learned=None,
 ):
     title = ""
     if segment_type == "retrained":
@@ -509,7 +521,7 @@ def graph_segment_rules_vs_reward(
     plt.savefig(f"{reward.figure_path}{title}.png")
     plt.close()
 
-    save = segment_type == 'retrained'
+    save = segment_type == "retrained"
     log_wrong(segment_rules_satisfied, segment_rewards, save)
 
 
@@ -559,15 +571,14 @@ def log_wrong(segment_rules_satisfied, segment_rewards, save=False):
 
     if save:
         accs = {
-            "acc" : acc,
-            "adjusted_acc" : reacc,
+            "acc": acc,
+            "adjusted_acc": reacc,
         }
         with open(
-                agent.trajectories_path
-                + f"testing_acc.pkl",
-                "wb",
-            ) as f:
-                pickle.dump(accs, f)
+            agent.trajectories_path + "testing_acc.pkl",
+            "wb",
+        ) as f:
+            pickle.dump(accs, f)
 
 
 def graph_segment_distance_vs_reward(
@@ -656,7 +667,7 @@ def load_models(reward_paths):
     if len(reward_paths) == 1:
         print("\nLoading reward network...")
         reward_network = TrajectoryRewardNet(
-            agent.STATE_ACTION_SIZE * 2,
+            NET_SIZE * 2,
             hidden_size=hidden_size,
         ).to(device)
         weights = torch.load(reward_paths[0], map_location=torch.device(f"{device}"))
@@ -784,18 +795,4 @@ if __name__ == "__main__":
         training_segment_rules_satisfied,
         training_segment_rewards,
         training_segment_distances,
-<<<<<<< HEAD
     )
-=======
-    )
-
-    num_rules = rules.NUMBER_OF_RULES
-    best_true_agent_expert_segments, aggregate_trained_agent_expert_segments = (
-        unzipper_chungus_deluxe(num_rules)
-    )
-
-    handle_plotting_sana(
-        best_true_agent_expert_segments,
-        aggregate_trained_agent_expert_segments,
-    )
->>>>>>> 9954aad7 (i dont know what is going on with the heatmap :()
