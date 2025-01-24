@@ -172,25 +172,40 @@ if __name__ == "__main__":
         print("Missing either -c flag or -t flag")
 
     if args.distribution:
-        try:
+        if "subsampled" in args.master_database:
+            with open(args.master_database, "rb") as file:
+                import pickle
+
+                data = pickle.load(file)
+                total_segments = 0
+                for segment_per_rule in data:
+                    total_segments += len(segment_per_rule)
+
+                rules.SEGMENT_DISTRIBUTION_BY_RULES = [
+                    len(s) / total_segments for s in data
+                ]
+        else:
+            try:
+                rules.SEGMENT_DISTRIBUTION_BY_RULES = [
+                    parse_to_float(d) for d in args.distribution
+                ]
+            except Exception:
+                print(
+                    "Distribution input too advanced for Alex and Franklin's caveman parser. (or maybe you input something weird sry)"
+                )
+                sys.exit()
+            sum_dist = sum(rules.SEGMENT_DISTRIBUTION_BY_RULES)
             rules.SEGMENT_DISTRIBUTION_BY_RULES = [
-                parse_to_float(d) for d in args.distribution
+                d / sum_dist for d in rules.SEGMENT_DISTRIBUTION_BY_RULES
             ]
-        except Exception:
-            print(
-                "Distribution input too advanced for Alex and Franklin's caveman parser. (or maybe you input something weird sry)"
+            assert (
+                len(rules.SEGMENT_DISTRIBUTION_BY_RULES) == rules.NUMBER_OF_RULES + 1
+            ), (
+                f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {rules.NUMBER_OF_RULES}"
             )
-            sys.exit()
-        sum_dist = sum(rules.SEGMENT_DISTRIBUTION_BY_RULES)
-        rules.SEGMENT_DISTRIBUTION_BY_RULES = [
-            d / sum_dist for d in rules.SEGMENT_DISTRIBUTION_BY_RULES
-        ]
-        assert len(rules.SEGMENT_DISTRIBUTION_BY_RULES) == rules.NUMBER_OF_RULES + 1, (
-            f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not have one more than the length specified in NUMBER_OF_RULES: {rules.NUMBER_OF_RULES}"
-        )
-        assert sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1, (
-            f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
-        )
+            assert sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1, (
+                f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
+            )
 
     if args.segment and args.segment < 1:
         raise Exception("Can not have segments with length < 1")

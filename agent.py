@@ -878,8 +878,10 @@ def run_population(
         population.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
-
-        master_database = f"database_gargantuar_{train_trajectory_length}_length.pkl"
+        if ".pkl" not in master_database:
+            master_database = (
+                f"database_gargantuar_{train_trajectory_length}_length.pkl"
+            )
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
 
         missing_segments = True
