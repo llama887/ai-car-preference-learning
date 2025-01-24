@@ -172,7 +172,7 @@ if __name__ == "__main__":
         print("Missing either -c flag or -t flag")
 
     if args.distribution:
-        if "subsampled" in args.master_database:
+        if args.master_database and "subsampled" in args.master_database:
             with open(args.master_database, "rb") as file:
                 import pickle
 

@@ -883,14 +883,15 @@ def run_population(
                 f"database_gargantuar_{train_trajectory_length}_length.pkl"
             )
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
-
-        missing_segments = True
+        missing_segments = "subsampled" not in master_database
         if run_type == "collect":
             if subsample:
                 try:
                     with open(master_database, "rb") as file:
                         data = pickle.load(file)
                         print(f"USING MASTER DB: {master_database}")
+                        if "subsampled" in master_database:
+                            saved_segments = data[: rules.NUMBER_OF_RULES + 1]
                         saved_segments = data
                 except Exception:
                     print(f"COULD NOT LOAD FROM MASTER DB: {master_database}")
