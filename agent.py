@@ -9,13 +9,13 @@ import os
 import pickle
 import random
 import sys
+import time
 from collections import deque
 
 import neat
 import pygame
 import torch
 import yaml
-import time
 
 import reward
 import rules
@@ -576,7 +576,12 @@ def generate_database(trajectory_path):
             print("Removing old database with same pairs and rules...")
             os.remove(old_pairs_path)
 
-        database_to_save = trajectory_path + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl" if subsample else sampled_database
+        database_to_save = (
+            trajectory_path
+            + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
+            if subsample
+            else sampled_database
+        )
         # Save To Database
         with open(
             database_to_save,
@@ -623,12 +628,17 @@ def generate_database(trajectory_path):
             os.makedirs("trueRF_trajectories/", exist_ok=True)
             trajectory_file_path = f"trueRF_trajectories/{run_type}_{len(trajectories)}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
         elif run_type == "trainedRF":
-            trajectory_file_path = trajectory_path + f"{run_type}_{len(trajectories)}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+            trajectory_file_path = (
+                trajectory_path
+                + f"{run_type}_{len(trajectories)}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+            )
         else:
             raise Exception("Invalid run type.")
-        
+
         if os.path.exists(trajectory_file_path):
-            print("Removing old agent database with same number of trajectories and rules...")
+            print(
+                "Removing old agent database with same number of trajectories and rules..."
+            )
             try:
                 os.remove(trajectory_file_path)
                 print("File removed successfully.")
@@ -639,9 +649,7 @@ def generate_database(trajectory_path):
             except Exception as e:
                 print(f"Unexpected error: {e}")
 
-        with open(
-                trajectory_file_path, "wb"
-            ) as f:
+        with open(trajectory_file_path, "wb") as f:
             if len(trajectories) > 0:
                 pickle.dump(trajectories, f)
                 pass
@@ -891,12 +899,8 @@ def run_population(
         population.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
-
-<<<<<<< HEAD
-        master_database = f'database_gargantuar_{train_trajectory_length}_length_{rules.NUMBER_OF_RULES}_rules.pkl'
-=======
-        master_database = f"database_gargantuar_{train_trajectory_length}_length.pkl"
->>>>>>> 1e56aac7 ((fix) wahoo, we dont make a bunch of extra points in subsampling)
+        if ".pkl" not in master_database:
+            master_database = f"database_gargantuar_{train_trajectory_length}_length_{rules.NUMBER_OF_RULES}_rules.pkl"
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
 
         missing_segments = True
@@ -949,7 +953,7 @@ def run_population(
                 big_car_best_distance = max(big_car_distance, big_car_best_distance)
                 big_car_distance = 0
 
-        end_time = time.time() 
+        end_time = time.time()
         elapsed_time = end_time - start_time
         print(f"Total execution time for 100 generations: {elapsed_time:.2f} seconds")
         numTrajPairs = generate_database(trajectory_path)
