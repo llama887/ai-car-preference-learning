@@ -123,10 +123,10 @@ def populate_lists(true_database, trained_database, training_database, model_inf
     hidden_size = model_info["hidden-size"]
     agents_per_generation = model_info["agents-per-generation"]
 
-    true_agent_expert_segments = []
+    true_agent_satisfaction_segments = []
     true_agent_rewards = []
 
-    trained_agent_expert_segments = []
+    trained_agent_satisfaction_segments = []
     trained_agent_rewards = []
 
     trained_segment_rules_satisifed = []
@@ -157,11 +157,11 @@ def populate_lists(true_database, trained_database, training_database, model_inf
         num_true_trajectories = len(true_trajectories)
         count = 0
         while count < num_true_trajectories:
-            gen_true_expert_segments = []
+            gen_true_satisfaction_segments = []
             gen_true_rewards = []
             for _ in range(agents_per_generation):
                 trajectory = true_trajectories[count]
-                gen_true_expert_segments.append(trajectory.num_expert_segments)
+                gen_true_satisfaction_segments.append(trajectory.num_satisfaction_segments)
                 gen_true_rewards.append(
                     sum(
                         [
@@ -171,19 +171,19 @@ def populate_lists(true_database, trained_database, training_database, model_inf
                     )
                 )
                 count += 1
-            if gen_true_expert_segments:
-                true_agent_expert_segments.append(gen_true_expert_segments)
+            if gen_true_satisfaction_segments:
+                true_agent_satisfaction_segments.append(gen_true_satisfaction_segments)
             if gen_true_rewards:
                 true_agent_rewards.append(gen_true_rewards)
 
     num_trained_trajectories = len(trained_trajectories)
     count = 0
     while count < num_trained_trajectories:
-        gen_trained_expert_segments = []
+        gen_trained_satisfaction_segments = []
         gen_trained_rewards = []
         for _ in range(agents_per_generation):
             trajectory = trained_trajectories[count]
-            gen_trained_expert_segments.append(trajectory.num_expert_segments)
+            gen_trained_satisfaction_segments.append(trajectory.num_satisfaction_segments)
             gen_trained_rewards.append(trajectory.total_reward)
             for segment in break_into_segments(trajectory.traj):
                 trained_segment_rules_satisifed.append(
@@ -197,8 +197,8 @@ def populate_lists(true_database, trained_database, training_database, model_inf
                 )
                 trained_segment_distances.append(dist(segment))
             count += 1
-        if gen_trained_expert_segments:
-            trained_agent_expert_segments.append(gen_trained_expert_segments)
+        if gen_trained_satisfaction_segments:
+            trained_agent_satisfaction_segments.append(gen_trained_satisfaction_segments)
         if gen_trained_rewards:
             trained_agent_rewards.append(gen_trained_rewards)
 
@@ -226,19 +226,19 @@ def populate_lists(true_database, trained_database, training_database, model_inf
             training_segment_distances.append(dist(segment2))
 
     if replace:
-        true_agent_expert_segments = [
-            [0 for _ in range(len(trained_agent_expert_segments[0]))]
-            for _ in range(len(trained_agent_expert_segments))
+        true_agent_satisfaction_segments = [
+            [0 for _ in range(len(trained_agent_satisfaction_segments[0]))]
+            for _ in range(len(trained_agent_satisfaction_segments))
         ]
 
-    last_distance = true_agent_expert_segments[-1][-1]
-    while len(true_agent_expert_segments) < len(trained_agent_expert_segments):
-        true_agent_expert_segments.append([last_distance * agents_per_generation])
+    last_distance = true_agent_satisfaction_segments[-1][-1]
+    while len(true_agent_satisfaction_segments) < len(trained_agent_satisfaction_segments):
+        true_agent_satisfaction_segments.append([last_distance * agents_per_generation])
 
     return (
-        true_agent_expert_segments,
+        true_agent_satisfaction_segments,
         true_agent_rewards,
-        trained_agent_expert_segments,
+        trained_agent_satisfaction_segments,
         trained_agent_rewards,
         trained_segment_rules_satisifed,
         trained_segment_rewards,
@@ -298,9 +298,9 @@ def plot_trajectory_order(data, title):
 
 def handle_plotting_rei(
     model_info,
-    true_agent_expert_segments,
+    true_agent_satisfaction_segments,
     true_agent_rewards,
-    trained_agent_expert_segments,
+    trained_agent_satisfaction_segments,
     trained_agent_rewards,
     trained_segment_rules_satisifed,
     trained_segment_rewards,
@@ -312,23 +312,23 @@ def handle_plotting_rei(
     epochs = model_info["epochs"]
     pairs_learned = model_info["pairs-learned"]
 
-    agents_per_generation = len(true_agent_expert_segments[0])
-    # Avg/max number of expert segments per trajectory for each gt agent over generations
-    trueRF_average_expert_segments = [
+    agents_per_generation = len(true_agent_satisfaction_segments[0])
+    # Avg/max number of satisfaction segments per trajectory for each gt agent over generations
+    trueRF_average_satisfaction_segments = [
         (sum(generation) / agents_per_generation)
-        for generation in true_agent_expert_segments
+        for generation in true_agent_satisfaction_segments
     ]
-    trueRF_max_expert_segments = [
-        max(generation) for generation in true_agent_expert_segments
+    trueRF_max_satisfaction_segments = [
+        max(generation) for generation in true_agent_satisfaction_segments
     ]
 
-    # Avg/max number of expert segments per trajectory for each trained agent over generations
-    trainedRF_average_expert_segments = [
+    # Avg/max number of satisfaction segments per trajectory for each trained agent over generations
+    trainedRF_average_satisfaction_segments = [
         (sum(generation) / agents_per_generation)
-        for generation in trained_agent_expert_segments
+        for generation in trained_agent_satisfaction_segments
     ]
-    trainedRF_max_expert_segments = [
-        max(generation) for generation in trained_agent_expert_segments
+    trainedRF_max_satisfaction_segments = [
+        max(generation) for generation in trained_agent_satisfaction_segments
     ]
 
     # Avg/max reward obtained by gt agents over generations
@@ -346,9 +346,9 @@ def handle_plotting_rei(
         max(generation) for generation in trained_agent_rewards
     ]
 
-    graph_expert_segments_over_generations(
-        (trueRF_average_expert_segments, trainedRF_average_expert_segments),
-        (trueRF_max_expert_segments, trainedRF_max_expert_segments),
+    graph_satisfaction_segments_over_generations(
+        (trueRF_average_satisfaction_segments, trainedRF_average_satisfaction_segments),
+        (trueRF_max_satisfaction_segments, trainedRF_max_satisfaction_segments),
     )
 
     graph_against_trained_reward(
@@ -385,17 +385,17 @@ def handle_plotting_rei(
     )
 
 
-def graph_expert_segments_over_generations(averages, maxes):
-    trueRF_average_expert_segments, trainedRF_average_expert_segments = averages
-    trueRF_max_expert_segments, trainedRF_max_expert_segments = maxes
+def graph_satisfaction_segments_over_generations(averages, maxes):
+    trueRF_average_satisfaction_segments, trainedRF_average_satisfaction_segments = averages
+    trueRF_max_satisfaction_segments, trainedRF_max_satisfaction_segments = maxes
 
     os.makedirs(reward.figure_path, exist_ok=True)
 
-    x_values = range(len(trainedRF_average_expert_segments))
+    x_values = range(len(trainedRF_average_satisfaction_segments))
 
     plt.figure()
-    plt.plot(x_values, trueRF_average_expert_segments, label="Ground Truth Agent")
-    plt.plot(x_values, trainedRF_average_expert_segments, label="Trained Agent")
+    plt.plot(x_values, trueRF_average_satisfaction_segments, label="Ground Truth Agent")
+    plt.plot(x_values, trainedRF_average_satisfaction_segments, label="Trained Agent")
     plt.xlabel("Generation")
     plt.ylabel("Number of Expert Trajectories")
     plt.title("Ground Truth vs Trained Agent: Average Ground Truth Reward")
@@ -404,8 +404,8 @@ def graph_expert_segments_over_generations(averages, maxes):
     plt.close()
 
     plt.figure()
-    plt.plot(x_values, trueRF_max_expert_segments, label="Ground Truth Agent")
-    plt.plot(x_values, trainedRF_max_expert_segments, label="Trained Agent")
+    plt.plot(x_values, trueRF_max_satisfaction_segments, label="Ground Truth Agent")
+    plt.plot(x_values, trainedRF_max_satisfaction_segments, label="Trained Agent")
     plt.xlabel("Generation")
     plt.ylabel("Number of Expert Trajectories")
     plt.title("Ground Truth vs Trained Agents: Max Ground Truth Reward")
@@ -740,9 +740,9 @@ if __name__ == "__main__":
     }
 
     (
-        true_agent_expert_segments,
+        true_agent_satisfaction_segments,
         true_agent_rewards,
-        trained_agent_expert_segments,
+        trained_agent_satisfaction_segments,
         trained_agent_rewards,
         trained_segment_rules_satisifed,
         trained_segment_rewards,
@@ -759,9 +759,9 @@ if __name__ == "__main__":
 
     handle_plotting_rei(
         model_info,
-        true_agent_expert_segments,
+        true_agent_satisfaction_segments,
         true_agent_rewards,
-        trained_agent_expert_segments,
+        trained_agent_satisfaction_segments,
         trained_agent_rewards,
         trained_segment_rules_satisifed,
         trained_segment_rewards,

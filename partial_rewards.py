@@ -5,6 +5,7 @@ import numpy as np
 import pickle
 import yaml
 import torch
+from torch.utils.data import DataLoader
 
 import rules
 import agent
@@ -12,6 +13,7 @@ from agent import run_population, STATE_ACTION_SIZE
 from reward import (
     train_reward_function,
     TrajectoryRewardNet,
+    TrajectoryDataset,
     prepare_single_trajectory
 )
 
@@ -40,7 +42,7 @@ def start_simulation(config_path, max_generations, number_of_pairs, run_type, no
     )
 
 
-def test_model(model_path, test_file, hidden_size):
+def test_model(model_path, test_file, hidden_size, batch_size=256):
     if not model_path:
         raise Exception("Model not found...")
     if not test_file:
@@ -53,29 +55,54 @@ def test_model(model_path, test_file, hidden_size):
     weights = torch.load(model_path, map_location=torch.device(f"{device}"))
     model.load_state_dict(weights)
 
-    test_acc = 0
-    adjusted_test_acc = 0
-    num_diff = 0
-    with open(test_file, "rb") as f:
-        test_pairs = pickle.load(f)
-        for segment1, segment2, label, reward1, reward2 in test_pairs:
-            prediction = 0 if model(prepare_single_trajectory(segment1)) < model(prepare_single_trajectory(segment2)) else 1
-            if reward1 != reward2:
-                num_diff += 1
-                if prediction == label:
-                    adjusted_test_acc += 1
-            if prediction == label:
-                test_acc += 1
-        test_acc /= len(test_pairs)
-        adjusted_test_acc = 0 if num_diff == 0 else adjusted_test_acc / num_diff
-    
+    total_correct = 0
+    total_diff = 0
+    adjusted_correct = 0
+
+    test_dataset = TrajectoryDataset(test_file)
+    test_size = len(test_dataset)
+    print("TEST SIZE:", test_size)
+    test_dataloader = DataLoader(
+        test_dataset,
+        batch_size = test_size if test_size < batch_size else batch_size,
+        shuffle=False,
+        pin_memory=False,
+    )
+
+    with torch.no_grad():
+        for test_traj1, test_traj2, test_true_pref, test_score1, test_score2 in test_dataloader:
+            test_rewards1 = model(test_traj1)
+            test_rewards2 = model(test_traj2)
+            predictions = (test_rewards1 < test_rewards2).long()
+
+            print("Batch size:", len(test_traj1), len(test_traj2), len(test_true_pref), len(predictions))
+            print("Test rewards 1:", test_rewards1)
+            print("Test rewards 2:", test_rewards2)
+
+            print("PREDICTION == TEST:", (predictions == test_true_pref))
+            correct_predictions = (predictions == test_true_pref).sum().item()
+            total_correct += correct_predictions
+
+            different_rewards = (predictions != test_true_pref)
+            num_diff_in_batch = different_rewards.sum().item()
+            total_diff += num_diff_in_batch
+
+            adjusted_correct += (different_rewards & (predictions == test_true_pref)).sum().item()
+
+            print("CORRECT:", correct_predictions)
+            print("DIFFERENT:", num_diff_in_batch)
+            print("ADJUSTED CORRECT:", adjusted_correct)
+
+        test_acc = total_correct / test_size
+        adjusted_test_acc = adjusted_correct / total_diff if total_diff > 0 else 0
+
     return test_acc, adjusted_test_acc
                 
 
 
 
 def process_distribution(args):
-    a, b, c, i, num_pairs, config_path, epochs, parameters, headless, total_iterations, hidden_size = args
+    a, b, c, i, num_pairs, config_path, epochs, parameters, headless, total_iterations, hidden_size, batch_size = args
     if c >= 0:
         print(f"Distribution {i + 1}/{total_iterations}")
         distributions = [[], [], []]
@@ -96,7 +123,7 @@ def process_distribution(args):
             accs = train_reward_function(
                 database_path, epochs, parameters, False, None, "acc"
             )
-            test_acc, adjusted_test_acc = test_model(f"models/model_{epochs}.pth", "database_test.pkl", hidden_size)
+            test_acc, adjusted_test_acc = test_model(f"models/model_{epochs}.pth", "database_test.pkl", hidden_size, batch_size)
             accs["final_test_acc"] = test_acc
             accs["final_adjusted_test_acc"] = adjusted_test_acc
             return (a, b, c, accs)
@@ -190,12 +217,13 @@ if __name__ == "__main__":
     with open(args.parameters, "r") as file:
         data = yaml.safe_load(file)
         hidden_size = data["hidden_size"]
+        batch_size = data["batch_size"]
 
     a, b, c, i = args.a, args.b, args.c, args.i 
     
     
     total_iterations = calculate_iterations(args.resolution)
-    task =  (a, b, c, i, num_pairs, "./config/data_collection_config.txt", args.epochs[0], args.parameters, args.headless, total_iterations, hidden_size)
+    task =  (a, b, c, i, num_pairs, "./config/data_collection_config.txt", args.epochs[0], args.parameters, args.headless, total_iterations, hidden_size, batch_size)
     result = process_distribution(task)
     a, b, c, accs = result
 

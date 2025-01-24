@@ -15,6 +15,7 @@ import neat
 import pygame
 import torch
 import yaml
+import time
 
 import reward
 import rules
@@ -39,7 +40,7 @@ CAR_SIZE_Y = 60
 
 BORDER_COLOR = (255, 255, 255, 255)  # Color To Crash on Hit
 
-TRAJECTORY_LENGTH = 30 * 15
+TRAJECTORY_LENGTH = 30 * 6
 train_trajectory_length = 1
 NUM_RADARS = 5
 STATE_ACTION_SIZE = 8
@@ -103,9 +104,9 @@ class StateActionPair:
 
 
 class Trajectory:
-    def __init__(self, t, e, r):
+    def __init__(self, s, t, r):
+        self.num_satisfaction_segments = s
         self.traj = t.copy()
-        self.num_expert_segments = e
         self.total_reward = r
 
     def truncate(self, trajectory):
@@ -122,8 +123,8 @@ class Trajectory:
             "Trajectory:\n"
             + str(self.truncate(self.traj))
             + "\n"
-            + "Number of Expert Segments: "
-            + str(self.num_expert_segments)
+            + "Number of Satisfaction Segments: "
+            + str(self.num_satisfaction_segments)
             + "\n"
             + "Reward: "
             + str(self.total_reward)
@@ -147,7 +148,7 @@ class Car:
         self.angle = 0
         self.speed = 0
         self.rules_per_step = []
-        self.expert_segments = 0
+        self.num_satisfaction_segments = 0
 
         self.speed_set = False  # Flag For Default Speed Later on
         self.radar_max = 10000
@@ -302,11 +303,11 @@ class Car:
         )
         self.trajectory.append(next_state_action)
 
-        rules_satisfied, is_expert, _ = rules.check_rules_one(
+        rules_satisfied, is_satisfaction, _ = rules.check_rules_one(
             self.trajectory[-2:], rules.NUMBER_OF_RULES
         )
         self.rules_per_step.append(rules_satisfied)
-        self.expert_segments += is_expert
+        self.num_satisfaction_segments += is_satisfaction
         return rules_followed
 
     def get_data(self):
@@ -359,7 +360,7 @@ class Car:
                 saved_segments[i].extend(new_segments[i])
         else:
             saved_trajectories.append(
-                (self.expert_segments, self.trajectory, self.reward)
+                (self.num_satisfaction_segments, self.trajectory, self.reward)
             )
 
 
@@ -611,8 +612,8 @@ def generate_database(trajectory_path):
         for i in range(len(saved_trajectories)):
             trajectories.append(
                 Trajectory(
+                    s=saved_trajectories[i][0],
                     t=saved_trajectories[i][1],
-                    e=saved_trajectories[i][0],
                     r=saved_trajectories[i][2],
                 )
             )
@@ -746,9 +747,12 @@ def run_simulation(genomes, config):
         counter += 1
         if counter == TRAJECTORY_LENGTH:
             global saved_segments
+            cars_alive = 0
             old_lengths = [len(seg) for seg in saved_segments]
             for i, car in enumerate(cars):
+                cars_alive += car.is_alive()
                 car.save_trajectory()
+            print(f"{cars_alive} cars survived this generation.")
             if run_type == "collect":
                 for i in range(rules.NUMBER_OF_RULES + 1):
                     print(
@@ -921,6 +925,7 @@ def run_population(
         saved_trajectories = []
         generation = 1
 
+        start_time = time.time()
         if run_type != "collect" or missing_segments:
             while True:
                 population.run(run_simulation, 1)
@@ -940,6 +945,9 @@ def run_population(
                 big_car_best_distance = max(big_car_distance, big_car_best_distance)
                 big_car_distance = 0
 
+        end_time = time.time() 
+        elapsed_time = end_time - start_time
+        print(f"Total execution time for 100 generations: {elapsed_time:.2f} seconds")
         numTrajPairs = generate_database(trajectory_path)
 
         return numTrajPairs

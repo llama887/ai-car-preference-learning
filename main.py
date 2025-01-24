@@ -287,9 +287,9 @@ if __name__ == "__main__":
     }
 
     (
-        true_agent_expert_segments,
+        true_agent_satisfaction_segments,
         true_agent_rewards,
-        trained_agent_expert_segments,
+        trained_agent_satisfaction_segments,
         trained_agent_rewards,
         trained_segment_rules_satisifed,
         trained_segment_rewards,
@@ -307,9 +307,9 @@ if __name__ == "__main__":
     print("PLOTTING...")
     handle_plotting_rei(
         model_info,
-        true_agent_expert_segments,
+        true_agent_satisfaction_segments,
         true_agent_rewards,
-        trained_agent_expert_segments,
+        trained_agent_satisfaction_segments,
         trained_agent_rewards,
         trained_segment_rules_satisifed,
         trained_segment_rewards,

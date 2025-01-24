@@ -2,14 +2,41 @@ run_baseline:
 	./scripts/run_basic.sh -r 3
 	./scripts/run_basic.sh -r 2
 	./scripts/run_basic.sh -r 1
-	./scripts/run_plots.sh -r 3
+	python performance_plots.py -c 3
 
 
 run_baseline_parallel:
 	./scripts/run_basic.sh -r 3 -p
 	./scripts/run_basic.sh -r 2 -p
 	./scripts/run_basic.sh -r 1 -p
-	./scripts/run_plots.sh -r 3
+	python performance_plots.py -c 3
+
+
+run_baseline_and_ensembling:
+	./scripts/run_basic.sh -r 3
+	./scripts/run_basic.sh -r 2
+	./scripts/run_basic.sh -r 1
+	./scripts/run_basic.sh -r 3 -e
+	./scripts/run_basic.sh -r 2	-e
+	./scripts/run_basic.sh -r 1	-e
+	python performance_plots.py -c 3 -e
+
+run_baseline_and_ensembling_parallel:
+	./scripts/run_basic.sh -r 3 -p
+	./scripts/run_basic.sh -r 2 -p
+	./scripts/run_basic.sh -r 1 -p
+	./scripts/run_basic.sh -r 3 -p -e
+	./scripts/run_basic.sh -r 2 -p -e
+	./scripts/run_basic.sh -r 1 -p -e
+	python performance_plots.py -c 3 -e
+
+run_baseline_and_longer_segments:
+	./scripts/run_segment_lengths.sh -s 6
+	python performance_plots.py -c 3 -e
+
+run_baseline_and_longer_segments_parallel:
+	./scripts/run_segment_lengths.sh -s 6 -p
+	python performance_plots.py -c 3 -e
 
 
 run_generate_trueRF:
@@ -43,7 +70,7 @@ run_pendulum:
 	...
 
 collect_data:
-	./scripts/parallel_data_collect.sh -t 10000000 -r 3 -n 10
+	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length.pkl
 
 clean:

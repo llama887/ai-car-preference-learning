@@ -24,7 +24,7 @@ while getopts "p" opt; do
 done
 
 # Fixed parameters
-GENERATIONS=100
+GENERATIONS=200
 MAIN_SCRIPT="generate_trueRF.py"
 
 # Function to run a single instance of main.py
