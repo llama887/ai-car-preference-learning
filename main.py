@@ -7,13 +7,7 @@ import yaml
 import agent
 import reward
 import rules
-<<<<<<< HEAD
-
-from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
-from agent import STATE_ACTION_SIZE, AGENTS_PER_GENERATION, run_population, load_models
-=======
-from agent import load_models, run_population
->>>>>>> 9954aad7 (i dont know what is going on with the heatmap :()
+from agent import AGENTS_PER_GENERATION, load_models, run_population
 from debug_plots import (
     handle_plotting_rei,
     populate_lists,
@@ -24,6 +18,7 @@ from reward import (
 
 os.environ["WANDB_SILENT"] = "true"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+
 
 def start_simulation(
     config_path,
@@ -242,11 +237,11 @@ if __name__ == "__main__":
             f"train_reward_function({database_path}, {args.epochs[0]}, {args.parameters}, {args.ensemble}, {args.figure})"
         )
         train_reward_function(
-            trajectories_file_path=database_path, 
-            epochs=args.epochs[0], 
-            parameters_path=args.parameters, 
+            trajectories_file_path=database_path,
+            epochs=args.epochs[0],
+            parameters_path=args.parameters,
             use_ensemble=args.ensemble,
-            figure_folder_name=args.figure, 
+            figure_folder_name=args.figure,
             return_stat=None,
         )
 
@@ -262,9 +257,10 @@ if __name__ == "__main__":
     else:
         model_weights = args.reward
 
-
     # run the simulation with the true reward function (if trajectories do not exist yet)
-    if os.path.exists(f"trueRF_trajectories/trueRF_{args.generations * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"):
+    if os.path.exists(
+        f"trueRF_trajectories/trueRF_{args.generations * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+    ):
         truePairs = args.generations * AGENTS_PER_GENERATION
     else:
         print("Simulating on true reward function...")
@@ -297,7 +293,10 @@ if __name__ == "__main__":
     )
 
     true_database = f"trueRF_trajectories/trueRF_{truePairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
-    trained_database = trajectory_path + f"trainedRF_{trainedPairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+    trained_database = (
+        trajectory_path
+        + f"trainedRF_{trainedPairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+    )
 
     model_info = {
         "net": agent.reward_network,
