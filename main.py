@@ -7,7 +7,12 @@ import yaml
 import agent
 import reward
 import rules
-from agent import AGENTS_PER_GENERATION, load_models, run_population
+from agent import (
+    AGENTS_PER_GENERATION,
+    generate_database_from_segments,
+    load_models,
+    run_population,
+)
 from debug_plots import (
     handle_plotting_rei,
     populate_lists,
@@ -123,12 +128,6 @@ if __name__ == "__main__":
         help="number of rules",
     )
     parse.add_argument(
-        "-db",
-        "--database",
-        type=str,
-        help="Optional path to saved database",
-    )
-    parse.add_argument(
         "-d",
         "--distribution",
         type=str,
@@ -146,9 +145,6 @@ if __name__ == "__main__":
 
     if args.master_database:
         agent.master_database = args.master_database
-
-    if args.database:
-        sampled_database = args.database
 
     if (
         (args.trajectories is not None and args.trajectories[0] < 0)
@@ -222,15 +218,24 @@ if __name__ == "__main__":
 
     model_weights = ""
     if args.reward is None:
-        # start the simulation in data collecting mode
-        num_traj, collecting_rules_followed = start_simulation(
-            "./config/data_collection_config.txt",
-            args.trajectories[0],
-            args.trajectories[0],
-            "collect",
-            args.headless,
-            args.ensemble,
-        )
+        if args.master_database and "subsampled" in args.master_database:
+            with open(args.master_database, "rb") as file:
+                import pickle
+
+                data = pickle.load(file)
+                generate_database_from_segments(
+                    data[: rules.NUMBER_OF_RULES + 1], args.trajectories[0]
+                )
+        else:
+            # start the simulation in data collecting mode
+            num_traj, collecting_rules_followed = start_simulation(
+                "./config/data_collection_config.txt",
+                args.trajectories[0],
+                args.trajectories[0],
+                "collect",
+                args.headless,
+                args.ensemble,
+            )
 
         print("Starting training on trajectories...")
         print(

@@ -125,6 +125,9 @@ def plot_reward_heatmap(samples, reward_model_directory, number_of_rules):
     print("Getting accuracies...")
     x, y, accuracy = accuracy_per_xy(samples, number_of_rules, reward_model_directory)
 
+    print("Negating all Y values...")
+    y = list(map(lambda x: -x, y))
+
     print("Plotting...")
     plt.scatter(x, y, c=accuracy, cmap="viridis")
     plt.colorbar()
@@ -145,6 +148,6 @@ if __name__ == "__main__":
 
     print("Flattening samples...")
     flatted_samples = [item for sublist in samples for item in sublist]
-    plot_reward_heatmap(flatted_samples, "models/model_50.pth", 1)
+    plot_reward_heatmap(flatted_samples, "models/model_100.pth", 1)
     end = time.time()
     print(f"Finished in {end - start} seconds.")

@@ -73,7 +73,7 @@ def parallel_subsample_state(image_path, number_of_points=100000, epsilon=0.0001
 
     # Initial bounds
     lower_bound = 0.1
-    upper_bound = 20.0
+    upper_bound = 25.0
     return binary_search(lower_bound, upper_bound, number_of_points)
 
 

@@ -711,7 +711,7 @@ def train_model(
                 step=epoch,
             )
 
-            if epoch % 100 == 0:
+            if epoch % 10 == 0:
                 print(
                     f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {average_validation_loss.item()}, Train Acc: {average_training_accuracy} (adjusted: {average_adjusted_training_accuracy}), Val Acc: {average_validation_accuracy} (adjusted: {average_adjusted_validation_accuracy})"
                 )
