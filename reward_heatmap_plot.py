@@ -24,7 +24,9 @@ def segment_to_tensor(segment):
     return torch.tensor(flatten, dtype=torch.float32).to(device)
 
 
-def accuracy_per_xy(trajectory_segments, number_of_rules, reward_model_directory):
+def accuracy_per_xy(
+    trajectory_segments, number_of_rules, reward_model_directory=None, reward_model=None
+):
     # Split by x and y
     print("Splitting by x and y...")
     count1 = 0
@@ -83,8 +85,11 @@ def accuracy_per_xy(trajectory_segments, number_of_rules, reward_model_directory
 
     # Evaluate accuracy with batching
     print("Evaluating accuracy with batching...")
-    model, _ = load_models([reward_model_directory])
-    batch_size = 64  # You can adjust this based on your GPU/CPU memory capacity
+    if not reward_model:
+        model, _ = load_models([reward_model_directory])
+    else:
+        model = reward_model
+    batch_size = 64
 
     # Prepare data for batching
     all_x, all_y, all_pairs = [], [], []
@@ -121,9 +126,20 @@ def accuracy_per_xy(trajectory_segments, number_of_rules, reward_model_directory
     return all_x, all_y, accuracy
 
 
-def plot_reward_heatmap(samples, reward_model_directory, number_of_rules):
+def plot_reward_heatmap(
+    samples,
+    reward_model_directory=None,
+    number_of_rules=1,
+    reward_model=None,
+    figure_path="figures/",
+):
+    assert reward_model_directory or reward_model, (
+        "Must provide either reward_model_directory or reward_model"
+    )
     print("Getting accuracies...")
-    x, y, accuracy = accuracy_per_xy(samples, number_of_rules, reward_model_directory)
+    x, y, accuracy = accuracy_per_xy(
+        samples, number_of_rules, reward_model_directory, reward_model
+    )
 
     print("Negating all Y values...")
     y = list(map(lambda x: -x, y))
@@ -136,18 +152,22 @@ def plot_reward_heatmap(samples, reward_model_directory, number_of_rules):
     plt.ylabel("Y")
     plt.xlim(min(x), max(x))
     plt.ylim(min(y), max(y))
-    plt.savefig("reward_heatmap.png", dpi=300)
+    plt.savefig(f"{figure_path}reward_heatmap.png", dpi=300)
 
 
-if __name__ == "__main__":
-    start = time.time()
+def get_samples(hyperparameter_path="best_params.yaml"):
     samples = get_grid_points(1000000)
-    with open("best_params.yaml", "r") as file:
+    with open(hyperparameter_path, "r") as file:
         data = yaml.safe_load(file)
         debug_plots.hidden_size = data["hidden_size"]
 
     print("Flattening samples...")
     flatted_samples = [item for sublist in samples for item in sublist]
-    plot_reward_heatmap(flatted_samples, "models/model_100.pth", 1)
+    return flatted_samples
+
+
+if __name__ == "__main__":
+    start = time.time()
+    plot_reward_heatmap(get_samples(), "models/model_100.pth", 1)
     end = time.time()
     print(f"Finished in {end - start} seconds.")

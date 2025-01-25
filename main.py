@@ -1,11 +1,13 @@
 import argparse
 import os
+import pickle
 import sys
 
 import yaml
 
 import agent
 import reward
+import reward_heatmap_plot
 import rules
 from agent import (
     AGENTS_PER_GENERATION,
@@ -140,6 +142,10 @@ if __name__ == "__main__":
         type=str,
         help="Path to master database",
     )
+    parse.add_argument(
+        "--heatmap", action="store_true", help="Plot heatmap of collected data"
+    )
+    parse.add_argument("--skip-plots", action="store_true", help="Skip debug plots")
 
     args = parse.parse_args()
 
@@ -179,8 +185,6 @@ if __name__ == "__main__":
     if args.distribution:
         if args.master_database and "subsampled" in args.master_database:
             with open(args.master_database, "rb") as file:
-                import pickle
-
                 data = pickle.load(file)
                 total_segments = 0
                 for segment_per_rule in data:
@@ -296,51 +300,62 @@ if __name__ == "__main__":
         args.headless,
         args.ensemble,
     )
+    if not args.skip_plots:
+        true_database = f"trueRF_trajectories/trueRF_{truePairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+        trained_database = (
+            trajectory_path
+            + f"trainedRF_{trainedPairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+        )
 
-    true_database = f"trueRF_trajectories/trueRF_{truePairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
-    trained_database = (
-        trajectory_path
-        + f"trainedRF_{trainedPairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
-    )
+        model_info = {
+            "net": agent.reward_network,
+            "ensemble": agent.ensemble,
+            "hidden-size": hidden_size,
+            "epochs": -1 if args.epochs is None else args.epochs[0],
+            "pairs-learned": -1 if args.trajectories is None else args.trajectories[0],
+            "agents-per-generation": 20,
+        }
 
-    model_info = {
-        "net": agent.reward_network,
-        "ensemble": agent.ensemble,
-        "hidden-size": hidden_size,
-        "epochs": -1 if args.epochs is None else args.epochs[0],
-        "pairs-learned": -1 if args.trajectories is None else args.trajectories[0],
-        "agents-per-generation": 20,
-    }
+        (
+            true_agent_satisfaction_segments,
+            true_agent_rewards,
+            trained_agent_satisfaction_segments,
+            trained_agent_rewards,
+            trained_segment_rules_satisifed,
+            trained_segment_rewards,
+            trained_segment_distances,
+            training_segment_rules_satisfied,
+            training_segment_rewards,
+            training_segment_distances,
+        ) = populate_lists(
+            true_database,
+            trained_database,
+            database_path,
+            model_info,
+        )
 
-    (
-        true_agent_satisfaction_segments,
-        true_agent_rewards,
-        trained_agent_satisfaction_segments,
-        trained_agent_rewards,
-        trained_segment_rules_satisifed,
-        trained_segment_rewards,
-        trained_segment_distances,
-        training_segment_rules_satisfied,
-        training_segment_rewards,
-        training_segment_distances,
-    ) = populate_lists(
-        true_database,
-        trained_database,
-        database_path,
-        model_info,
-    )
-
-    print("PLOTTING...")
-    handle_plotting_rei(
-        model_info,
-        true_agent_satisfaction_segments,
-        true_agent_rewards,
-        trained_agent_satisfaction_segments,
-        trained_agent_rewards,
-        trained_segment_rules_satisifed,
-        trained_segment_rewards,
-        trained_segment_distances,
-        training_segment_rules_satisfied,
-        training_segment_rewards,
-        training_segment_distances,
-    )
+        print("PLOTTING...")
+        handle_plotting_rei(
+            model_info,
+            true_agent_satisfaction_segments,
+            true_agent_rewards,
+            trained_agent_satisfaction_segments,
+            trained_agent_rewards,
+            trained_segment_rules_satisifed,
+            trained_segment_rewards,
+            trained_segment_distances,
+            training_segment_rules_satisfied,
+            training_segment_rewards,
+            training_segment_distances,
+        )
+    else:
+        print("Plotting skipped.")
+    if args.heatmap:
+        reward_heatmap_plot.plot_reward_heatmap(
+            samples=reward_heatmap_plot.get_samples(
+                args.parameters if args.parameters is not None else "best_params.yaml"
+            ),
+            number_of_rules=args.composition,
+            reward_model=agent.reward_network,
+            figure_path=reward.figure_path,
+        )
