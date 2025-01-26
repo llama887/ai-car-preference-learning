@@ -20,6 +20,7 @@ RUN apt-get update && \
     ffmpeg \
     git \
     wget \
+    parallel \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install GitHub CLI (gh)

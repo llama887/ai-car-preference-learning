@@ -224,8 +224,6 @@ if __name__ == "__main__":
     if args.reward is None:
         if args.master_database and "subsampled" in args.master_database:
             with open(args.master_database, "rb") as file:
-                import pickle
-
                 data = pickle.load(file)
                 generate_database_from_segments(
                     data[: rules.NUMBER_OF_RULES + 1], args.trajectories[0]
@@ -353,7 +351,8 @@ if __name__ == "__main__":
     if args.heatmap:
         reward_heatmap_plot.plot_reward_heatmap(
             samples=reward_heatmap_plot.get_samples(
-                args.parameters if args.parameters is not None else "best_params.yaml"
+                args.parameters if args.parameters is not None else "best_params.yaml",
+                "grid_points.pkl",
             ),
             number_of_rules=args.composition,
             reward_model=agent.reward_network,

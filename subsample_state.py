@@ -30,16 +30,17 @@ number_of_rules = 3
 
 def parallel_subsample_state(image_path, number_of_points=100000, epsilon=0.0001):
     def binary_search(lower_bound, upper_bound, target):
+        print(lower_bound, upper_bound, target)
         grid_resolutions = np.linspace(
-            lower_bound, upper_bound, multiprocessing.cpu_count() * 2
+            lower_bound, upper_bound, multiprocessing.cpu_count() * 4
         )
         params = [
             (image_path, float(grid_resolution)) for grid_resolution in grid_resolutions
         ]
-
+        print("Gridding...")
         with multiprocessing.Pool() as pool:
             results = pool.starmap(subsample_state, params)
-
+        print("Calculating Error...")
         points_numbers = np.array([len(result) for result in results])
         error_margin = target * epsilon
         if error_margin < 10:
@@ -62,9 +63,12 @@ def parallel_subsample_state(image_path, number_of_points=100000, epsilon=0.0001
             and closest_resolution_below
         ):
             if abs(closest_n_points_above - target) < target * epsilon:
+                print(f"above: {results[index]}")
                 return results[index]
             if abs(closest_resolution_below - target) < target * epsilon:
+                print(f"below: {results[index]}")
                 return results[index]
+            print(f"above: {results[index]}, below: {results[index]}")
             return binary_search(
                 closest_resolution_below, closest_resolution_above, target
             )
@@ -72,8 +76,8 @@ def parallel_subsample_state(image_path, number_of_points=100000, epsilon=0.0001
             raise ValueError("Target out of range for the given resolutions.")
 
     # Initial bounds
-    lower_bound = 0.1
-    upper_bound = 25.0
+    lower_bound = 5
+    upper_bound = 20.0
     return binary_search(lower_bound, upper_bound, number_of_points)
 
 
@@ -115,7 +119,7 @@ def subsample_state(image_path, grid_resolution, tolerance=1.0):
     )
     points = np.vstack([x.ravel(), y.ravel()]).T
     valid_points = points[contains(track_polygon, points[:, 0], points[:, 1])]
-
+    print("Found", len(valid_points), "points.")
     return valid_points
 
 

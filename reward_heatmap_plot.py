@@ -1,3 +1,4 @@
+import pickle
 import random
 import time
 
@@ -155,8 +156,12 @@ def plot_reward_heatmap(
     plt.savefig(f"{figure_path}reward_heatmap.png", dpi=300)
 
 
-def get_samples(hyperparameter_path="best_params.yaml"):
-    samples = get_grid_points(1000000)
+def get_samples(hyperparameter_path="best_params.yaml", sample_pkl=None):
+    if not sample_pkl:
+        samples = get_grid_points(1000000)
+    else:
+        with open(sample_pkl, "rb") as f:
+            samples = pickle.load(f)
     with open(hyperparameter_path, "r") as file:
         data = yaml.safe_load(file)
         debug_plots.hidden_size = data["hidden_size"]
