@@ -51,14 +51,12 @@ run_generate_trueRF:
 
 
 run_generate_trueRF_parallel:
-	./scripts/run_trueRF.sh -p 
+	./scripts/run_trueRF.sh -p
 
 
 run_with_subsampling:
 	...
 
-
-all: run_with_partial_rewards
 
 database_test.pkl:
 	./scripts/parallel_data_collect.sh -t 1000000 -r 2 -n 10 -p -g
@@ -68,9 +66,16 @@ run_with_partial_rewards: database_test.pkl
 	./scripts/run_partial_rewards.sh -r 5 -p 3
 	python simplex.py
 
-
-collect_data:
+collect_data_3_rules:
 	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_3_length.pkl
+
+collect_data_2_rules:
+	./scripts/parallel_data_collect.sh -t 20000000 -r 2 -n 10
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_2_length.pkl
+
+collect_data_1_rules:
+	./scripts/parallel_data_collect.sh -t 20000000 -r 1 -n 10
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length.pkl
 
 clean:

@@ -36,7 +36,7 @@ mkdir -p tmp
 
 # Run Python scripts in parallel
 for ((i=0; i<number_of_processes; i++)); do
-    cmd="stdbuf -oL python -u collect_data.py -t $trajectories_per_process $distribution -db tmp/master_database_${i}.pkl -tp tmp/trajectory_${i}/ --headless"
+    cmd="stdbuf -oL python -u collect_data.py -t $trajectories_per_process $distribution -db tmp/master_database_${i}.pkl --trajectory tmp/trajectory_${i}/ --headless"
     if $partial_rewards; then
         cmd="$cmd -p"
     fi

@@ -69,10 +69,18 @@ class StateActionPair:
             raise ValueError("radars must be 5 floats")
         if len(position) != 2:
             raise ValueError("position must be 2 floats")
-
-        self.radars = radars
-        self.action = action
-        self.position = position
+        try:
+            self.radars = radars.tolist()
+        except AttributeError:
+            self.radars = radars
+        try:
+            self.action = action.tolist()
+        except AttributeError:
+            self.action = action
+        try:
+            self.position = position.tolist()
+        except AttributeError:
+            self.position = position
         self.alive = alive
 
     def __iter__(self):
@@ -464,6 +472,74 @@ def sample_segments(saved_segments):
         )
         sampled_segments[i] = random.sample(saved_segments[i], segments_needed)
     return sampled_segments
+
+
+def generate_database_from_segments(segments, number_of_pairs):
+    global trajectories_path
+    trajectory_path = trajectories_path
+    os.makedirs(trajectories_path, exist_ok=True)
+    trajectory_pairs = []
+    trajectory_segments = []
+    print(
+        "SEGMENT POOL FOR DATA COLLECTION:",
+        list((f"{i}: {len(seg)}" for i, seg in enumerate(segments))),
+    )
+    for segments in segments:
+        trajectory_segments.extend(segments)
+
+    print(f"Collected {len(trajectory_segments)} segments.")
+    if len(trajectory_segments) % 2 != 0:
+        trajectory_segments.pop()
+
+    random.shuffle(trajectory_segments)
+    same_reward = 0
+    for i in range(0, len(trajectory_segments), 2):
+        _, reward_1, _ = rules.check_rules_long_segment(
+            trajectory_segments[i], rules.NUMBER_OF_RULES
+        )
+        _, reward_2, _ = rules.check_rules_long_segment(
+            trajectory_segments[i + 1], rules.NUMBER_OF_RULES
+        )
+        if reward_1 == reward_2:
+            same_reward += 1
+        trajectory_pairs.append(
+            (
+                list(trajectory_segments[i]),
+                list(trajectory_segments[i + 1]),
+                0 if reward_1 < reward_2 else 1,
+                reward_1,
+                reward_2,
+            )
+        )
+
+    n = len(trajectory_pairs)
+    print(
+        "Generated",
+        n - same_reward,
+        f"pairs with different rewards ({(n - same_reward) / n}%)",
+    )
+
+    # Delete old database if it is redundant (same size)
+    old_pairs_path = (
+        trajectory_path
+        + f"database_{number_of_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
+    )
+    if os.path.exists(old_pairs_path):
+        print("Removing old database with same pairs and rules...")
+        os.remove(old_pairs_path)
+
+    database_to_save = (
+        trajectory_path
+        + f"database_{number_of_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
+        if subsample
+        else sampled_database
+    )
+    # Save To Database
+    with open(
+        database_to_save,
+        "wb",
+    ) as f:
+        pickle.dump(trajectory_pairs, f)
 
 
 def generate_database(trajectory_path):
@@ -902,7 +978,9 @@ def run_population(
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
         if ".pkl" not in master_database:
-            master_database = f"database_gargantuar_{train_trajectory_length}_length_{rules.NUMBER_OF_RULES}_rules.pkl"
+            master_database += (
+                f"_{train_trajectory_length}_length_{rules.NUMBER_OF_RULES}_rules.pkl"
+            )
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
         missing_segments = "subsampled" not in master_database
         if run_type == "collect":
@@ -958,7 +1036,9 @@ def run_population(
 
         end_time = time.time()
         elapsed_time = end_time - start_time
-        print(f"Total execution time for 100 generations: {elapsed_time:.2f} seconds")
+        print(
+            f"Total execution time for {generation} generations: {elapsed_time:.2f} seconds"
+        )
         numTrajPairs = generate_database(trajectory_path)
 
         return numTrajPairs

@@ -67,13 +67,13 @@ run_instance() {
     echo "Running with ${TRAJ} trajectories..."
 
     # Run the main.py script
-    cmd="python $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless"
-    
+    cmd="python $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --heatmap"
+
     ZIP_SUFFIX=""
     if $ensembling; then
         ZIP_SUFFIX+="_ensembling"
     fi
-    
+
     echo "Executing: $cmd"
     eval $cmd
 

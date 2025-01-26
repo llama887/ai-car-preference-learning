@@ -1,25 +1,18 @@
+import argparse
+import glob
 import os
 import pickle
-import matplotlib.pyplot as plt
-import argparse
-
-import reward
-import glob
-import shutil
-import os
-import pickle
-import matplotlib.pyplot as plt
-import argparse
-
-import reward
-import glob
+import re
 import shutil
 import zipfile
-import re
+
+import matplotlib.pyplot as plt
+
+import reward
+from agent import AGENTS_PER_GENERATION
 
 zips_path = "zips/"
 
-from agent import AGENTS_PER_GENERATION
 
 def unzipper_chungus_deluxe(num_rules):
     best_true_agent_satisfaction_segments = {}
@@ -42,14 +35,16 @@ def unzipper_chungus_deluxe(num_rules):
                 # Extract all contents of the zip file to the specified folder
                 zip_ref.extractall("temp_trajectories")
                 trainedRF = glob.glob(
-                    f"temp_trajectories/trajectories*/trainedRF_*.pkl"
+                    "temp_trajectories/trajectories*/trainedRF_*.pkl"
                 )[0]
 
                 with open(trainedRF, "rb") as f:
                     trained_trajectories = pickle.load(f)
 
                 num_trajectories = len(trained_trajectories)
-                trueRF = glob.glob(f"trueRF_trajectories/trueRF_{num_trajectories}_trajectories_{num_rules}_rules.pkl")[0]
+                trueRF = glob.glob(
+                    f"trueRF_trajectories/trueRF_{num_trajectories}_trajectories_{num_rules}_rules.pkl"
+                )[0]
                 with open(trueRF, "rb") as f:
                     true_trajectories = pickle.load(f)
 
@@ -59,10 +54,14 @@ def unzipper_chungus_deluxe(num_rules):
                     gen_true_satisfaction_segments = []
                     for _ in range(AGENTS_PER_GENERATION):
                         trajectory = true_trajectories[count]
-                        gen_true_satisfaction_segments.append(trajectory.num_satisfaction_segments)
+                        gen_true_satisfaction_segments.append(
+                            trajectory.num_satisfaction_segments
+                        )
                         count += 1
                     if gen_true_satisfaction_segments:
-                        true_agent_satisfaction_segments.append(gen_true_satisfaction_segments)
+                        true_agent_satisfaction_segments.append(
+                            gen_true_satisfaction_segments
+                        )
 
                 num_trained_trajectories = len(trained_trajectories)
                 count = 0
@@ -84,7 +83,9 @@ def unzipper_chungus_deluxe(num_rules):
                 ) > max(
                     [sum(generation) for generation in rule_best_true_agent_segments]
                 ):
-                    rule_best_true_agent_segments = true_agent_satisfaction_segments.copy()
+                    rule_best_true_agent_segments = (
+                        true_agent_satisfaction_segments.copy()
+                    )
                 rule_aggregate_segments[num_pairs] = (
                     trained_agent_satisfaction_segments.copy()
                 )
@@ -93,7 +94,9 @@ def unzipper_chungus_deluxe(num_rules):
         best_true_agent_satisfaction_segments[rule_count] = (
             rule_best_true_agent_segments.copy()
         )
-        aggregate_trained_agent_satisfaction_segments[rule_count] = rule_aggregate_segments
+        aggregate_trained_agent_satisfaction_segments[rule_count] = (
+            rule_aggregate_segments
+        )
 
     return (
         best_true_agent_satisfaction_segments,
@@ -114,7 +117,8 @@ def handle_plotting_sana(
             for generation in best_true_agent_satisfaction_segments[rule]
         ]
         best_trueRF_max_satisfaction_segments[rule] = [
-            max(generation) for generation in best_true_agent_satisfaction_segments[rule]
+            max(generation)
+            for generation in best_true_agent_satisfaction_segments[rule]
         ]
 
     # Avg/max number of satisfaction segments per trajectory for each agent over generations
@@ -145,7 +149,8 @@ def handle_plotting_sana(
     )
 
     graph_gap_over_pairs(
-        best_trueRF_average_satisfaction_segments, aggregate_trainedRF_average_satisfaction_segments
+        best_trueRF_average_satisfaction_segments,
+        aggregate_trainedRF_average_satisfaction_segments,
     )
 
 
@@ -173,9 +178,9 @@ def graph_normalized_segments_over_generations(
         for num_pairs in aggregate_trainedRF_average_satisfaction_segments[rule].keys():
             aggregate_trainedRF_average_satisfaction_segments[rule][num_pairs] = [
                 avg_segments / max_avg_trueRF_segments
-                for avg_segments in aggregate_trainedRF_average_satisfaction_segments[rule][
-                    num_pairs
-                ]
+                for avg_segments in aggregate_trainedRF_average_satisfaction_segments[
+                    rule
+                ][num_pairs]
             ]
         for num_pairs in aggregate_trainedRF_max_satisfaction_segments[rule].keys():
             aggregate_trainedRF_max_satisfaction_segments[rule][num_pairs] = [
@@ -187,7 +192,9 @@ def graph_normalized_segments_over_generations(
 
         plt.figure()
         plt.plot(
-            x_values, best_trueRF_average_satisfaction_segments[rule], label="Ground Truth"
+            x_values,
+            best_trueRF_average_satisfaction_segments[rule],
+            label="Ground Truth",
         )
         for num_pairs in sorted(
             aggregate_trainedRF_average_satisfaction_segments[rule].keys()
@@ -204,7 +211,9 @@ def graph_normalized_segments_over_generations(
         plt.close()
 
         plt.figure()
-        plt.plot(x_values, best_trueRF_max_satisfaction_segments[rule], label="Ground Truth")
+        plt.plot(
+            x_values, best_trueRF_max_satisfaction_segments[rule], label="Ground Truth"
+        )
         for num_pairs in aggregate_trainedRF_max_satisfaction_segments[rule].keys():
             plt.plot(
                 x_values,
@@ -219,12 +228,15 @@ def graph_normalized_segments_over_generations(
 
 
 def graph_gap_over_pairs(
-    best_trueRF_average_satisfaction_segments, aggregate_trainedRF_average_satisfaction_segments
+    best_trueRF_average_satisfaction_segments,
+    aggregate_trainedRF_average_satisfaction_segments,
 ):
     os.makedirs(reward.figure_path, exist_ok=True)
     plt.figure()
     for rule in best_trueRF_average_satisfaction_segments.keys():
-        x_values = sorted(aggregate_trainedRF_average_satisfaction_segments[rule].keys())
+        x_values = sorted(
+            aggregate_trainedRF_average_satisfaction_segments[rule].keys()
+        )
         y_values = []
 
         max_avg_trueRF_segments = max(best_trueRF_average_satisfaction_segments[rule])
@@ -235,9 +247,9 @@ def graph_gap_over_pairs(
         for num_pairs in aggregate_trainedRF_average_satisfaction_segments[rule].keys():
             aggregate_trainedRF_average_satisfaction_segments[rule][num_pairs] = [
                 avg_segments / max_avg_trueRF_segments
-                for avg_segments in aggregate_trainedRF_average_satisfaction_segments[rule][
-                    num_pairs
-                ]
+                for avg_segments in aggregate_trainedRF_average_satisfaction_segments[
+                    rule
+                ][num_pairs]
             ]
 
         for num_pairs in x_values:
@@ -248,9 +260,9 @@ def graph_gap_over_pairs(
             gap = sum(
                 [
                     best_trueRF_average_satisfaction_segments[rule][generation]
-                    - aggregate_trainedRF_average_satisfaction_segments[rule][num_pairs][
-                        generation
-                    ]
+                    - aggregate_trainedRF_average_satisfaction_segments[rule][
+                        num_pairs
+                    ][generation]
                     for generation in range(
                         len(best_trueRF_average_satisfaction_segments[rule])
                     )
@@ -265,10 +277,9 @@ def graph_gap_over_pairs(
     plt.savefig(f"{reward.figure_path}gap.png")
     plt.close()
 
+
 if __name__ == "__main__":
-    parse = argparse.ArgumentParser(
-        description="Performance plots"
-    )
+    parse = argparse.ArgumentParser(description="Performance plots")
     parse.add_argument(
         "-c",
         "--composition",
@@ -277,17 +288,18 @@ if __name__ == "__main__":
     )
     args = parse.parse_args()
     num_rules = args.composition
-    best_true_agent_satisfaction_segments, aggregate_trained_agent_satisfaction_segments = unzipper_chungus_deluxe(num_rules)
+    (
+        best_true_agent_satisfaction_segments,
+        aggregate_trained_agent_satisfaction_segments,
+    ) = unzipper_chungus_deluxe(num_rules)
 
     handle_plotting_sana(
         best_true_agent_satisfaction_segments,
         aggregate_trained_agent_satisfaction_segments,
     )
-import re
 
 zips_path = "zips/"
 
-from agent import AGENTS_PER_GENERATION
 
 def unzipper_chungus_deluxe(num_rules):
     best_true_agent_satisfaction_segments = {}
@@ -309,15 +321,15 @@ def unzipper_chungus_deluxe(num_rules):
             with zipfile.ZipFile(zip_file, "r") as zip_ref:
                 # Extract all contents of the zip file to the specified folder
                 zip_ref.extractall("temp_trajectories")
-            trainedRF = glob.glob(
-                f"temp_trajectories/trajectories*/trainedRF_*.pkl"
-            )[0]
+            trainedRF = glob.glob("temp_trajectories/trajectories*/trainedRF_*.pkl")[0]
 
             with open(trainedRF, "rb") as f:
                 trained_trajectories = pickle.load(f)
 
             num_trajectories = len(trained_trajectories)
-            trueRF = glob.glob(f"trueRF_trajectories/trueRF_{num_trajectories}_trajectories_{num_rules}_rules.pkl")[0]
+            trueRF = glob.glob(
+                f"trueRF_trajectories/trueRF_{num_trajectories}_trajectories_{num_rules}_rules.pkl"
+            )[0]
             with open(trueRF, "rb") as f:
                 true_trajectories = pickle.load(f)
 
@@ -327,10 +339,14 @@ def unzipper_chungus_deluxe(num_rules):
                 gen_true_satisfaction_segments = []
                 for i in range(AGENTS_PER_GENERATION):
                     trajectory = true_trajectories[count]
-                    gen_true_satisfaction_segments.append(trajectory.num_satisfaction_segments)
+                    gen_true_satisfaction_segments.append(
+                        trajectory.num_satisfaction_segments
+                    )
                     count += 1
                 if gen_true_satisfaction_segments:
-                    true_agent_satisfaction_segments.append(gen_true_satisfaction_segments)
+                    true_agent_satisfaction_segments.append(
+                        gen_true_satisfaction_segments
+                    )
 
             num_trained_trajectories = len(trained_trajectories)
             count = 0
@@ -349,9 +365,7 @@ def unzipper_chungus_deluxe(num_rules):
 
             if max(
                 [sum(generation) for generation in true_agent_satisfaction_segments]
-            ) > max(
-                [sum(generation) for generation in rule_best_true_agent_segments]
-            ):
+            ) > max([sum(generation) for generation in rule_best_true_agent_segments]):
                 rule_best_true_agent_segments = true_agent_satisfaction_segments.copy()
             rule_aggregate_segments[num_pairs] = (
                 trained_agent_satisfaction_segments.copy()
@@ -361,7 +375,9 @@ def unzipper_chungus_deluxe(num_rules):
         best_true_agent_satisfaction_segments[rule_count] = (
             rule_best_true_agent_segments.copy()
         )
-        aggregate_trained_agent_satisfaction_segments[rule_count] = rule_aggregate_segments
+        aggregate_trained_agent_satisfaction_segments[rule_count] = (
+            rule_aggregate_segments
+        )
 
     return (
         best_true_agent_satisfaction_segments,
@@ -382,7 +398,8 @@ def handle_plotting_sana(
             for generation in best_true_agent_satisfaction_segments[rule]
         ]
         best_trueRF_max_satisfaction_segments[rule] = [
-            max(generation) for generation in best_true_agent_satisfaction_segments[rule]
+            max(generation)
+            for generation in best_true_agent_satisfaction_segments[rule]
         ]
 
     # Avg/max number of satisfaction segments per trajectory for each agent over generations
@@ -413,7 +430,8 @@ def handle_plotting_sana(
     )
 
     graph_gap_over_pairs(
-        best_trueRF_average_satisfaction_segments, aggregate_trainedRF_average_satisfaction_segments
+        best_trueRF_average_satisfaction_segments,
+        aggregate_trainedRF_average_satisfaction_segments,
     )
 
 
@@ -441,9 +459,9 @@ def graph_normalized_segments_over_generations(
         for num_pairs in aggregate_trainedRF_average_satisfaction_segments[rule].keys():
             aggregate_trainedRF_average_satisfaction_segments[rule][num_pairs] = [
                 avg_segments / max_avg_trueRF_segments
-                for avg_segments in aggregate_trainedRF_average_satisfaction_segments[rule][
-                    num_pairs
-                ]
+                for avg_segments in aggregate_trainedRF_average_satisfaction_segments[
+                    rule
+                ][num_pairs]
             ]
         for num_pairs in aggregate_trainedRF_max_satisfaction_segments[rule].keys():
             aggregate_trainedRF_max_satisfaction_segments[rule][num_pairs] = [
@@ -455,7 +473,9 @@ def graph_normalized_segments_over_generations(
 
         plt.figure()
         plt.plot(
-            x_values, best_trueRF_average_satisfaction_segments[rule], label="Ground Truth"
+            x_values,
+            best_trueRF_average_satisfaction_segments[rule],
+            label="Ground Truth",
         )
         for num_pairs in sorted(
             aggregate_trainedRF_average_satisfaction_segments[rule].keys()
@@ -472,7 +492,9 @@ def graph_normalized_segments_over_generations(
         plt.close()
 
         plt.figure()
-        plt.plot(x_values, best_trueRF_max_satisfaction_segments[rule], label="Ground Truth")
+        plt.plot(
+            x_values, best_trueRF_max_satisfaction_segments[rule], label="Ground Truth"
+        )
         for num_pairs in aggregate_trainedRF_max_satisfaction_segments[rule].keys():
             plt.plot(
                 x_values,
@@ -487,12 +509,15 @@ def graph_normalized_segments_over_generations(
 
 
 def graph_gap_over_pairs(
-    best_trueRF_average_satisfaction_segments, aggregate_trainedRF_average_satisfaction_segments
+    best_trueRF_average_satisfaction_segments,
+    aggregate_trainedRF_average_satisfaction_segments,
 ):
     os.makedirs(reward.figure_path, exist_ok=True)
     plt.figure()
     for rule in best_trueRF_average_satisfaction_segments.keys():
-        x_values = sorted(aggregate_trainedRF_average_satisfaction_segments[rule].keys())
+        x_values = sorted(
+            aggregate_trainedRF_average_satisfaction_segments[rule].keys()
+        )
         y_values = []
 
         max_avg_trueRF_segments = max(best_trueRF_average_satisfaction_segments[rule])
@@ -503,9 +528,9 @@ def graph_gap_over_pairs(
         for num_pairs in aggregate_trainedRF_average_satisfaction_segments[rule].keys():
             aggregate_trainedRF_average_satisfaction_segments[rule][num_pairs] = [
                 avg_segments / max_avg_trueRF_segments
-                for avg_segments in aggregate_trainedRF_average_satisfaction_segments[rule][
-                    num_pairs
-                ]
+                for avg_segments in aggregate_trainedRF_average_satisfaction_segments[
+                    rule
+                ][num_pairs]
             ]
 
         for num_pairs in x_values:
@@ -516,9 +541,9 @@ def graph_gap_over_pairs(
             gap = sum(
                 [
                     best_trueRF_average_satisfaction_segments[rule][generation]
-                    - aggregate_trainedRF_average_satisfaction_segments[rule][num_pairs][
-                        generation
-                    ]
+                    - aggregate_trainedRF_average_satisfaction_segments[rule][
+                        num_pairs
+                    ][generation]
                     for generation in range(
                         len(best_trueRF_average_satisfaction_segments[rule])
                     )
@@ -533,10 +558,9 @@ def graph_gap_over_pairs(
     plt.savefig(f"{reward.figure_path}gap.png")
     plt.close()
 
+
 if __name__ == "__main__":
-    parse = argparse.ArgumentParser(
-        description="Performance plots"
-    )
+    parse = argparse.ArgumentParser(description="Performance plots")
     parse.add_argument(
         "-c",
         "--composition",
@@ -545,7 +569,10 @@ if __name__ == "__main__":
     )
     args = parse.parse_args()
     num_rules = args.composition
-    best_true_agent_satisfaction_segments, aggregate_trained_agent_satisfaction_segments = unzipper_chungus_deluxe(num_rules)
+    (
+        best_true_agent_satisfaction_segments,
+        aggregate_trained_agent_satisfaction_segments,
+    ) = unzipper_chungus_deluxe(num_rules)
 
     handle_plotting_sana(
         best_true_agent_satisfaction_segments,

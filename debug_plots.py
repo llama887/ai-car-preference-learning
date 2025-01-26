@@ -667,7 +667,7 @@ def load_models(reward_paths):
     if len(reward_paths) == 1:
         print("\nLoading reward network...")
         reward_network = TrajectoryRewardNet(
-            NET_SIZE * 2,
+            NET_SIZE,
             hidden_size=hidden_size,
         ).to(device)
         weights = torch.load(reward_paths[0], map_location=torch.device(f"{device}"))
