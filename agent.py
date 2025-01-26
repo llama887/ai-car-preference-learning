@@ -885,6 +885,8 @@ def run_population(
 
         if run_type == "collect":
             max_generations = number_of_pairs
+        else:
+            rules.PARTIAL_REWARD = False
         if run_type == "trainedRF":
             pass
 

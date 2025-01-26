@@ -20,7 +20,6 @@ from reward import (
 rules.PARTIAL_REWARD = True
 rules.NUMBER_OF_RULES = 2
 
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 os.environ["WANDB_SILENT"] = "true"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -83,7 +82,7 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
             correct_predictions = (predictions == test_true_pref).sum().item()
             total_correct += correct_predictions
 
-            different_rewards = (predictions != test_true_pref)
+            different_rewards = (test_score1 != test_score2)
             num_diff_in_batch = different_rewards.sum().item()
             total_diff += num_diff_in_batch
 
@@ -123,7 +122,7 @@ def process_distribution(args):
             accs = train_reward_function(
                 database_path, epochs, parameters, False, None, "acc"
             )
-            test_acc, adjusted_test_acc = test_model(f"models/model_{epochs}.pth", "database_test.pkl", hidden_size, batch_size)
+            test_acc, adjusted_test_acc = test_model(f"models/model_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth", "database_test.pkl", hidden_size, batch_size)
             accs["final_test_acc"] = test_acc
             accs["final_adjusted_test_acc"] = adjusted_test_acc
             return (a, b, c, accs)

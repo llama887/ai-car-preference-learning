@@ -40,7 +40,7 @@ fi
 distribution=$(printf -- "-d \"1/%d\" " $(seq 1 $rules | sed "s/.*/$((2 * rules))/"); printf -- "-d \"1/2\"")
 
 # Fixed parameters
-EPOCHS=400
+EPOCHS=100
 GENERATIONS=200
 PARAM_FILE="./best_params.yaml"
 MAIN_SCRIPT="main.py"
@@ -63,7 +63,7 @@ run_instance() {
      echo "Running with segment length ${SEGMENT_LENGTH}..."
 
     # Run the main.py script
-    cmd="python $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless -s $SEGMENT_LENGTH"
+    cmd="python $MAIN_SCRIPT -e $EPOCHS -t $TRAJECTORIES -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless -s $SEGMENT_LENGTH"
     
     ZIP_SUFFIX=""
     if $; then

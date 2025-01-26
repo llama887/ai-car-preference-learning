@@ -43,8 +43,8 @@ if __name__ == "__main__":
     #                             )
     # fig.write_image("simplex_validation_1.png")
 
-    df = pd.DataFrame({'zero_rule': distributions[0], 'one_rule': distributions[1], 'two_rule': distributions[2], "test_acc": adjusted_test_accs})
-    fig = px.scatter_ternary(df, a="zero_rule", b="one_rule", c="two_rule", color="test_acc", color_continuous_scale="Rainbow")
+    df = pd.DataFrame({'0 Rule': distributions[0], '1 Rule': distributions[1], '2 Rule': distributions[2], "test_acc": adjusted_test_accs})
+    fig = px.scatter_ternary(df, a="0 Rule", b="1 Rule", c="2 Rule", color="test_acc", color_continuous_scale="Rainbow")
     fig.write_image("simplex/simplex_test_2.png")
 
     # fig = px.scatter_ternary(df, a="zero_rule", b="one_rule", c="two_rule", color="val_acc", color_continuous_scale="Rainbow")

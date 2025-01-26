@@ -14,6 +14,8 @@ import torch.optim.lr_scheduler as lr_scheduler
 import yaml
 from torch.utils.data import DataLoader, Dataset, random_split
 
+import rules
+
 import wandb
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -31,6 +33,7 @@ os.makedirs(models_path, exist_ok=True)
 
 train_ratio = 0.8
 val_ratio = 0.2
+n_pairs = 0
 
 ENSEMBLE_SIZE = 3
 
@@ -352,10 +355,6 @@ def calculate_adjusted_accuracy(
 def train_ensemble(
     ensemble, epochs, swaps, optimizer, batch_size, trajectory_path, return_stat
 ):
-    global ensemble_path
-    ensemble_path = models_path + f"ensemble_{epochs}/"
-    os.makedirs(ensemble_path, exist_ok=True)
-
     n_models = len(ensemble.model_list)
     ensemble.to(device)
     scheduler = lr_scheduler.LinearLR(
@@ -384,6 +383,10 @@ def train_ensemble(
 
     best_loss = float("inf")
     best_val_losses = [float("inf") for _ in range(n_models)]
+
+    global ensemble_path
+    ensemble_path = models_path + f"ensemble_{epochs}_epochs_{dataset_size}_pairs_{rules.NUMBER_OF_RULES}_rules/"
+    os.makedirs(ensemble_path, exist_ok=True)
 
     epoch = 0
     while epoch < epochs:
@@ -565,6 +568,9 @@ def train_model(
     # Create the dataset
     full_dataset = TrajectoryDataset(file_path)
 
+    global n_pairs
+    n_pairs = len(full_dataset)
+
     # Define the split ratio
     train_ratio = 0.8
     # val_ratio = 0.2
@@ -644,7 +650,7 @@ def train_model(
             average_validation_loss = total_validation_loss / val_size
             if average_validation_loss < best_loss:
                 best_loss = average_validation_loss
-                torch.save(net.state_dict(), model_path)
+                torch.save(net.state_dict(), model_path + f"_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")
                 print("MODEL SAVED AT EPOCH:", epoch)
             average_validation_accuracy = total_validation_accuracy / val_size
             average_adjusted_validation_accuracy = (
@@ -717,7 +723,7 @@ def train_model(
                 )
             epoch += 1
     except Exception as e:
-        torch.save(net.state_dict(), model_path)
+        torch.save(net.state_dict(), model_path + f"_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")
         print("EXCEPTION CAUGHT AND MODEL SAVED AT EPOCH:", epoch)
         print(e)
 
@@ -894,11 +900,12 @@ def train_reward_function(
                     epochs=epochs,
                     optimizer=optimizer,
                     batch_size=batch_size,
-                    model_path=models_path + f"model_{epochs}.pth",
+                    model_path=models_path + f"model_{epochs}_epochs",
                     return_stat=return_stat,
                 )
                 if save_at_end:
-                    torch.save(net.state_dict(), models_path + f"model_{epochs}.pth")
+                    global n_pairs
+                    torch.save(net.state_dict(), models_path + f"model_{epochs}_epochs_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")
         return training_output_stat
 
 

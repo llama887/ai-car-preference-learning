@@ -1,32 +1,28 @@
 #!/bin/bash
 
 # Default array of trajectories if none are provided as input
-TRAJECTORIES=(1000000 100000 10000)
+TRAJECTORIES=1000000
+rules=3
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 -r <rules> [-p] [-e]"
-    echo "  -r <rules>     Specify the rules value (integer)"
+    echo "Usage: $0 -s <max_segment_lengths> [-p]"
+    echo "  -s <max_segment_lengths>     Specify the rules value (integer)"
     echo "  -p             Run in parallel"
-    echo "  -e             Enable ensembling"
     exit 1
 }
 
 # Parse arguments
-rules=""
+max_segment_lengths=""
 parallel=false
-ensembling=false
 
-while getopts "r:pe" opt; do
+while getopts "s:p" opt; do
     case "$opt" in
-        r)
-            rules=$OPTARG
+        s)
+            max_segment_lengths=$OPTARG
             ;;
         p)
             parallel=true
-            ;;
-        e)
-            ensembling=true
             ;;
         *)
             usage
@@ -35,8 +31,8 @@ while getopts "r:pe" opt; do
 done
 
 # Validate the rules input
-if ! [[ $rules =~ ^[0-9]+$ ]]; then
-    echo "Error: The -r option must be an integer."
+if ! [[ $max_segment_lengths =~ ^[0-9]+$ ]]; then
+    echo "Error: The -s option must be an integer."
     usage
 fi
 
@@ -57,21 +53,21 @@ mkdir -p zips
 
 # Function to run a single instance of main.py
 run_instance() {
-    TRAJ=$1
-    FIGURE_DIR="figures_t$TRAJ"
-    TRAJECTORY_DIR="trajectories_t$TRAJ"
+    SEGMENT_LENGTH=$1
+    FIGURE_DIR="figures_s$SEGMENT_LENGTH"
+    TRAJECTORY_DIR="trajectories_s$SEGMENT_LENGTH"
 
     # Remove the directories to prepare for the next run
     rm -rf figures* trajectories trajectories_t*
 
-    echo "Running with ${TRAJ} trajectories..."
+     echo "Running with segment length ${SEGMENT_LENGTH}..."
 
     # Run the main.py script
-    cmd="python $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless"
+    cmd="python $MAIN_SCRIPT -e $EPOCHS -t $(expr $TRAJECTORIES / $SEGMENT_LENGTH)  -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless -s $SEGMENT_LENGTH"
     
     ZIP_SUFFIX=""
-    if $ensembling; then
-        ZIP_SUFFIX+="_ensembling"
+    if $; then
+        ZIP_SUFFIX+="_s${SEGMENT_LENGTH}"
     fi
     
     echo "Executing: $cmd"
@@ -81,28 +77,28 @@ run_instance() {
     if [ -d "$FIGURE_DIR" ]; then
         zip -r "zips/${FIGURE_DIR}_r${rules}${ZIP_SUFFIX}.zip" $FIGURE_DIR
     else
-        echo "Warning: $FIGURE_DIR not found for ${TRAJ} trajectories."
+        echo "Warning: $FIGURE_DIR not found for ${SEGMENT_LENGTH} segment length."
     fi
 
     if [ -d "$TRAJECTORY_DIR" ]; then
         zip -r "zips/${TRAJECTORY_DIR}_r${rules}${ZIP_SUFFIX}.zip" $TRAJECTORY_DIR
     else
-        echo "Warning: $TRAJECTORY_DIR not found for ${TRAJ} trajectories."
+        echo "Warning: $TRAJECTORY_DIR not found for ${SEGMENT_LENGTH} segment length."
     fi
 
-    echo "Completed run with ${TRAJ} trajectories."
+    echo "Completed run with ${SEGMENT_LENGTH} segment length."
 }
 
 # Export the function and variables so they are available to parallel processes
 export -f run_instance
-export MAIN_SCRIPT EPOCHS GENERATIONS PARAM_FILE rules distribution segments ensembling
+export MAIN_SCRIPT EPOCHS GENERATIONS PARAM_FILE rules distribution TRAJECTORIES
 
-# Run instances either in parallel or sequentially
+# Run instances for all segment lengths up to the specified value
 if $parallel; then
-    parallel --ungroup -j 3 run_instance ::: "${TRAJECTORIES[@]}"
+    parallel --ungroup -j 3 run_instance ::: $(seq 1 $max_segment_length)
 else
-    for TRAJ in "${TRAJECTORIES[@]}"; do
-        run_instance $TRAJ
+    for SEGMENT_LENGTH in $(seq 1 $max_segment_length); do
+        run_instance $SEGMENT_LENGTH
     done
 fi
 

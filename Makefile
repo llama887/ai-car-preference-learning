@@ -30,14 +30,21 @@ run_baseline_and_ensembling_parallel:
 	./scripts/run_basic.sh -r 1 -p -e
 	python performance_plots.py -c 3 -e
 
-run_baseline_and_longer_segments:
-	./scripts/run_segment_lengths.sh -s 6
+run_variable_segments_fixed_pairs:
+	./scripts/run_segment_lengths_fixed_pairs.sh -s 6
 	python performance_plots.py -c 3 -e
 
-run_baseline_and_longer_segments_parallel:
-	./scripts/run_segment_lengths.sh -s 6 -p
+run_variable_segments_fixed_pairs_parallel:
+	./scripts/run_segment_lengths_fixed_pairs.sh -s 6 -p
 	python performance_plots.py -c 3 -e
 
+run_variable_segment_fixed_duration:
+	./scripts/run_segment_lengths_fixed_duration.sh -s 6
+	python performance_plots.py -c 3 -e
+
+run_variable_segments_fixed_duration_parallel:
+	./scripts/run_segment_lengths_fixed_duration.sh -s 6 -p
+	python performance_plots.py -c 3 -e
 
 run_generate_trueRF:
 	./scripts/run_trueRF.sh
@@ -61,13 +68,6 @@ run_with_partial_rewards: database_test.pkl
 	./scripts/run_partial_rewards.sh -r 5 -p 3
 	python simplex.py
 
-run_with_ensemble:
-	...
-
-run_pendulum:
-	mkdir logs
-	python ./replication/train_agent.py
-	...
 
 collect_data:
 	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10
