@@ -30,9 +30,8 @@ number_of_rules = 3
 
 def parallel_subsample_state(image_path, number_of_points=100000, epsilon=0.0001):
     def binary_search(lower_bound, upper_bound, target):
-        print(lower_bound, upper_bound, target)
         grid_resolutions = np.linspace(
-            lower_bound, upper_bound, multiprocessing.cpu_count() * 8
+            lower_bound, upper_bound, multiprocessing.cpu_count() * 10
         )
         params = [
             (image_path, float(grid_resolution)) for grid_resolution in grid_resolutions
@@ -75,8 +74,8 @@ def parallel_subsample_state(image_path, number_of_points=100000, epsilon=0.0001
             raise ValueError("Target out of range for the given resolutions.")
 
     # Initial bounds
-    lower_bound = 5
-    upper_bound = 10.0
+    lower_bound = 6.5
+    upper_bound = 7.5
     return binary_search(lower_bound, upper_bound, number_of_points)
 
 
@@ -148,40 +147,26 @@ def process_trajectory_segment(params):
     # Generate trajectory segments
     for first_action in range(0, 4):
         car.position = [point[1] - CAR_SIZE_X / 2, point[0] - CAR_SIZE_Y / 2]
-        if (
-            car.position[0] >= 600
-            and car.position[0] <= 1400
-            and -car.position[1] <= -800
-        ):
+        car_x = car.position[0]
+        car_y = car.position[1]
+        if car_x >= 450 and car_x <= 1550 and -car_y <= -600:
             base_angle = 0
-        elif car.position[0] >= 1400 and -car.position[1] <= -600:
-            base_angle = (
-                40  # 45 is not a valid angle in the state space bc step size is 10
-            )
-        elif (
-            car.position[0] >= 1400
-            and -car.position[1] >= -600
-            and -car.position[1] <= -400
-        ):
-            base_angle = 90
-        elif car.position[0] >= 1400 and -car.position[1] >= -400:
+        elif car_x >= 1500 and -car_y <= -600:
+            base_angle = 10
+        elif car_x >= 1500 and -car_y >= -600:
             base_angle = 130
-        elif (
-            car.position[0] <= 1400
-            and car.position[0] >= 600
-            and -car.position[1] >= -200
-        ):
+        elif car_x <= 1500 and car_x >= 400 and -car_y >= -300:
             base_angle = 180
-        elif car.position[0] <= 600 and -car.position[1] >= -400:
-            base_angle = 220
-        elif (
-            car.position[0] <= 600
-            and -car.position[1] <= -400
-            and -car.position[1] >= -600
-        ):
-            base_angle = 270
-        elif car.position[0] < 600 and -car.position[1] < -600:
+        elif car_x <= 450 and -car_y >= -200:
+            base_angle = 180
+        elif car_x <= 600 and -car_y <= -150 and -car_y >= -250:
+            base_angle = 290
+        elif car_x <= 600 and -car_y <= -150 and -car_y >= -500:
+            base_angle = 300
+        elif car_x <= 500 and -car_y <= -500:
             base_angle = 320
+        else:
+            print(f"Invalid position: {car_x}, {car_y}")
         angle = angle_deviation + base_angle
         car.speed = speed
         car.angle = angle
@@ -240,10 +225,10 @@ def split_by_rules(trajectory_segments):
     return mini_gargantuar
 
 
-def get_grid_points(samples):
+def get_grid_points(samples=2000000):
     # Load subsampled grid points
     ANGLE_STEP = 10
-    MAX_ANGLE_DEVIATION = 20
+    MAX_ANGLE_DEVIATION = 10
     ANGLES = len(range(-MAX_ANGLE_DEVIATION, MAX_ANGLE_DEVIATION + 1, ANGLE_STEP))
     SPEED_STEP = 10
     SPEEDS = 40 // SPEED_STEP
@@ -295,19 +280,6 @@ def get_grid_points(samples):
         point_set.add(point)
         position_set.add(position)
 
-    # print(f"Found {len(point_set)} unique points after processing.")
-    # print(f"Found {len(position_set)} unique positions after processing.")
-    # point_set = set()
-    # flattened_results = [item for sublist in results for item in sublist]
-    # for segment in flattened_results:
-    #     # print(segment)
-    #     point_set.add(
-    #         tuple([round(segment[0].position[0], 3), round(segment[0].position[1], 3)])
-    #     )
-    #     point_set.add(
-    #         tuple([round(segment[1].position[0], 3), round(segment[1].position[1], 3)])
-    #     )
-    # print(f"Found {len(point_set)} unique points.")
     return results
 
 

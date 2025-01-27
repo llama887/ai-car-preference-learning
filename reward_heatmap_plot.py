@@ -105,6 +105,7 @@ def accuracy_per_xy(
         segment_to_tensor(pair[0])
         for pair in tqdm(all_pairs, desc="Converting to tensors 1")
     ]
+
     tensor_pairs_1 = [
         segment_to_tensor(pair[1])
         for pair in tqdm(all_pairs, desc="Converting to tensors 2")
@@ -143,15 +144,15 @@ def plot_reward_heatmap(
     assert reward_model_directory or reward_model, (
         "Must provide either reward_model_directory or reward_model"
     )
-    print("Getting accuracies...")
+
     x, y, accuracy = accuracy_per_xy(
         samples, number_of_rules, reward_model_directory, reward_model
     )
 
-    print("Negating all Y values...")
     y = list(map(lambda x: -x, y))
 
     print("Plotting...")
+
     plt.scatter(x, y, c=accuracy, cmap="viridis")
     color_bar = plt.colorbar()
     color_bar.set_label("Accuracy", fontsize=12)
@@ -166,7 +167,7 @@ def plot_reward_heatmap(
 
 def get_samples(hyperparameter_path="best_params.yaml", sample_pkl=None):
     if not sample_pkl:
-        samples = get_grid_points(1000000)
+        samples = get_grid_points()
     else:
         with open(sample_pkl, "rb") as f:
             samples = pickle.load(f)
@@ -175,8 +176,8 @@ def get_samples(hyperparameter_path="best_params.yaml", sample_pkl=None):
         debug_plots.hidden_size = data["hidden_size"]
 
     print("Flattening samples...")
-    flatted_samples = [item for sublist in samples for item in sublist]
-    return flatted_samples
+    flattened_samples = [item for sublist in samples for item in sublist]
+    return flattened_samples
 
 
 if __name__ == "__main__":
