@@ -90,19 +90,25 @@ def accuracy_per_xy(
         model, _ = load_models([reward_model_directory])
     else:
         model = reward_model
-    batch_size = 64
+    batch_size = 1024
 
     # Prepare data for batching
     all_x, all_y, all_pairs = [], [], []
 
-    for xy in tqdm(paired_dict):
+    for xy in paired_dict:
         all_x.append(xy[0])
         all_y.append(xy[1])
         all_pairs.extend(paired_dict[xy])
 
     # Convert pairs to tensors
-    tensor_pairs_0 = [segment_to_tensor(pair[0]) for pair in all_pairs]
-    tensor_pairs_1 = [segment_to_tensor(pair[1]) for pair in all_pairs]
+    tensor_pairs_0 = [
+        segment_to_tensor(pair[0])
+        for pair in tqdm(all_pairs, desc="Converting to tensors 1")
+    ]
+    tensor_pairs_1 = [
+        segment_to_tensor(pair[1])
+        for pair in tqdm(all_pairs, desc="Converting to tensors 2")
+    ]
 
     # Create dataset and dataloader for batching
     dataset = TensorDataset(torch.stack(tensor_pairs_0), torch.stack(tensor_pairs_1))
@@ -147,13 +153,15 @@ def plot_reward_heatmap(
 
     print("Plotting...")
     plt.scatter(x, y, c=accuracy, cmap="viridis")
-    plt.colorbar()
+    color_bar = plt.colorbar()
+    color_bar.set_label("Accuracy", fontsize=12)
     plt.title("Reward Heatmap")
     plt.xlabel("X")
     plt.ylabel("Y")
     plt.xlim(min(x), max(x))
     plt.ylim(min(y), max(y))
     plt.savefig(f"{figure_path}reward_heatmap.png", dpi=300)
+    print(f"Saved to {figure_path}reward_heatmap.png")
 
 
 def get_samples(hyperparameter_path="best_params.yaml", sample_pkl=None):
