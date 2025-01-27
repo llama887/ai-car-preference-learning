@@ -1,4 +1,5 @@
 run_baseline:
+	python save_gridpoints.py
 	./scripts/run_basic.sh -r 3
 	./scripts/run_basic.sh -r 2
 	./scripts/run_basic.sh -r 1
@@ -6,6 +7,7 @@ run_baseline:
 
 
 run_baseline_parallel:
+	python save_gridpoints.py
 	./scripts/run_basic.sh -r 3 -p
 	./scripts/run_basic.sh -r 2 -p
 	./scripts/run_basic.sh -r 1 -p
