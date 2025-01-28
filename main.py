@@ -298,13 +298,12 @@ if __name__ == "__main__":
         args.headless,
         args.ensemble,
     )
+    true_database = f"trueRF_trajectories/trueRF_{truePairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+    trained_database = (
+        trajectory_path
+        + f"trainedRF_{trainedPairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+    )
     if not args.skip_plots:
-        true_database = f"trueRF_trajectories/trueRF_{truePairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
-        trained_database = (
-            trajectory_path
-            + f"trainedRF_{trainedPairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
-        )
-
         model_info = {
             "net": agent.reward_network,
             "ensemble": agent.ensemble,
@@ -349,12 +348,17 @@ if __name__ == "__main__":
     else:
         print("Plotting skipped.")
     if args.heatmap:
-        reward_heatmap_plot.plot_reward_heatmap(
-            samples=reward_heatmap_plot.get_samples(
-                args.parameters if args.parameters is not None else "best_params.yaml",
-                "grid_points.pkl",
-            ),
-            number_of_rules=args.composition,
-            reward_model=agent.reward_network,
-            figure_path=reward.figure_path,
-        )
+        if rules.NUMBER_OF_RULES > 2:
+            print("Heatmap plotting only works for less than 2 rules.")
+        else:
+            reward_heatmap_plot.plot_reward_heatmap(
+                samples=reward_heatmap_plot.get_samples(
+                    args.parameters
+                    if args.parameters is not None
+                    else "best_params.yaml",
+                    "grid_points.pkl",
+                ),
+                number_of_rules=args.composition,
+                reward_model=agent.reward_network,
+                figure_path=reward.figure_path,
+            )

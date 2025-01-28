@@ -6,7 +6,10 @@ import re
 import shutil
 import zipfile
 
+import matplotlib
 import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")
 
 import reward
 from agent import AGENTS_PER_GENERATION

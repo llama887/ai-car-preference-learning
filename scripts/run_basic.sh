@@ -58,6 +58,7 @@ mv zips zips_last
 
 # Create the zips directory if it doesn't exist
 mkdir -p zips
+mkdir -p logs
 
 # Function to run a single instance of main.py
 run_instance() {
@@ -72,9 +73,9 @@ run_instance() {
 
     # Run the main.py script
     if $heatmap; then
-        cmd="python $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --heatmap --skip-plots $parallel"
+        cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --heatmap --skip-plots $parallel"
     else
-        cmd="python $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots $parallel"
+        cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots $parallel"
     fi
 
     ZIP_SUFFIX=""

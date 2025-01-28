@@ -7,8 +7,11 @@ import random
 import statistics
 from collections import Counter, defaultdict, deque
 
+import matplotlib
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")
 import pandas as pd
 import seaborn as sns
 import torch
@@ -558,16 +561,16 @@ def log_wrong(segment_rules_satisfied, segment_rewards, save=False):
     print("ACCURACY", acc)
     print("ACCURACY W/O SAME REWARD PAIRS", reacc)
 
-    print("Wrong when Different Reward:")
-    count = 0
-    for zip1, zip2 in wrong:
-        count += 1
-        print(
-            f"TRUE REWARDS: {zip1[0]:11.8f}, {zip2[0]:11.8f} | MODEL REWARDS: {zip1[1]:11.8f}, {zip2[1]:11.8f}"
-        )
-        if count > 100:
-            break
-    print("------------------------------------------------------------------\n")
+    # print("Wrong when Different Reward:")
+    # count = 0
+    # for zip1, zip2 in wrong:
+    #     count += 1
+    #     print(
+    #         f"TRUE REWARDS: {zip1[0]:11.8f}, {zip2[0]:11.8f} | MODEL REWARDS: {zip1[1]:11.8f}, {zip2[1]:11.8f}"
+    #     )
+    #     if count > 10:
+    #         break
+    # print("------------------------------------------------------------------\n")
 
     if save:
         accs = {
