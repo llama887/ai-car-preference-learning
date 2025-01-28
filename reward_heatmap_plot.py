@@ -1,3 +1,4 @@
+import argparse
 import pickle
 import random
 import time
@@ -14,6 +15,9 @@ from rules import check_rules_one
 from subsample_state import get_grid_points
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+number_of_samples = None
+number_of_rules = None
 
 
 def segment_to_tensor(segment):
@@ -156,13 +160,27 @@ def plot_reward_heatmap(
     plt.scatter(x, y, c=accuracy, cmap="viridis")
     color_bar = plt.colorbar()
     color_bar.set_label("Accuracy", fontsize=12)
-    plt.title("Reward Heatmap")
+    if number_of_samples and number_of_rules:
+        plt.title(
+            f"Reward Heatmap ({number_of_samples} samples, {number_of_rules} rules)"
+        )
+    else:
+        plt.title("Reward Heatmap")
     plt.xlabel("X")
     plt.ylabel("Y")
     plt.xlim(min(x), max(x))
     plt.ylim(min(y), max(y))
-    plt.savefig(f"{figure_path}reward_heatmap.png", dpi=300)
-    print(f"Saved to {figure_path}reward_heatmap.png")
+    if number_of_samples and number_of_rules:
+        plt.savefig(
+            f"{figure_path}reward_heatmap_{number_of_samples}_t_{number_of_rules}_r.png",
+            dpi=300,
+        )
+        print(
+            f"Saved to {figure_path}reward_heatmap_{number_of_samples}_samples_{number_of_rules}_rules.png"
+        )
+    else:
+        plt.savefig(f"{figure_path}reward_heatmap.png", dpi=300)
+        print(f"Saved to {figure_path}reward_heatmap.png")
 
 
 def get_samples(hyperparameter_path="best_params.yaml", sample_pkl=None):
@@ -181,7 +199,38 @@ def get_samples(hyperparameter_path="best_params.yaml", sample_pkl=None):
 
 
 if __name__ == "__main__":
+    parse = argparse.ArgumentParser(
+        description="Training a Reward From Synthetic Preferences"
+    )
+    parse.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        nargs=1,
+        help="Path to model weights",
+    )
+    parse.add_argument(
+        "-r",
+        "--rules",
+        type=int,
+        nargs=1,
+        help="Number of rules",
+    )
+    parse.add_argument(
+        "-s",
+        "--samples",
+        type=int,
+        nargs=1,
+        help="Number of samples",
+    )
+    args = parse.parse_args()
+    if args.samples:
+        number_of_samples = args.samples[0]
+    if args.rules:
+        number_of_rules = args.rules[0]
     start = time.time()
-    plot_reward_heatmap(get_samples(), "models/model_100.pth", 1)
+    plot_reward_heatmap(
+        get_samples(sample_pkl="grid_points.pkl"), args.model[0], args.rules[0]
+    )
     end = time.time()
     print(f"Finished in {end - start} seconds.")
