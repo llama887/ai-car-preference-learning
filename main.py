@@ -22,6 +22,9 @@ from debug_plots import (
 from reward import (
     train_reward_function,
 )
+from test_accuracy import(
+    test_model,
+)
 
 os.environ["WANDB_SILENT"] = "true"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -260,7 +263,7 @@ if __name__ == "__main__":
         if args.ensemble:
             model_weights = ["QUICK", reward.ensemble_path]
         else:
-            model_weights = [(reward.models_path + f"model_{args.epochs[0]}_{args.trajectories[0]}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")]
+            model_weights = [(reward.models_path + f"model_{args.epochs[0]}_epochs_{args.trajectories[0]}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")]
     else:
         model_weights = args.reward
 
@@ -286,6 +289,7 @@ if __name__ == "__main__":
     ) as file:
         data = yaml.safe_load(file)
         hidden_size = data["hidden_size"]
+        batch_size = data["batch_size"]
 
     print("Simulating on trained reward function...")
     load_models(model_weights, hidden_size)
@@ -348,6 +352,7 @@ if __name__ == "__main__":
         )
     else:
         print("Plotting skipped.")
+
     if args.heatmap:
         reward_heatmap_plot.plot_reward_heatmap(
             samples=reward_heatmap_plot.get_samples(
@@ -358,3 +363,12 @@ if __name__ == "__main__":
             reward_model=agent.reward_network,
             figure_path=reward.figure_path,
         )
+
+    
+    output_file = f"{trajectory_path}/test_accuracy.pkl"
+    test_file = f"database_test_{rules.NUMBER_OF_RULES}_rules.pkl"
+    test_acc, adjusted_test_acc = test_model(model_weights, test_file, hidden_size, batch_size)
+    with open(output_file, "wb") as f:
+        pickle.dump((test_acc, adjusted_test_acc), f)
+    
+

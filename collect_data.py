@@ -17,6 +17,12 @@ if __name__ == "__main__":
         help="Number of pairs of segments to collect",
     )
     parse.add_argument(
+        "-s",
+        "--segment",
+        type=int,
+        help="Length of segments to collect",
+    )
+    parse.add_argument(
         "--headless", action="store_true", help="Run simulation without GUI"
     )
     parse.add_argument(
@@ -50,6 +56,10 @@ if __name__ == "__main__":
 
     if args.generate:
         agent.subsample = False
+
+    if args.segment and args.segment < 1:
+        raise Exception("Can not have segments with length < 1")
+    agent.train_trajectory_length = args.segment if args.segment else 1
 
     if args.distribution:
         try:

@@ -1,0 +1,184 @@
+pygame 2.6.1 (SDL 2.28.4, Python 3.12.3)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+COULD NOT LOAD FROM MASTER DB: database_gargantuar_2_length_3_rules.pkl
+MASTER DATABASE CURRENTLY HAS:
+NO SEGMENTS
+
+SEGMENTS REQUESTED (Pairs Requested * 2 * distribution[i]) (x10 for ensemble)):
+0 RULE SEGMENTS: 34
+1 RULE SEGMENTS: 34
+2 RULE SEGMENTS: 34
+3 RULE SEGMENTS: 100
+
+MISSING SEGMENTS! Generating more...
+
+ ****** Running generation 0 ****** 
+
+18 cars survived this generation.
+THIS GENERATION PRODUCED 167 SEGMENTS SATISFYING 0 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 193 SEGMENTS SATISFYING 1 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 46 SEGMENTS SATISFYING 2 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 35 SEGMENTS SATISFYING 3 RULES ON AVERAGE.
+MASTER DATABASE CURRENTLY HAS:
+0 RULE SEGMENTS: 167
+1 RULE SEGMENTS: 193
+2 RULE SEGMENTS: 46
+3 RULE SEGMENTS: 35
+
+Population's average fitness: 0.08000 stdev: 1.31438
+Best fitness: 39.00000 - size: (4, 20) - species 1 - id 754
+Average adjusted fitness: 0.001
+Mean genetic distance 1.568, standard deviation 0.316
+Population of 1000 members in 12 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    0   435     39.0    0.002     0
+     2    0   140      2.0    0.002     0
+     3    0   101      1.0    0.000     0
+     4    0    91      1.0    0.001     0
+     5    0    28       --       --     0
+     6    0    19       --       --     0
+     7    0    42       --       --     0
+     8    0     2       --       --     0
+     9    0     8       --       --     0
+    10    0    92       --       --     0
+    11    0    31       --       --     0
+    12    0    11       --       --     0
+Total extinctions: 0
+Generation time: 52.134 sec
+
+ ****** Running generation 1 ****** 
+
+16 cars survived this generation.
+THIS GENERATION PRODUCED 0 SEGMENTS SATISFYING 0 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 0 SEGMENTS SATISFYING 1 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 0 SEGMENTS SATISFYING 2 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 42 SEGMENTS SATISFYING 3 RULES ON AVERAGE.
+MASTER DATABASE CURRENTLY HAS:
+0 RULE SEGMENTS: 167
+1 RULE SEGMENTS: 193
+2 RULE SEGMENTS: 46
+3 RULE SEGMENTS: 77
+
+Population's average fitness: 0.10900 stdev: 1.38026
+Best fitness: 39.00000 - size: (4, 20) - species 1 - id 754
+Average adjusted fitness: 0.001
+Mean genetic distance 1.663, standard deviation 0.327
+Population of 1001 members in 26 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    1   242     39.0    0.004     1
+     2    1    37      6.0    0.003     0
+     3    1   109      3.0    0.002     0
+     4    1    83      7.0    0.002     0
+     5    1    20      0.0    0.000     0
+     6    1    54      0.0    0.000     0
+     7    1    30      0.0    0.000     0
+     8    1     3      0.0    0.000     0
+     9    1     6      0.0    0.000     0
+    10    1   239      1.0    0.001     0
+    11    1    31      0.0    0.000     0
+    12    1    68      1.0    0.002     0
+    13    0     2       --       --     0
+    14    0     3       --       --     0
+    15    0     8       --       --     0
+    16    0     2       --       --     0
+    17    0     9       --       --     0
+    18    0    20       --       --     0
+    19    0    16       --       --     0
+    20    0     1       --       --     0
+    21    0     3       --       --     0
+    22    0     4       --       --     0
+    23    0     7       --       --     0
+    24    0     1       --       --     0
+    25    0     2       --       --     0
+    26    0     1       --       --     0
+Total extinctions: 0
+Generation time: 50.729 sec (51.431 average)
+
+ ****** Running generation 2 ****** 
+
+19 cars survived this generation.
+THIS GENERATION PRODUCED 0 SEGMENTS SATISFYING 0 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 0 SEGMENTS SATISFYING 1 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 0 SEGMENTS SATISFYING 2 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 23 SEGMENTS SATISFYING 3 RULES ON AVERAGE.
+MASTER DATABASE CURRENTLY HAS:
+0 RULE SEGMENTS: 167
+1 RULE SEGMENTS: 193
+2 RULE SEGMENTS: 46
+3 RULE SEGMENTS: 100
+
+Population's average fitness: 0.20480 stdev: 1.61134
+Best fitness: 39.00000 - size: (4, 20) - species 1 - id 754
+Average adjusted fitness: 0.002
+Mean genetic distance 1.789, standard deviation 0.319
+Population of 1004 members in 56 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    2   111     39.0    0.010     2
+     2    2    31      6.0    0.008     1
+     3    2    85     11.0    0.005     0
+     4    2    44     10.0    0.005     0
+     5    2    25      2.0    0.003     0
+     6    2    30      1.0    0.000     0
+     7    2    20      2.0    0.002     0
+     8    2     3      0.0    0.000     1
+     9    2     3      0.0    0.000     1
+    10    2   302     11.0    0.005     0
+    11    2    18      0.0    0.000     1
+    12    2    32      2.0    0.003     0
+    13    1     4      0.0    0.000     0
+    14    1     2      0.0    0.000     0
+    15    1    12      0.0    0.000     0
+    16    1     3      0.0    0.000     0
+    17    1    60      2.0    0.006     0
+    18    1    10      0.0    0.000     0
+    19    1    17      0.0    0.000     0
+    20    1     4      0.0    0.000     0
+    21    1     6      0.0    0.000     0
+    22    1    10      0.0    0.000     0
+    23    1     7      0.0    0.000     0
+    24    1     3      0.0    0.000     0
+    25    1     4      0.0    0.000     0
+    26    1     3      0.0    0.000     0
+    27    0    23       --       --     0
+    28    0     4       --       --     0
+    29    0     1       --       --     0
+    30    0     5       --       --     0
+    31    0     6       --       --     0
+    32    0     6       --       --     0
+    33    0     7       --       --     0
+    34    0    15       --       --     0
+    35    0     1       --       --     0
+    36    0     3       --       --     0
+    37    0     4       --       --     0
+    38    0     1       --       --     0
+    39    0     1       --       --     0
+    40    0     2       --       --     0
+    41    0     2       --       --     0
+    42    0    14       --       --     0
+    43    0    11       --       --     0
+    44    0     7       --       --     0
+    45    0     2       --       --     0
+    46    0     1       --       --     0
+    47    0     3       --       --     0
+    48    0     2       --       --     0
+    49    0    11       --       --     0
+    50    0     2       --       --     0
+    51    0     2       --       --     0
+    52    0     3       --       --     0
+    53    0     4       --       --     0
+    54    0     5       --       --     0
+    55    0     6       --       --     0
+    56    0     1       --       --     0
+Total extinctions: 0
+Generation time: 49.885 sec (50.916 average)
+Stopping after 3 generations.
+Total execution time for 3 generations: 152.78 seconds
+SEGMENT POOL FOR DATA COLLECTION: ['0: 34', '1: 34', '2: 34', '3: 100']
+Generated 58 pairs with different rewards (0.58%)
+Generating Database with 100 trajectory pairs...
+Replacing old master database with the new one...
+Removing old master database...
+Master database updated successfully.

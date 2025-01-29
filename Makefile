@@ -80,6 +80,18 @@ collect_data_1_rules:
 	./scripts/parallel_data_collect.sh -t 20000000 -r 1 -n 10
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_1_rules_tmp.pkl
 
+collect_data_longer_segments:
+	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 2
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_2_length_3_rules_tmp.pkl
+	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 3
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_3_length_3_rules_tmp.pkl
+	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 4
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_4_length_3_rules_tmp.pkl
+	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 5
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_5_length_3_rules_tmp.pkl
+	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 6
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_6_length_3_rules_tmp.pkl
+
 clean:
 	rm -rf wandb
 	rm -rf __pycache__

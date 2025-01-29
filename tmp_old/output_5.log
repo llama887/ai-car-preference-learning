@@ -1,0 +1,96 @@
+pygame 2.6.1 (SDL 2.28.4, Python 3.12.3)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+COULD NOT LOAD FROM MASTER DB: database_gargantuar_2_length_3_rules.pkl
+MASTER DATABASE CURRENTLY HAS:
+NO SEGMENTS
+
+SEGMENTS REQUESTED (Pairs Requested * 2 * distribution[i]) (x10 for ensemble)):
+0 RULE SEGMENTS: 34
+1 RULE SEGMENTS: 34
+2 RULE SEGMENTS: 34
+3 RULE SEGMENTS: 100
+
+MISSING SEGMENTS! Generating more...
+
+ ****** Running generation 0 ****** 
+
+24 cars survived this generation.
+THIS GENERATION PRODUCED 174 SEGMENTS SATISFYING 0 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 177 SEGMENTS SATISFYING 1 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 35 SEGMENTS SATISFYING 2 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 30 SEGMENTS SATISFYING 3 RULES ON AVERAGE.
+MASTER DATABASE CURRENTLY HAS:
+0 RULE SEGMENTS: 174
+1 RULE SEGMENTS: 177
+2 RULE SEGMENTS: 35
+3 RULE SEGMENTS: 30
+
+Population's average fitness: 0.08300 stdev: 1.09550
+Best fitness: 23.00000 - size: (4, 20) - species 1 - id 604
+Average adjusted fitness: 0.002
+Mean genetic distance 1.452, standard deviation 0.308
+Population of 1001 members in 9 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    0   565     23.0    0.005     0
+     2    0    70      0.0    0.000     0
+     3    0   136     18.0    0.004     0
+     4    0   110      0.0    0.000     0
+     5    0    78      0.0    0.000     0
+     6    0    14       --       --     0
+     7    0    11       --       --     0
+     8    0     4       --       --     0
+     9    0    13       --       --     0
+Total extinctions: 0
+Generation time: 50.929 sec
+
+ ****** Running generation 1 ****** 
+
+14 cars survived this generation.
+THIS GENERATION PRODUCED 0 SEGMENTS SATISFYING 0 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 0 SEGMENTS SATISFYING 1 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 0 SEGMENTS SATISFYING 2 RULES ON AVERAGE.
+THIS GENERATION PRODUCED 73 SEGMENTS SATISFYING 3 RULES ON AVERAGE.
+MASTER DATABASE CURRENTLY HAS:
+0 RULE SEGMENTS: 174
+1 RULE SEGMENTS: 177
+2 RULE SEGMENTS: 35
+3 RULE SEGMENTS: 103
+
+Population's average fitness: 0.24076 stdev: 2.14811
+Best fitness: 40.00000 - size: (4, 20) - species 4 - id 1289
+Average adjusted fitness: 0.003
+Mean genetic distance 1.578, standard deviation 0.305
+Population of 1001 members in 21 species:
+   ID   age  size  fitness  adj fit  stag
+  ====  ===  ====  =======  =======  ====
+     1    1   272     23.0    0.007     1
+     2    1   116     18.0    0.007     0
+     3    1   181      2.0    0.001     1
+     4    1   208     40.0    0.009     0
+     5    1    95      7.0    0.003     0
+     6    1    11      0.0    0.000     0
+     7    1     9      0.0    0.000     0
+     8    1     8      0.0    0.000     0
+     9    1    19      0.0    0.000     0
+    10    0    32       --       --     0
+    11    0    11       --       --     0
+    12    0     4       --       --     0
+    13    0     1       --       --     0
+    14    0     5       --       --     0
+    15    0     1       --       --     0
+    16    0     4       --       --     0
+    17    0    13       --       --     0
+    18    0     5       --       --     0
+    19    0     3       --       --     0
+    20    0     1       --       --     0
+    21    0     2       --       --     0
+Total extinctions: 0
+Generation time: 50.449 sec (50.689 average)
+Stopping after 2 generations.
+Total execution time for 2 generations: 101.41 seconds
+SEGMENT POOL FOR DATA COLLECTION: ['0: 34', '1: 34', '2: 34', '3: 100']
+Generated 49 pairs with different rewards (0.49%)
+Generating Database with 100 trajectory pairs...
+Replacing old master database with the new one...
+Master database updated successfully.

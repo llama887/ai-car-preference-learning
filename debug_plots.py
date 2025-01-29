@@ -569,16 +569,16 @@ def log_wrong(segment_rules_satisfied, segment_rewards, save=False):
             break
     print("------------------------------------------------------------------\n")
 
-    if save:
-        accs = {
-            "acc": acc,
-            "adjusted_acc": reacc,
-        }
-        with open(
-            agent.trajectories_path + "testing_acc.pkl",
-            "wb",
-        ) as f:
-            pickle.dump(accs, f)
+    # if save:
+    #     accs = {
+    #         "acc": acc,
+    #         "adjusted_acc": reacc,
+    #     }
+    #     with open(
+    #         agent.trajectories_path + "testing_acc.pkl",
+    #         "wb",
+    #     ) as f:
+    #         pickle.dump(accs, f)
 
 
 def graph_segment_distance_vs_reward(
