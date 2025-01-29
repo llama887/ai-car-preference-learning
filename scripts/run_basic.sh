@@ -90,8 +90,8 @@ run_instance() {
         ZIP_DIR+="_baseline"
     fi
 
-    echo "Executing: $cmd 2>&1 | tee logs/log_${TRAJ}_t_${rules}_r_${ZIP_SUFFIX}"
-    eval $cmd 2>&1 | tee logs/log_${TRAJ}_t_${rules}_r_${ZIP_SUFFIX}
+    echo "Executing: $cmd 2>&1 | tee logs/log_${TRAJ}_t_${rules}_r${ZIP_SUFFIX}"
+    eval $cmd 2>&1 | tee logs/log_${TRAJ}_t_${rules}_r${ZIP_SUFFIX}
 
     # Check if the directories exist and zip them
     if [ -d "$FIGURE_DIR" ]; then
