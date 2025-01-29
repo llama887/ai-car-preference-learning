@@ -263,7 +263,7 @@ if __name__ == "__main__":
             model_weights = [
                 (
                     reward.models_path
-                    + f"model_{args.epochs[0]}_{args.trajectories[0]}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
+                    + f"model_{args.epochs[0]}_epochs_{args.trajectories[0]}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
                 )
             ]
     else:
