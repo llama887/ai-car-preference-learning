@@ -16,7 +16,8 @@ import scipy.stats as stats
 import reward
 from agent import AGENTS_PER_GENERATION
 
-zips_path = "zips/"
+zips_baseline_path = "zips_baseline/"
+zips_ensembling_path = "zips_ensembling/"
 
 T_VALUE_95 = stats.t.ppf((1 + 0.95) / 2, df=19)
 
@@ -49,19 +50,27 @@ def extract_trajectories(zip_file):
         count += AGENTS_PER_GENERATION
 
     trained_satisfaction_segments = np.array(trained_satisfaction_segments)
-    return num_pairs, num_trajectories, trained_satisfaction_segments
+
+    with open("test_accuracy.pkl", "rb") as f:
+        test_acc, adjusted_test_acc = pickle.load(f)
+
+    return num_pairs, num_trajectories, trained_satisfaction_segments, adjusted_test_acc
 
 
 def unzipper_chungus_deluxe(num_rules, ensembling):
     true_satisfaction_segments = {}
     aggregate_trained_satisfaction_segments = {}
     aggregate_ensemble_trained_satisfaction_segments = {}
+    aggregate_baseline_accs = {}
+    aggregate_ensembling_accs = {}
 
     for rule_count in range(1, num_rules + 1):
         rule_aggregate_segments = {}
         rule_aggregate_ensembling_segments = {}
+        rule_aggregate_accs = {}
+        rule_aggregate_ensembling_accs = {}
 
-        zip_files = glob.glob(f"{zips_path}trajectories_t*_r{rule_count}.zip")
+        zip_files = glob.glob(f"{zips_baseline_path}trajectories_t*_r{rule_count}.zip")
         print(f"{rule_count} rule files:", zip_files)
 
         if not zip_files:
@@ -69,24 +78,25 @@ def unzipper_chungus_deluxe(num_rules, ensembling):
 
         num_trajectories = 0
         for zip_file in zip_files:
-            num_pairs, num_trajectories, trained_satisfaction_segments = (
+            num_pairs, num_trajectories, trained_satisfaction_segments, test_acc  = (
                 extract_trajectories(zip_file)
             )
             rule_aggregate_segments[num_pairs] = trained_satisfaction_segments
-
+            rule_aggregate_accs[num_pairs] = test_acc
             shutil.rmtree("temp_trajectories")
 
         if ensembling:
             ensembling_zip_files = glob.glob(
-                f"{zips_path}trajectories_t*_r{rule_count}_ensembling.zip"
+                f"{zips_ensembling_path}trajectories_t*_r{rule_count}_ensembling.zip"
             )
             for zip_file in ensembling_zip_files:
-                num_pairs, num_trajectories, trained_satisfaction_segments = (
+                num_pairs, num_trajectories, trained_satisfaction_segments, test_acc = (
                     extract_trajectories(zip_file)
                 )
                 rule_aggregate_ensembling_segments[num_pairs] = (
                     trained_satisfaction_segments
                 )
+                rule_aggregate_ensembling_accs[num_pairs] = test_acc
 
         trueRF_path = f"trueRF_trajectories/trueRF_{num_trajectories}_trajectories_{rule_count}_rules.pkl"
         if not os.path.exists(trueRF_path):
@@ -111,12 +121,17 @@ def unzipper_chungus_deluxe(num_rules, ensembling):
         aggregate_trained_satisfaction_segments[rule_count] = rule_aggregate_segments
         aggregate_ensemble_trained_satisfaction_segments[rule_count] = rule_aggregate_ensembling_segments
 
+        aggregate_baseline_accs[rule_count] = rule_aggregate_accs
+        aggregate_ensembling_accs[rule_count] = rule_aggregate_ensembling_accs
+
     # best_true_satisfaction_segments key: rules -> value: best performing trueRF (100 x 20) 100 generations of (# of satisfaction segments by 20 agents))
     # aggregate_trained_satisfaction_segments  key: rules -> value: Map[key: # trajectory pairs -> value: (100 x 20)]
     return (
         true_satisfaction_segments,
         aggregate_trained_satisfaction_segments,
         aggregate_ensemble_trained_satisfaction_segments,
+        aggregate_baseline_accs,
+        aggregate_ensembling_accs,
     )
 
 
@@ -163,7 +178,9 @@ def get_trained_generation_averages_and_best_generation(
 def handle_plotting_sana(
     true_satisfaction_segments,
     aggregate_trained_satisfaction_segments,
+    aggregate_baseline_accs,
     aggregate_ensembling_trained_satisfaction_segments=None,
+    aggregate_ensembling_accs=None,
 ):
     trueRF_average_satisfaction_segments, trueRF_best_generation = get_true_generation_averages_and_best_generation(true_satisfaction_segments)
     for rules in trueRF_average_satisfaction_segments:
@@ -176,6 +193,7 @@ def handle_plotting_sana(
     )
 
     graph_gap_over_pairs(trueRF_best_generation, aggregate_trainedRF_best_generation)
+    graph_acc(aggregate_baseline_accs, title="testing_acc_baseline")
 
     if aggregate_ensembling_trained_satisfaction_segments:
         (
@@ -196,6 +214,7 @@ def handle_plotting_sana(
             aggregate_trainedRF_best_generation,
             aggregate_ensembling_trainedRF_best_generation,
         )
+        graph_acc(aggregate_ensembling_accs, title="testing_acc_ensembling")
 
 
 def graph_normalized_segments_over_generations(
@@ -351,6 +370,34 @@ def graph_gap_over_pairs_w_ensembling(
     plt.close()
 
 
+def graph_acc(aggregate_accs, title=None):
+    rules = aggregate_accs.keys()
+    plt.figure()
+    for num_rules in rules:
+        dataset_sizes = sorted(aggregate_accs[num_rules].keys())
+        accs = [aggregate_accs[num_rules][size] for size in dataset_sizes]
+        plt.plot(dataset_sizes, accs,label=f"{num_rules} rules")
+    plt.xlabel("Number of Trajectory Pairs (Log Scale)")
+    plt.xscale("log")
+    plt.ylabel("Adjusted Testing Accuracy")
+    plt.legend()
+    plt.savefig(f"{reward.figure_path}{title}.png")
+    plt.close()
+
+
+    for num_rules in rules:
+        dataset_sizes = sorted(aggregate_accs[num_rules].keys())
+        accs = [aggregate_accs[num_rules][size] for size in dataset_sizes]
+        plt.plot(dataset_sizes, accs,label=f"{num_rules} rules")
+    plt.xlabel("Number of Trajectory Pairs (Log Scale)")
+    plt.xscale("log")
+    plt.ylabel("Adjusted Testing Accuracy (Log Scale)")
+    plt.yscale("log")
+    plt.legend()
+    plt.savefig(f"{reward.figure_path}{title}_accLog.png")
+    plt.close()
+
+
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(description="Performance plots")
     parse.add_argument(
@@ -371,16 +418,21 @@ if __name__ == "__main__":
         true_satisfaction_segments,
         aggregate_trained_satisfaction_segments,
         aggregate_ensembling_trained_satisfaction_segments,
+        aggregate_baseline_accs,
+        aggregate_ensembling_accs,
     ) = unzipper_chungus_deluxe(num_rules, args.ensembling)
 
     if args.ensembling:
         handle_plotting_sana(
             true_satisfaction_segments,
             aggregate_trained_satisfaction_segments,
+            aggregate_baseline_accs,
             aggregate_ensembling_trained_satisfaction_segments,
+            aggregate_ensembling_accs,
         )
     else:
         handle_plotting_sana(
             true_satisfaction_segments,
             aggregate_trained_satisfaction_segments,
+            aggregate_baseline_accs
         )

@@ -267,11 +267,13 @@ if __name__ == "__main__":
     else:
         model_weights = args.reward
 
+
+    print("Checking for:", f"trueRF_trajectories/trueRF_{args.generations[0] * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl")
     # run the simulation with the true reward function (if trajectories do not exist yet)
     if os.path.exists(
-        f"trueRF_trajectories/trueRF_{args.generations * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+        f"trueRF_trajectories/trueRF_{args.generations[0] * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
     ):
-        truePairs = args.generations * AGENTS_PER_GENERATION
+        truePairs = args.generations[0] * AGENTS_PER_GENERATION
     else:
         print("Simulating on true reward function...")
         truePairs, true_rules_followed = start_simulation(

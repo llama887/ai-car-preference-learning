@@ -5,10 +5,11 @@ TRAJECTORIES=(1000000 100000 10000)
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 -r <rules> [-p] [-e]"
+    echo "Usage: $0 -r <rules> [-p] [-e] [-h]"
     echo "  -r <rules>     Specify the rules value (integer)"
     echo "  -p             Run in parallel"
     echo "  -e             Enable ensembling"
+    echo "  -h             Enable heatmap"
     exit 1
 }
 
@@ -54,10 +55,12 @@ PARAM_FILE="./best_params.yaml"
 MAIN_SCRIPT="main.py"
 
 # Remove any existing zip files for figures and trajectories to avoid conflicts
-mv zips zips_last
+[ -d "zips_baseline" ] && mv zips_baseline zips_baseline_last
+[ -d "zips_ensembling" ] && mv zips_ensembling zips_ensembling_last
 
 # Create the zips directory if it doesn't exist
-mkdir -p zips
+mkdir -p zips_baseline
+mkdir -p zips_ensembling
 mkdir -p logs
 
 # Function to run a single instance of main.py
@@ -65,6 +68,7 @@ run_instance() {
     TRAJ=$1
     FIGURE_DIR="figures_t$TRAJ"
     TRAJECTORY_DIR="trajectories_t$TRAJ"
+    ZIP_DIR="zips"
 
     # Remove the directories to prepare for the next run
     rm -rf figures* trajectories trajectories_t*
@@ -73,14 +77,17 @@ run_instance() {
 
     # Run the main.py script
     if $heatmap; then
-        cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --heatmap --skip-plots $parallel"
+        cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --heatmap --skip-plots"
     else
-        cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots $parallel"
+        cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots"
     fi
 
     ZIP_SUFFIX=""
     if $ensembling; then
         ZIP_SUFFIX+="_ensembling"
+        ZIP_DIR+="_ensembling"
+    else
+        ZIP_DIR+="_baseline"
     fi
 
     echo "Executing: $cmd 2>&1 | tee logs/log_${TRAJ}_t_${rules}_r_${ZIP_SUFFIX}"
@@ -88,13 +95,13 @@ run_instance() {
 
     # Check if the directories exist and zip them
     if [ -d "$FIGURE_DIR" ]; then
-        zip -r "zips/${FIGURE_DIR}_r${rules}${ZIP_SUFFIX}.zip" $FIGURE_DIR
+        zip -r "${ZIP_DIR}/${FIGURE_DIR}_r${rules}${ZIP_SUFFIX}.zip" $FIGURE_DIR
     else
         echo "Warning: $FIGURE_DIR not found for ${TRAJ} trajectories."
     fi
 
     if [ -d "$TRAJECTORY_DIR" ]; then
-        zip -r "zips/${TRAJECTORY_DIR}_r${rules}${ZIP_SUFFIX}.zip" $TRAJECTORY_DIR
+        zip -r "${ZIP_DIR}/${TRAJECTORY_DIR}_r${rules}${ZIP_SUFFIX}.zip" $TRAJECTORY_DIR
     else
         echo "Warning: $TRAJECTORY_DIR not found for ${TRAJ} trajectories."
     fi
