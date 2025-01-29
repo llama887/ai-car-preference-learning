@@ -4,7 +4,10 @@ import math
 import os
 import pickle
 
+import matplotlib
 import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")
 import numpy as np
 import optuna
 import torch
@@ -15,7 +18,6 @@ import yaml
 from torch.utils.data import DataLoader, Dataset, random_split
 
 import rules
-
 import wandb
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -385,7 +387,10 @@ def train_ensemble(
     best_val_losses = [float("inf") for _ in range(n_models)]
 
     global ensemble_path
-    ensemble_path = models_path + f"ensemble_{epochs}_epochs_{dataset_size}_pairs_{rules.NUMBER_OF_RULES}_rules/"
+    ensemble_path = (
+        models_path
+        + f"ensemble_{epochs}_epochs_{dataset_size}_pairs_{rules.NUMBER_OF_RULES}_rules/"
+    )
     os.makedirs(ensemble_path, exist_ok=True)
 
     epoch = 0
@@ -650,7 +655,10 @@ def train_model(
             average_validation_loss = total_validation_loss / val_size
             if average_validation_loss < best_loss:
                 best_loss = average_validation_loss
-                torch.save(net.state_dict(), model_path + f"_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")
+                torch.save(
+                    net.state_dict(),
+                    model_path + f"_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth",
+                )
                 print("MODEL SAVED AT EPOCH:", epoch)
             average_validation_accuracy = total_validation_accuracy / val_size
             average_adjusted_validation_accuracy = (
@@ -723,7 +731,10 @@ def train_model(
                 )
             epoch += 1
     except Exception as e:
-        torch.save(net.state_dict(), model_path + f"_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")
+        torch.save(
+            net.state_dict(),
+            model_path + f"_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth",
+        )
         print("EXCEPTION CAUGHT AND MODEL SAVED AT EPOCH:", epoch)
         print(e)
 
@@ -905,7 +916,11 @@ def train_reward_function(
                 )
                 if save_at_end:
                     global n_pairs
-                    torch.save(net.state_dict(), models_path + f"model_{epochs}_epochs_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")
+                    torch.save(
+                        net.state_dict(),
+                        models_path
+                        + f"model_{epochs}_epochs_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth",
+                    )
         return training_output_stat
 
 

@@ -225,7 +225,7 @@ def split_by_rules(trajectory_segments):
     return mini_gargantuar
 
 
-def get_grid_points(samples=2000000):
+def get_grid_points(samples=2000000, number_of_rules=1):
     # Load subsampled grid points
     ANGLE_STEP = 10
     MAX_ANGLE_DEVIATION = 10

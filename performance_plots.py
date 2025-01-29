@@ -6,17 +6,19 @@ import re
 import shutil
 import zipfile
 
+import matplotlib
 import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")
 import numpy as np
 import scipy.stats as stats
 
 import reward
+from agent import AGENTS_PER_GENERATION
 
 zips_path = "zips/"
 
 T_VALUE_95 = stats.t.ppf((1 + 0.95) / 2, df=19)
-
-from agent import AGENTS_PER_GENERATION
 
 
 def extract_trajectories(zip_file):

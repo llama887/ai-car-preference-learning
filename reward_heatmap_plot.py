@@ -3,7 +3,10 @@ import pickle
 import random
 import time
 
+import matplotlib
 import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")
 import torch
 import yaml
 from torch.utils.data import DataLoader, TensorDataset
@@ -181,6 +184,7 @@ def plot_reward_heatmap(
     else:
         plt.savefig(f"{figure_path}reward_heatmap.png", dpi=300)
         print(f"Saved to {figure_path}reward_heatmap.png")
+    plt.close()
 
 
 def get_samples(hyperparameter_path="best_params.yaml", sample_pkl=None):
@@ -228,6 +232,7 @@ if __name__ == "__main__":
         number_of_samples = args.samples[0]
     if args.rules:
         number_of_rules = args.rules[0]
+
     start = time.time()
     plot_reward_heatmap(
         get_samples(sample_pkl="grid_points.pkl"), args.model[0], args.rules[0]

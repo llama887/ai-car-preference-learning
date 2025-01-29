@@ -1,6 +1,9 @@
 import pickle
 
+import matplotlib
 import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")
 
 # s1s2lr1r2
 

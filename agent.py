@@ -728,7 +728,9 @@ def generate_database(trajectory_path):
         with open(trajectory_file_path, "wb") as f:
             if len(trajectories) > 0:
                 pickle.dump(trajectories, f)
-                pass
+                print(
+                    f"Saved {len(trajectories)} trajectories to {trajectory_file_path}"
+                )
 
         return len(trajectories)
 
