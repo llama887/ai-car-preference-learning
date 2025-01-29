@@ -14,13 +14,12 @@ import numpy as np
 import scipy.stats as stats
 
 import reward
+from agent import AGENTS_PER_GENERATION
 
 zips_path = "zips_test/"
 T_VALUE_95 = stats.t.ppf((1 + 0.95) / 2, df=19)
 TRAJECTORIES = 1000000
 RULES = 3
-
-from agent import AGENTS_PER_GENERATION
 
 
 def extract_trajectories(zip_file):
