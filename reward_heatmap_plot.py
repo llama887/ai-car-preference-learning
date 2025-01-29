@@ -1,3 +1,4 @@
+import argparse
 import pickle
 import random
 import time
@@ -14,6 +15,9 @@ from rules import check_rules_one
 from subsample_state import get_grid_points
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+number_of_samples = None
+number_of_rules = None
 
 
 def segment_to_tensor(segment):
@@ -90,19 +94,26 @@ def accuracy_per_xy(
         model, _ = load_models([reward_model_directory])
     else:
         model = reward_model
-    batch_size = 64
+    batch_size = 1024
 
     # Prepare data for batching
     all_x, all_y, all_pairs = [], [], []
 
-    for xy in tqdm(paired_dict):
+    for xy in paired_dict:
         all_x.append(xy[0])
         all_y.append(xy[1])
         all_pairs.extend(paired_dict[xy])
 
     # Convert pairs to tensors
-    tensor_pairs_0 = [segment_to_tensor(pair[0]) for pair in all_pairs]
-    tensor_pairs_1 = [segment_to_tensor(pair[1]) for pair in all_pairs]
+    tensor_pairs_0 = [
+        segment_to_tensor(pair[0])
+        for pair in tqdm(all_pairs, desc="Converting to tensors 1")
+    ]
+
+    tensor_pairs_1 = [
+        segment_to_tensor(pair[1])
+        for pair in tqdm(all_pairs, desc="Converting to tensors 2")
+    ]
 
     # Create dataset and dataloader for batching
     dataset = TensorDataset(torch.stack(tensor_pairs_0), torch.stack(tensor_pairs_1))
@@ -137,28 +148,44 @@ def plot_reward_heatmap(
     assert reward_model_directory or reward_model, (
         "Must provide either reward_model_directory or reward_model"
     )
-    print("Getting accuracies...")
+
     x, y, accuracy = accuracy_per_xy(
         samples, number_of_rules, reward_model_directory, reward_model
     )
 
-    print("Negating all Y values...")
     y = list(map(lambda x: -x, y))
 
     print("Plotting...")
+
     plt.scatter(x, y, c=accuracy, cmap="viridis")
-    plt.colorbar()
-    plt.title("Reward Heatmap")
+    color_bar = plt.colorbar()
+    color_bar.set_label("Accuracy", fontsize=12)
+    if number_of_samples and number_of_rules:
+        plt.title(
+            f"Reward Heatmap ({number_of_samples} samples, {number_of_rules} rules)"
+        )
+    else:
+        plt.title("Reward Heatmap")
     plt.xlabel("X")
     plt.ylabel("Y")
     plt.xlim(min(x), max(x))
     plt.ylim(min(y), max(y))
-    plt.savefig(f"{figure_path}reward_heatmap.png", dpi=300)
+    if number_of_samples and number_of_rules:
+        plt.savefig(
+            f"{figure_path}reward_heatmap_{number_of_samples}_t_{number_of_rules}_r.png",
+            dpi=300,
+        )
+        print(
+            f"Saved to {figure_path}reward_heatmap_{number_of_samples}_samples_{number_of_rules}_rules.png"
+        )
+    else:
+        plt.savefig(f"{figure_path}reward_heatmap.png", dpi=300)
+        print(f"Saved to {figure_path}reward_heatmap.png")
 
 
 def get_samples(hyperparameter_path="best_params.yaml", sample_pkl=None):
     if not sample_pkl:
-        samples = get_grid_points(1000000)
+        samples = get_grid_points()
     else:
         with open(sample_pkl, "rb") as f:
             samples = pickle.load(f)
@@ -167,12 +194,43 @@ def get_samples(hyperparameter_path="best_params.yaml", sample_pkl=None):
         debug_plots.hidden_size = data["hidden_size"]
 
     print("Flattening samples...")
-    flatted_samples = [item for sublist in samples for item in sublist]
-    return flatted_samples
+    flattened_samples = [item for sublist in samples for item in sublist]
+    return flattened_samples
 
 
 if __name__ == "__main__":
+    parse = argparse.ArgumentParser(
+        description="Training a Reward From Synthetic Preferences"
+    )
+    parse.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        nargs=1,
+        help="Path to model weights",
+    )
+    parse.add_argument(
+        "-r",
+        "--rules",
+        type=int,
+        nargs=1,
+        help="Number of rules",
+    )
+    parse.add_argument(
+        "-s",
+        "--samples",
+        type=int,
+        nargs=1,
+        help="Number of samples",
+    )
+    args = parse.parse_args()
+    if args.samples:
+        number_of_samples = args.samples[0]
+    if args.rules:
+        number_of_rules = args.rules[0]
     start = time.time()
-    plot_reward_heatmap(get_samples(), "models/model_100.pth", 1)
+    plot_reward_heatmap(
+        get_samples(sample_pkl="grid_points.pkl"), args.model[0], args.rules[0]
+    )
     end = time.time()
     print(f"Finished in {end - start} seconds.")

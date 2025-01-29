@@ -30,21 +30,19 @@ number_of_rules = 3
 
 def parallel_subsample_state(image_path, number_of_points=100000, epsilon=0.0001):
     def binary_search(lower_bound, upper_bound, target):
-        print(lower_bound, upper_bound, target)
         grid_resolutions = np.linspace(
-            lower_bound, upper_bound, multiprocessing.cpu_count() * 4
+            lower_bound, upper_bound, multiprocessing.cpu_count() * 10
         )
         params = [
             (image_path, float(grid_resolution)) for grid_resolution in grid_resolutions
         ]
-        print("Gridding...")
         with multiprocessing.Pool() as pool:
             results = pool.starmap(subsample_state, params)
-        print("Calculating Error...")
         points_numbers = np.array([len(result) for result in results])
         error_margin = target * epsilon
         if error_margin < 10:
             error_margin = 10
+        index = None
         for i, num in enumerate(points_numbers):
             if target - error_margin <= num <= target + error_margin:
                 return results[i]
@@ -63,12 +61,12 @@ def parallel_subsample_state(image_path, number_of_points=100000, epsilon=0.0001
             and closest_resolution_below
         ):
             if abs(closest_n_points_above - target) < target * epsilon:
-                print(f"above: {results[index]}")
+                # print(f"above: {results[index]}")
                 return results[index]
             if abs(closest_resolution_below - target) < target * epsilon:
-                print(f"below: {results[index]}")
+                # print(f"below: {results[index]}")
                 return results[index]
-            print(f"above: {results[index]}, below: {results[index]}")
+            # print(f"above: {results[index]}, below: {results[index]}")
             return binary_search(
                 closest_resolution_below, closest_resolution_above, target
             )
@@ -76,8 +74,8 @@ def parallel_subsample_state(image_path, number_of_points=100000, epsilon=0.0001
             raise ValueError("Target out of range for the given resolutions.")
 
     # Initial bounds
-    lower_bound = 5
-    upper_bound = 20.0
+    lower_bound = 6.5
+    upper_bound = 7.5
     return binary_search(lower_bound, upper_bound, number_of_points)
 
 
@@ -119,7 +117,7 @@ def subsample_state(image_path, grid_resolution, tolerance=1.0):
     )
     points = np.vstack([x.ravel(), y.ravel()]).T
     valid_points = points[contains(track_polygon, points[:, 0], points[:, 1])]
-    print("Found", len(valid_points), "points.")
+    # print("Found", len(valid_points), "points.")
     return valid_points
 
 
@@ -127,7 +125,17 @@ def process_trajectory_segment(params):
     point_thing = None
     position_thing = None
     """Process a single trajectory segment for a given point, angle, and speed."""
-    point, angle, speed, CAR_SIZE_X, CAR_SIZE_Y, WIDTH, HEIGHT, game_map_path = params
+    (
+        point,
+        angle_deviation,
+        speed,
+        CAR_SIZE_X,
+        CAR_SIZE_Y,
+        WIDTH,
+        HEIGHT,
+        game_map_path,
+    ) = params
+
     trajectory_segments = []
 
     # Initialize car object
@@ -139,6 +147,27 @@ def process_trajectory_segment(params):
     # Generate trajectory segments
     for first_action in range(0, 4):
         car.position = [point[1] - CAR_SIZE_X / 2, point[0] - CAR_SIZE_Y / 2]
+        car_x = car.position[0]
+        car_y = car.position[1]
+        if car_x >= 450 and car_x <= 1550 and -car_y <= -600:
+            base_angle = 0
+        elif car_x >= 1500 and -car_y <= -600:
+            base_angle = 10
+        elif car_x >= 1500 and -car_y >= -600:
+            base_angle = 130
+        elif car_x <= 1500 and car_x >= 400 and -car_y >= -300:
+            base_angle = 180
+        elif car_x <= 450 and -car_y >= -200:
+            base_angle = 180
+        elif car_x <= 600 and -car_y <= -150 and -car_y >= -250:
+            base_angle = 290
+        elif car_x <= 600 and -car_y <= -150 and -car_y >= -500:
+            base_angle = 300
+        elif car_x <= 500 and -car_y <= -500:
+            base_angle = 320
+        else:
+            print(f"Invalid position: {car_x}, {car_y}")
+        angle = angle_deviation + base_angle
         car.speed = speed
         car.angle = angle
         car.radars.clear()
@@ -169,13 +198,11 @@ def process_trajectory_segment(params):
         else:
             car.speed += 2  # Speed Up
 
-        # Update position using vectorized updates
         dx = cos_angle * car.speed
         dy = sin_angle * car.speed
         car.position += np.array([dx, dy])
         car.position[0] = np.clip(car.position[0], 20, WIDTH - 120)
         car.position[1] = np.clip(car.position[1], 20, HEIGHT - 120)
-
         for second_action in range(0, 4):
             last_state_action_pair = StateActionPair(
                 [car.check_radar(d, game_map) for d in range(-90, 120, 45)],
@@ -198,10 +225,11 @@ def split_by_rules(trajectory_segments):
     return mini_gargantuar
 
 
-def get_grid_points(samples):
+def get_grid_points(samples=2000000):
     # Load subsampled grid points
-    ANGLE_STEP = 40
-    ANGLES = 360 // ANGLE_STEP
+    ANGLE_STEP = 10
+    MAX_ANGLE_DEVIATION = 10
+    ANGLES = len(range(-MAX_ANGLE_DEVIATION, MAX_ANGLE_DEVIATION + 1, ANGLE_STEP))
     SPEED_STEP = 10
     SPEEDS = 40 // SPEED_STEP
     FIRST_ACTIONS = 4
@@ -217,16 +245,22 @@ def get_grid_points(samples):
 
     # Prepare parameters for multiprocessing
     params = [
-        (point, angle, speed, CAR_SIZE_X, CAR_SIZE_Y, WIDTH, HEIGHT, "maps/map.png")
+        (
+            point,
+            angle_deviation,
+            speed,
+            CAR_SIZE_X,
+            CAR_SIZE_Y,
+            WIDTH,
+            HEIGHT,
+            "maps/map.png",
+        )
         for point in points
-        for angle in range(0, 360, ANGLE_STEP)
+        for angle_deviation in range(
+            -MAX_ANGLE_DEVIATION, MAX_ANGLE_DEVIATION + 1, ANGLE_STEP
+        )
         for speed in range(10, 50, SPEED_STEP)
     ]
-
-    # point_set = set()
-    # for param in params:
-    #     point_set.add(tuple(param[0].tolist()))
-    # print(f"Found {len(point_set)} unique points.")
 
     print("Starting segment subsampling...")
     # Use multiprocessing to process trajectory segments
@@ -246,19 +280,6 @@ def get_grid_points(samples):
         point_set.add(point)
         position_set.add(position)
 
-    # print(f"Found {len(point_set)} unique points after processing.")
-    # print(f"Found {len(position_set)} unique positions after processing.")
-    # point_set = set()
-    # flattened_results = [item for sublist in results for item in sublist]
-    # for segment in flattened_results:
-    #     # print(segment)
-    #     point_set.add(
-    #         tuple([round(segment[0].position[0], 3), round(segment[0].position[1], 3)])
-    #     )
-    #     point_set.add(
-    #         tuple([round(segment[1].position[0], 3), round(segment[1].position[1], 3)])
-    #     )
-    # print(f"Found {len(point_set)} unique points.")
     return results
 
 

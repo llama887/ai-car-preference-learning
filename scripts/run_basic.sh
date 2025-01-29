@@ -16,8 +16,9 @@ usage() {
 rules=""
 parallel=false
 ensembling=false
+heatmap=false
 
-while getopts "r:pe" opt; do
+while getopts "r:peh" opt; do
     case "$opt" in
         r)
             rules=$OPTARG
@@ -27,6 +28,9 @@ while getopts "r:pe" opt; do
             ;;
         e)
             ensembling=true
+            ;;
+        h)
+            heatmap=true
             ;;
         *)
             usage
@@ -44,7 +48,7 @@ fi
 distribution=$(printf -- "-d \"1/%d\" " $(seq 1 $rules | sed "s/.*/$((2 * rules))/"); printf -- "-d \"1/2\"")
 
 # Fixed parameters
-EPOCHS=100
+EPOCHS=75
 GENERATIONS=200
 PARAM_FILE="./best_params.yaml"
 MAIN_SCRIPT="main.py"
@@ -67,7 +71,11 @@ run_instance() {
     echo "Running with ${TRAJ} trajectories..."
 
     # Run the main.py script
-    cmd="python $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --heatmap --skip-plots"
+    if $heatmap; then
+        cmd="python $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --heatmap --skip-plots $parallel"
+    else
+        cmd="python $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots $parallel"
+    fi
 
     ZIP_SUFFIX=""
     if $ensembling; then

@@ -1,14 +1,16 @@
 run_baseline:
-	./scripts/run_basic.sh -r 3
-	./scripts/run_basic.sh -r 2
-	./scripts/run_basic.sh -r 1
+	python save_gridpoints.py
+	./scripts/run_basic.sh -r 3 -h
+	./scripts/run_basic.sh -r 2 -h
+	./scripts/run_basic.sh -r 1 -h
 	python performance_plots.py -c 3
 
 
 run_baseline_parallel:
-	./scripts/run_basic.sh -r 3 -p
-	./scripts/run_basic.sh -r 2 -p
-	./scripts/run_basic.sh -r 1 -p
+	python save_gridpoints.py
+	./scripts/run_basic.sh -r 3 -p -h
+	./scripts/run_basic.sh -r 2 -p -h
+	./scripts/run_basic.sh -r 1 -p -h
 	python performance_plots.py -c 3
 
 
@@ -58,21 +60,9 @@ run_with_subsampling:
 	...
 
 
-run_with_distributions:
-	./scripts/run_distribution.sh -r 6
-
-
-database_test_1_rules.pkl:
-	./scripts/parallel_data_collect.sh -t 2000000 -r 1 -n 10 -g
-	python ./combine_gargantuar.py -d tmp -o database_test -r 1 -p
-
-database_test_2_rules.pkl:
-	./scripts/parallel_data_collect.sh -t 2000000 -r 2 -n 10 -g
-	python ./combine_gargantuar.py -d tmp -o database_test -r 2 -p
-
-database_test_3_rules.pkl:
-	./scripts/parallel_data_collect.sh -t 2000000 -r 3 -n 10 -g
-	python ./combine_gargantuar.py -d tmp -o database_test -r 3 -p
+database_test.pkl:
+	./scripts/parallel_data_collect.sh -t 1000000 -r 2 -n 10 -p -g
+	python ./combine_gargantuar.py -d tmp -o database_test.pkl -r 2 -p --partial
 
 run_with_partial_rewards: database_test_2_rules.pkl
 	./scripts/run_partial_rewards.sh -r 3 -p 1
@@ -93,8 +83,8 @@ collect_data_1_rules:
 clean:
 	rm -rf wandb
 	rm -rf __pycache__
-	rm -rf figures
-	rm -rf trajectories
+	rm -rf figures*
+	rm -rf trajectories*
 	rm -rf logs
 	rm -rf rl_zoo_weights
 	rm -rf tmp
