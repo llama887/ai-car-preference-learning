@@ -6,14 +6,13 @@ number_of_processes=""
 partial_rewards=false
 generate=false
 
-while getopts "t:r:n:pg" flag; do
+while getopts "t:r:n:g" flag; do
     case "${flag}" in
         t) trajectories=${OPTARG};;
         r) rules=${OPTARG};;
         n) number_of_processes=${OPTARG};;
-        p) partial_rewards=true;;
         g) generate=true;;
-        *) echo "Usage: $0 -t trajectories -r rules -n number_of_processes [-p for partial rewards] [-g for generating db from scratch]" >&2
+        *) echo "Usage: $0 -t trajectories -r rules -n number_of_processes [-g for generating db from scratch]" >&2
            exit 1 ;;
     esac
 done
@@ -28,7 +27,7 @@ fi
 trajectories_per_process=$((trajectories / number_of_processes))
 
 # Create the list of distribution values
-distribution=$(printf -- "-d \"1/%d\" " $(seq 1 $((rules+1)) | sed "s/.*/$((rules+1))/"))
+distribution=$(printf -- "-d \"1/%d\" " $(seq 1 $rules | sed "s/.*/$((2 * rules))/"); printf -- "-d \"1/2\"")
 echo "Distribution: $distribution"
 
 # Create a temporary directory
@@ -37,9 +36,6 @@ mkdir -p tmp
 # Run Python scripts in parallel
 for ((i=0; i<number_of_processes; i++)); do
     cmd="stdbuf -oL python -u collect_data.py -t $trajectories_per_process $distribution -db tmp/master_database_${i}.pkl --trajectory tmp/trajectory_${i}/ --headless"
-    if $partial_rewards; then
-        cmd="$cmd -p"
-    fi
     if $generate; then
         cmd="$cmd -g"
     fi

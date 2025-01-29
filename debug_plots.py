@@ -378,7 +378,7 @@ def handle_plotting_rei(
     )
 
     graph_segment_rules_vs_reward(
-        "training",
+        "retrained",
         trained_segment_rules_satisifed,
         trained_segment_rewards,
         epochs,
@@ -386,7 +386,7 @@ def handle_plotting_rei(
     )
 
     graph_segment_rules_vs_reward(
-        "retrained",
+        "training",
         training_segment_rules_satisfied,
         training_segment_rewards,
     )

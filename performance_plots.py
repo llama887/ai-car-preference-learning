@@ -67,10 +67,10 @@ def unzipper_chungus_deluxe(num_rules, ensembling):
 
         num_trajectories = 0
         for zip_file in zip_files:
-            num_pairs, num_trajectories, aggregate_trained_satisfaction_segments = (
+            num_pairs, num_trajectories, trained_satisfaction_segments = (
                 extract_trajectories(zip_file)
             )
-            rule_aggregate_segments[num_pairs] = aggregate_trained_satisfaction_segments
+            rule_aggregate_segments[num_pairs] = trained_satisfaction_segments
 
             shutil.rmtree("temp_trajectories")
 
@@ -79,18 +79,19 @@ def unzipper_chungus_deluxe(num_rules, ensembling):
                 f"{zips_path}trajectories_t*_r{rule_count}_ensembling.zip"
             )
             for zip_file in ensembling_zip_files:
-                num_pairs, num_trajectories, aggregate_trained_satisfaction_segments = (
+                num_pairs, num_trajectories, trained_satisfaction_segments = (
                     extract_trajectories(zip_file)
                 )
                 rule_aggregate_ensembling_segments[num_pairs] = (
-                    aggregate_trained_satisfaction_segments
+                    trained_satisfaction_segments
                 )
 
-        trueRF_path = f"trueRF_trajectories/trueRF_{num_trajectories}_trajectories_{num_rules}_rules.pkl"
+        trueRF_path = f"trueRF_trajectories/trueRF_{num_trajectories}_trajectories_{rule_count}_rules.pkl"
         if not os.path.exists(trueRF_path):
             raise Exception(f"TrueRF file not found: {trueRF_path}")
         with open(trueRF_path, "rb") as f:
             true_trajectories = pickle.load(f)
+        print(trueRF_path)
 
         this_rule_true_satisfaction_segments = []
         # Process true agent trajectories
@@ -104,13 +105,9 @@ def unzipper_chungus_deluxe(num_rules, ensembling):
             this_rule_true_satisfaction_segments.append(gen_true_satisfaction_segments)
             count += AGENTS_PER_GENERATION
 
-        true_satisfaction_segments[rule_count] = np.array(
-            this_rule_true_satisfaction_segments
-        )
+        true_satisfaction_segments[rule_count] = np.array(this_rule_true_satisfaction_segments)
         aggregate_trained_satisfaction_segments[rule_count] = rule_aggregate_segments
-        aggregate_ensemble_trained_satisfaction_segments[rule_count] = (
-            rule_aggregate_ensembling_segments
-        )
+        aggregate_ensemble_trained_satisfaction_segments[rule_count] = rule_aggregate_ensembling_segments
 
     # best_true_satisfaction_segments key: rules -> value: best performing trueRF (100 x 20) 100 generations of (# of satisfaction segments by 20 agents))
     # aggregate_trained_satisfaction_segments  key: rules -> value: Map[key: # trajectory pairs -> value: (100 x 20)]
@@ -166,17 +163,10 @@ def handle_plotting_sana(
     aggregate_trained_satisfaction_segments,
     aggregate_ensembling_trained_satisfaction_segments=None,
 ):
-    trueRF_average_satisfaction_segments, trueRF_best_generation = (
-        get_true_generation_averages_and_best_generation(
-            true_satisfaction_segments, aggregate_trained_satisfaction_segments
-        )
-    )
-    (
-        aggregate_trainedRF_average_satisfaction_segments,
-        aggregate_trainedRF_best_generation,
-    ) = get_trained_generation_averages_and_best_generation(
-        aggregate_trained_satisfaction_segments
-    )
+    trueRF_average_satisfaction_segments, trueRF_best_generation = get_true_generation_averages_and_best_generation(true_satisfaction_segments)
+    for rules in trueRF_average_satisfaction_segments:
+        print(f"{rules} Rules:", trueRF_average_satisfaction_segments[rules].tolist())
+    aggregate_trainedRF_average_satisfaction_segments, aggregate_trainedRF_best_generation = get_trained_generation_averages_and_best_generation(aggregate_trained_satisfaction_segments)
 
     graph_normalized_segments_over_generations(
         trueRF_average_satisfaction_segments,

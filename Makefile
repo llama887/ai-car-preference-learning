@@ -58,25 +58,37 @@ run_with_subsampling:
 	...
 
 
-database_test.pkl:
-	./scripts/parallel_data_collect.sh -t 1000000 -r 2 -n 10 -p -g
-	python ./combine_gargantuar.py -d tmp -o database_test.pkl -r 2 -p --partial
+run_with_distributions:
+	./scripts/run_distribution.sh -r 6
 
-run_with_partial_rewards: database_test.pkl
-	./scripts/run_partial_rewards.sh -r 5 -p 3
+
+database_test_1_rules.pkl:
+	./scripts/parallel_data_collect.sh -t 2000000 -r 1 -n 10 -g
+	python ./combine_gargantuar.py -d tmp -o database_test -r 1 -p
+
+database_test_2_rules.pkl:
+	./scripts/parallel_data_collect.sh -t 2000000 -r 2 -n 10 -g
+	python ./combine_gargantuar.py -d tmp -o database_test -r 2 -p
+
+database_test_3_rules.pkl:
+	./scripts/parallel_data_collect.sh -t 2000000 -r 3 -n 10 -g
+	python ./combine_gargantuar.py -d tmp -o database_test -r 3 -p
+
+run_with_partial_rewards: database_test_2_rules.pkl
+	./scripts/run_partial_rewards.sh -r 3 -p 1
 	python simplex.py
 
 collect_data_3_rules:
 	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_3_length.pkl
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_3_rules_tmp.pkl
 
 collect_data_2_rules:
 	./scripts/parallel_data_collect.sh -t 20000000 -r 2 -n 10
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_2_length.pkl
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_2_rules_tmp.pkl
 
 collect_data_1_rules:
 	./scripts/parallel_data_collect.sh -t 20000000 -r 1 -n 10
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length.pkl
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_1_rules_tmp.pkl
 
 clean:
 	rm -rf wandb

@@ -33,11 +33,6 @@ if __name__ == "__main__":
         action="store_true",
         help="Database is paired",
     )
-    parser.add_argument(
-        "--partial",
-        action="store_true",
-        help="Partial reward",
-    )
     args = parser.parse_args()
 
     if args.pair and not args.rules:
@@ -61,7 +56,6 @@ if __name__ == "__main__":
 
     if args.pair:
         rules.NUMBER_OF_RULES = args.rules
-        rules.PARTIAL_REWARD = True if args.partial else False
         combined_database = []
         for pairs in databases:
             combined_database.extend(pairs)
@@ -72,9 +66,11 @@ if __name__ == "__main__":
             for database in databases:
                 combined_database[rules_satisfied].extend(database[rules_satisfied])
 
-
+    output_file = args.output
+    if args.output == "database_test":
+        output_file += f"_{args.rules}_rules.pkl"
     # Save the combined database
-    with open(args.output, "wb") as f:
+    with open(output_file, "wb") as f:
         pickle.dump(combined_database, f)
 
-    print(f"Combined database written to {args.output}")
+    print(f"Combined database written to {output_file}")

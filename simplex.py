@@ -36,16 +36,20 @@ if __name__ == "__main__":
                                 )
     fig.write_image("simplex/simplex_test_1.png")
 
-    # fig = ff.create_ternary_contour(np.array(distributions), np.array(adjusted_val_accs),
-    #                             pole_labels=['0 Rule', '1 Rule', '2 Rule'],
-    #                             interp_mode='cartesian',
-    #                             showscale=True,
-    #                             )
-    # fig.write_image("simplex_validation_1.png")
 
-    df = pd.DataFrame({'0 Rule': distributions[0], '1 Rule': distributions[1], '2 Rule': distributions[2], "test_acc": adjusted_test_accs})
-    fig = px.scatter_ternary(df, a="0 Rule", b="1 Rule", c="2 Rule", color="test_acc", color_continuous_scale="Rainbow")
+    df = pd.DataFrame({'0 Rule': distributions[0], '1 Rule': distributions[1], '2 Rule': distributions[2], "Test Accuracy": adjusted_test_accs})
+    fig = px.scatter_ternary(df, a="0 Rule", b="1 Rule", c="2 Rule", color="Test Accuracy", color_continuous_scale="Rainbow",) #text=df["Test Accuracy"].round(4))
+    fig.update_traces(marker=dict(size=30),  textposition="top center", textfont=dict(size=12, color="black"))
+
+    for i, row in df.iterrows():
+        y_coord = row['0 Rule']
+        x_coord = row['2 Rule'] + 0.4 * y_coord + 0.125 * (1 - row['2 Rule']) + 0.03
+        fig.add_annotation(
+            x=x_coord, 
+            y=y_coord, 
+            text=f"{row['Test Accuracy']:.4f}",
+            showarrow=False, 
+            font=dict(size=10, color='black')
+        )
+
     fig.write_image("simplex/simplex_test_2.png")
-
-    # fig = px.scatter_ternary(df, a="zero_rule", b="one_rule", c="two_rule", color="val_acc", color_continuous_scale="Rainbow")
-    # fig.write_image("simplex_validation_2.png")

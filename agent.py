@@ -25,7 +25,7 @@ os.environ["SDL_AUDIODRIVER"] = "dummy"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 trajectories_path = "trajectories/"
-master_database = "database_gargantuar"
+master_database = ""
 sampled_database = None
 
 # Constants
@@ -977,10 +977,10 @@ def run_population(
         population.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
-        if ".pkl" not in master_database:
-            master_database += (
-                f"_{train_trajectory_length}_length_{rules.NUMBER_OF_RULES}_rules.pkl"
-            )
+
+        if "subsampled" not in master_database:
+            master_database = f"database_gargantuar_{train_trajectory_length}_length_{rules.NUMBER_OF_RULES}_rules.pkl"
+
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
         missing_segments = "subsampled" not in master_database
         if run_type == "collect":

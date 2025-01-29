@@ -260,7 +260,7 @@ if __name__ == "__main__":
         if args.ensemble:
             model_weights = ["QUICK", reward.ensemble_path]
         else:
-            model_weights = [(reward.models_path + f"model_{args.epochs[0]}.pth")]
+            model_weights = [(reward.models_path + f"model_{args.epochs[0]}_{args.trajectories[0]}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")]
     else:
         model_weights = args.reward
 

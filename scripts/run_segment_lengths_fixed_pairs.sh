@@ -63,25 +63,20 @@ run_instance() {
      echo "Running with segment length ${SEGMENT_LENGTH}..."
 
     # Run the main.py script
-    cmd="python $MAIN_SCRIPT -e $EPOCHS -t $TRAJECTORIES -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless -s $SEGMENT_LENGTH"
-    
-    ZIP_SUFFIX=""
-    if $; then
-        ZIP_SUFFIX+="_s${SEGMENT_LENGTH}"
-    fi
+    cmd="python $MAIN_SCRIPT -e $EPOCHS -t $TRAJECTORIES -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots -s $SEGMENT_LENGTH"
     
     echo "Executing: $cmd"
-    eval $cmd
+
 
     # Check if the directories exist and zip them
     if [ -d "$FIGURE_DIR" ]; then
-        zip -r "zips/${FIGURE_DIR}_r${rules}${ZIP_SUFFIX}.zip" $FIGURE_DIR
+        zip -r "zips/${FIGURE_DIR}_r${rules}.zip" $FIGURE_DIR
     else
         echo "Warning: $FIGURE_DIR not found for ${SEGMENT_LENGTH} segment length."
     fi
 
     if [ -d "$TRAJECTORY_DIR" ]; then
-        zip -r "zips/${TRAJECTORY_DIR}_r${rules}${ZIP_SUFFIX}.zip" $TRAJECTORY_DIR
+        zip -r "zips/${TRAJECTORY_DIR}_r${rules}.zip" $TRAJECTORY_DIR
     else
         echo "Warning: $TRAJECTORY_DIR not found for ${SEGMENT_LENGTH} segment length."
     fi

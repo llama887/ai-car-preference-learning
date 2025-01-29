@@ -41,12 +41,6 @@ if __name__ == "__main__":
         help="Path to save trajectory pkl files",
     )
     parse.add_argument(
-        "-p",
-        "--partial",
-        action="store_true",
-        help="partial reward",
-    )
-    parse.add_argument(
         "-g",
         "--generate",
         action="store_true",
@@ -54,8 +48,6 @@ if __name__ == "__main__":
     )
     args = parse.parse_args()
 
-    if args.partial:
-        rules.PARTIAL_REWARD = True
     if args.generate:
         agent.subsample = False
 
