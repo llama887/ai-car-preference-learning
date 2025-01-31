@@ -22,7 +22,8 @@ from debug_plots import (
 from reward import (
     train_reward_function,
 )
-from test_accuracy import(
+from save_gridpoints import generate_grid_points
+from test_accuracy import (
     test_model,
 )
 
@@ -263,17 +264,20 @@ if __name__ == "__main__":
         if args.ensemble:
             model_weights = ["QUICK", reward.ensemble_path]
         else:
-            model_weights = [(reward.models_path + f"model_{args.epochs[0]}_epochs_{args.trajectories[0]}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")]
+            model_weights = [
+                (
+                    reward.models_path
+                    + f"model_{args.epochs[0]}_epochs_{args.trajectories[0]}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
+                )
+            ]
     else:
         model_weights = args.reward
 
-
-    print("Checking for:", f"trueRF_trajectories/trueRF_{args.generations[0] * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl")
     # run the simulation with the true reward function (if trajectories do not exist yet)
     if os.path.exists(
-        f"trueRF_trajectories/trueRF_{args.generations[0] * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+        f"trueRF_trajectories/trueRF_{args.generations * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
     ):
-        truePairs = args.generations[0] * AGENTS_PER_GENERATION
+        truePairs = args.generations * AGENTS_PER_GENERATION
     else:
         print("Simulating on true reward function...")
         truePairs, true_rules_followed = start_simulation(
@@ -358,6 +362,8 @@ if __name__ == "__main__":
         if rules.NUMBER_OF_RULES > 2:
             print("Heatmap plotting only works for less than 2 rules.")
         else:
+            if not os.path.exists("grid_points.pkl"):
+                generate_grid_points()
             reward_heatmap_plot.plot_reward_heatmap(
                 samples=reward_heatmap_plot.get_samples(
                     args.parameters
@@ -370,11 +376,10 @@ if __name__ == "__main__":
                 figure_path=reward.figure_path,
             )
 
-    
     output_file = f"{trajectory_path}/test_accuracy.pkl"
     test_file = f"database_test_{rules.NUMBER_OF_RULES}_rules.pkl"
-    test_acc, adjusted_test_acc = test_model(model_weights, test_file, hidden_size, batch_size)
+    test_acc, adjusted_test_acc = test_model(
+        model_weights, test_file, hidden_size, batch_size
+    )
     with open(output_file, "wb") as f:
         pickle.dump((test_acc, adjusted_test_acc), f)
-    
-

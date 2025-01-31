@@ -302,6 +302,11 @@ if __name__ == "__main__":
         nargs=1,
         help="Number of rules",
     )
+    parse.add_argument(
+        "--train-agents",
+        action="store_true",
+        help="Train agents on the subsampled data",
+    )
     args = parse.parse_args()
 
     if args.rules:
