@@ -519,6 +519,7 @@ def graph_segment_rules_vs_reward(
         palette="muted",
         alpha=0.55,
     )
+    
     plt.title(title)
     plt.legend()
     plt.savefig(f"{reward.figure_path}{title}.png")

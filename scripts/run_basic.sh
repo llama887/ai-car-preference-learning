@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Default array of trajectories if none are provided as input
-TRAJECTORIES=(1000000 100000 10000)
+TRAJECTORIES=(1000000 100000 10000 1000)
 
 # Function to display usage
 usage() {
@@ -49,14 +49,10 @@ fi
 distribution=$(printf -- "-d \"1/%d\" " $(seq 1 $rules | sed "s/.*/$((2 * rules))/"); printf -- "-d \"1/2\"")
 
 # Fixed parameters
-EPOCHS=75
+EPOCHS=50
 GENERATIONS=200
 PARAM_FILE="./best_params.yaml"
 MAIN_SCRIPT="main.py"
-
-# Remove any existing zip files for figures and trajectories to avoid conflicts
-[ -d "zips_baseline" ] && mv zips_baseline zips_baseline_last
-[ -d "zips_ensembling" ] && mv zips_ensembling zips_ensembling_last
 
 # Create the zips directory if it doesn't exist
 mkdir -p zips_baseline
@@ -77,9 +73,9 @@ run_instance() {
 
     # Run the main.py script
     if $heatmap; then
-        cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --heatmap --skip-plots"
+        cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --heatmap --skip-plots --skip-retrain"
     else
-        cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots"
+        cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots --skip-retrain"
     fi
 
     ZIP_SUFFIX=""
@@ -90,8 +86,8 @@ run_instance() {
         ZIP_DIR+="_baseline"
     fi
 
-    echo "Executing: $cmd 2>&1 | tee logs/log_${TRAJ}_t_${rules}_r_${ZIP_SUFFIX}"
-    eval $cmd 2>&1 | tee logs/log_${TRAJ}_t_${rules}_r_${ZIP_SUFFIX}
+    echo "Executing: $cmd 2>&1 | tee logs/log_${TRAJ}_t_${rules}_r${ZIP_SUFFIX}"
+    eval $cmd 2>&1 | tee logs/log_${TRAJ}_t_${rules}_r${ZIP_SUFFIX}
 
     # Check if the directories exist and zip them
     if [ -d "$FIGURE_DIR" ]; then
@@ -115,7 +111,7 @@ export MAIN_SCRIPT EPOCHS GENERATIONS PARAM_FILE rules distribution segments ens
 
 # Run instances either in parallel or sequentially
 if $parallel; then
-    parallel --ungroup -j 3 run_instance ::: "${TRAJECTORIES[@]}"
+    parallel --ungroup -j 4 run_instance ::: "${TRAJECTORIES[@]}"
 else
     for TRAJ in "${TRAJECTORIES[@]}"; do
         run_instance $TRAJ

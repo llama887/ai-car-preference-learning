@@ -149,6 +149,8 @@ if __name__ == "__main__":
         "--heatmap", action="store_true", help="Plot heatmap of collected data"
     )
     parse.add_argument("--skip-plots", action="store_true", help="Skip debug plots")
+    parse.add_argument("--skip-retrain", action="store_true", help="Skip retraining agents")
+    parse.add_argument("--save-at-end", action="store_true", help="Save models when training is over")
 
     args = parse.parse_args()
 
@@ -244,7 +246,7 @@ if __name__ == "__main__":
 
         print("Starting training on trajectories...")
         print(
-            f"train_reward_function({database_path}, {args.epochs[0]}, {args.parameters}, {args.ensemble}, {args.figure})"
+            f"train_reward_function({database_path}, {args.epochs[0]}, {args.parameters}, {args.ensemble}, {args.figure}, )"
         )
         train_reward_function(
             trajectories_file_path=database_path,
@@ -253,6 +255,7 @@ if __name__ == "__main__":
             use_ensemble=args.ensemble,
             figure_folder_name=args.figure,
             return_stat=None,
+            save_at_end=args.save_at_end
         )
 
         print("Finished training model...")
@@ -296,85 +299,86 @@ if __name__ == "__main__":
     print("Simulating on trained reward function...")
     load_models(model_weights, hidden_size)
 
-    trainedPairs, trained_rules_followed = start_simulation(
-        "./config/agent_config.txt",
-        args.generations[0],
-        0,
-        "trainedRF",
-        args.headless,
-        args.ensemble,
-    )
-    true_database = f"trueRF_trajectories/trueRF_{truePairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
-    trained_database = (
-        trajectory_path
-        + f"trainedRF_{trainedPairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
-    )
-    if not args.skip_plots:
-        model_info = {
-            "net": agent.reward_network,
-            "ensemble": agent.ensemble,
-            "hidden-size": hidden_size,
-            "epochs": -1 if args.epochs is None else args.epochs[0],
-            "pairs-learned": -1 if args.trajectories is None else args.trajectories[0],
-            "agents-per-generation": 20,
-        }
-
-        (
-            true_agent_satisfaction_segments,
-            true_agent_rewards,
-            trained_agent_satisfaction_segments,
-            trained_agent_rewards,
-            trained_segment_rules_satisifed,
-            trained_segment_rewards,
-            trained_segment_distances,
-            training_segment_rules_satisfied,
-            training_segment_rewards,
-            training_segment_distances,
-        ) = populate_lists(
-            true_database,
-            trained_database,
-            database_path,
-            model_info,
+    if not args.skip_retrain:
+        trainedPairs, trained_rules_followed = start_simulation(
+            "./config/agent_config.txt",
+            args.generations[0],
+            0,
+            "trainedRF",
+            args.headless,
+            args.ensemble,
         )
-
-        print("PLOTTING...")
-        handle_plotting_rei(
-            model_info,
-            true_agent_satisfaction_segments,
-            true_agent_rewards,
-            trained_agent_satisfaction_segments,
-            trained_agent_rewards,
-            trained_segment_rules_satisifed,
-            trained_segment_rewards,
-            trained_segment_distances,
-            training_segment_rules_satisfied,
-            training_segment_rewards,
-            training_segment_distances,
+        true_database = f"trueRF_trajectories/trueRF_{truePairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+        trained_database = (
+            trajectory_path
+            + f"trainedRF_{trainedPairs}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
         )
-    else:
-        print("Plotting skipped.")
+        if not args.skip_plots:
+            model_info = {
+                "net": agent.reward_network,
+                "ensemble": agent.ensemble,
+                "hidden-size": hidden_size,
+                "epochs": -1 if args.epochs is None else args.epochs[0],
+                "pairs-learned": -1 if args.trajectories is None else args.trajectories[0],
+                "agents-per-generation": 20,
+            }
 
-    if args.heatmap:
-        if rules.NUMBER_OF_RULES > 2:
-            print("Heatmap plotting only works for less than 2 rules.")
-        else:
-            reward_heatmap_plot.plot_reward_heatmap(
-                samples=reward_heatmap_plot.get_samples(
-                    args.parameters
-                    if args.parameters is not None
-                    else "best_params.yaml",
-                    "grid_points.pkl",
-                ),
-                number_of_rules=args.composition,
-                reward_model=agent.reward_network,
-                figure_path=reward.figure_path,
+            (
+                true_agent_satisfaction_segments,
+                true_agent_rewards,
+                trained_agent_satisfaction_segments,
+                trained_agent_rewards,
+                trained_segment_rules_satisifed,
+                trained_segment_rewards,
+                trained_segment_distances,
+                training_segment_rules_satisfied,
+                training_segment_rewards,
+                training_segment_distances,
+            ) = populate_lists(
+                true_database,
+                trained_database,
+                database_path,
+                model_info,
             )
 
-    
-    output_file = f"{trajectory_path}/test_accuracy.pkl"
+            print("PLOTTING...")
+            handle_plotting_rei(
+                model_info,
+                true_agent_satisfaction_segments,
+                true_agent_rewards,
+                trained_agent_satisfaction_segments,
+                trained_agent_rewards,
+                trained_segment_rules_satisifed,
+                trained_segment_rewards,
+                trained_segment_distances,
+                training_segment_rules_satisfied,
+                training_segment_rewards,
+                training_segment_distances,
+            )
+        else:
+            print("Plotting skipped.")
+
+    output_file = f"{agent.trajectories_path}/test_accuracy.pkl"
     test_file = f"database_test_{rules.NUMBER_OF_RULES}_rules.pkl"
     test_acc, adjusted_test_acc = test_model(model_weights, test_file, hidden_size, batch_size)
     with open(output_file, "wb") as f:
         pickle.dump((test_acc, adjusted_test_acc), f)
+
+    # if args.heatmap:
+    #     if rules.NUMBER_OF_RULES > 2:
+    #         print("Heatmap plotting only works for less than 2 rules.")
+    #     else:
+    #         reward_heatmap_plot.plot_reward_heatmap(
+    #             samples=reward_heatmap_plot.get_samples(
+    #                 args.parameters
+    #                 if args.parameters is not None
+    #                 else "best_params.yaml",
+    #                 "grid_points.pkl",
+    #             ),
+    #             number_of_rules=args.composition,
+    #             reward_model=agent.reward_network,
+    #             figure_path=reward.figure_path,
+    #         )
+
     
 

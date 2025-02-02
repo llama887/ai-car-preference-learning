@@ -2,11 +2,17 @@ import torch
 import glob
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import pickle
 
 import agent
 from agent import (
     STATE_ACTION_SIZE
 )
+
+import rules
+
 from reward import (
     Ensemble,
     TrajectoryDataset,
@@ -80,10 +86,18 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
         pin_memory=False,
     )
 
+    segment_rules_satisfied = []
+    segment_rewards = []
     with torch.no_grad():
         for test_traj1, test_traj2, test_true_pref, test_score1, test_score2 in test_dataloader:
             test_rewards1 = model(test_traj1)
             test_rewards2 = model(test_traj2)
+
+            segment_rules_satisfied.extend(rules.check_batch_rules(test_traj1, rules.NUMBER_OF_RULES))
+            segment_rules_satisfied.extend(rules.check_batch_rules(test_traj2, rules.NUMBER_OF_RULES))
+            segment_rewards.extend(test_rewards1.tolist())
+            segment_rewards.extend(test_rewards2.tolist())
+
             predictions = (test_rewards1 >= test_rewards2).squeeze()
             correct_predictions = (predictions == test_true_pref).sum().item()
             total_correct += correct_predictions
@@ -96,4 +110,30 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
             
         test_acc = total_correct / test_size
         adjusted_test_acc = adjusted_correct / total_diff if total_diff > 0 else 0
+
+    df = pd.DataFrame(
+        {
+            "Rules Satisfied": segment_rules_satisfied,
+            "Reward of Trajectory Segment": segment_rewards,
+        }
+    )
+
+    sns.violinplot(
+        x="Rules Satisfied",
+        y="Reward of Trajectory Segment",
+        data=df,
+        inner="box",
+        palette="muted",
+        alpha=0.55,
+    )
+
+    title = "test_violin"
+    plt.legend()
+    plt.savefig(f"{reward.figure_path}{title}.png")
+    plt.close()
+
+    with open(f"{agent.trajectories_path}/violin_data.pkl", "wb") as f:
+        pickle.dump(df, f)
+
     return test_acc, adjusted_test_acc
+    

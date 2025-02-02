@@ -15,9 +15,9 @@ run_baseline_parallel:
 
 
 run_baseline_and_ensembling:
-	./scripts/run_basic.sh -r 3 -h 
-	./scripts/run_basic.sh -r 2 -h 
-	./scripts/run_basic.sh -r 1 -h 
+	./scripts/run_basic.sh -r 3
+	./scripts/run_basic.sh -r 2
+	./scripts/run_basic.sh -r 1 
 	./scripts/run_basic.sh -r 3 -e
 	./scripts/run_basic.sh -r 2	-e
 	./scripts/run_basic.sh -r 1	-e
@@ -90,6 +90,15 @@ collect_data_longer_segments:
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_5_length_3_rules_tmp.pkl
 	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 6
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_6_length_3_rules_tmp.pkl
+
+
+backup:
+	mv zips_baseline_last zips_baseline_delete
+	mv zips_ensembling_last zips_ensembling_delete
+	mv zips_baseline zips_baseline_last
+	mv zips_ensembling zips_ensembling_last
+	rm -rf zips_baseline_delete
+	rm -rf zips_ensembling_delete
 
 clean:
 	rm -rf wandb

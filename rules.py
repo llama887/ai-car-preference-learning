@@ -1,5 +1,6 @@
 # [<Radars: [46, 54, 293, 114, 73], Action: 1 ,Position: [830, 920]>, <Radars: [41, 52, 276, 114, 75], Action: 1 ,Position: [849.6961550602441, 923.4729635533386]>]
 import math
+import torch
 
 NUMBER_OF_RULES = 2
 SEGMENT_DISTRIBUTION_BY_RULES = [1 / 4, 1 / 4, 1 / 2]
@@ -51,3 +52,12 @@ def check_rules_long_segment(segment, total_rules):
         total_reward += reward
         rules_followed_list.append(rules_followed)
     return rule_counts, total_reward, rules_followed_list
+
+def check_batch_rules(batch_segments, total_rules):
+    batch_rule_counts = []
+    
+    for segment in batch_segments:  # Iterate over each trajectory in batch
+        rule_counter, _, rules_followed = check_rules_long_segment(segment, total_rules)
+        batch_rule_counts.append(rule_counter)
+
+    return batch_rule_counts
