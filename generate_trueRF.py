@@ -1,18 +1,13 @@
 import argparse
 import os
-import sys
-
-import yaml
 
 import agent
-import reward
 import rules
-
-from rules import NUMBER_OF_RULES, SEGMENT_DISTRIBUTION_BY_RULES
-from agent import STATE_ACTION_SIZE, AGENTS_PER_GENERATION, run_population, load_models
+from agent import AGENTS_PER_GENERATION, run_population
 
 os.environ["WANDB_SILENT"] = "true"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+
 
 def start_simulation(
     config_path,
@@ -36,6 +31,7 @@ def start_simulation(
         ),
         agent.rules_followed,
     )
+
 
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(
@@ -74,9 +70,13 @@ if __name__ == "__main__":
         raise Exception("Missing -c flag")
 
     # run the simulation with the true reward function (if trajectories do not exist yet)
-    if os.path.exists(f"trueRF_trajectories/trueRF_{args.generations * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"):
+    if os.path.exists(
+        f"trueRF_trajectories/trueRF_{args.generations * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
+    ):
         truePairs = args.generations * AGENTS_PER_GENERATION
-        print(f"trueRF already exists with {truePairs} trajectories on {rules.NUMBER_OF_RULES} rules")
+        print(
+            f"trueRF already exists with {truePairs} trajectories on {rules.NUMBER_OF_RULES} rules"
+        )
     else:
         print("Simulating on true reward function...")
         truePairs, true_rules_followed = start_simulation(

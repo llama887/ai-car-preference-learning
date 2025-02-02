@@ -1,5 +1,5 @@
 run_baseline:
-	python save_gridpoints.py
+	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	./scripts/run_basic.sh -r 3 -h
 	./scripts/run_basic.sh -r 2 -h
 	./scripts/run_basic.sh -r 1 -h
@@ -7,7 +7,7 @@ run_baseline:
 
 
 run_baseline_parallel:
-	python save_gridpoints.py
+	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	./scripts/run_basic.sh -r 3 -p -h
 	./scripts/run_basic.sh -r 2 -p -h
 	./scripts/run_basic.sh -r 1 -p -h
@@ -64,6 +64,14 @@ run_with_partial_rewards: database_test_2_rules.pkl
 	./scripts/run_partial_rewards.sh -r 3 -p 1
 	python simplex.py
 
+run_on_subsampled_data:
+	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
+	./scripts/run_basic.sh -r 3 -h
+	./scripts/run_basic.sh -r 2 -h
+	./scripts/run_basic.sh -r 1 -h
+	python performance_plots.py -c 3
+
+
 collect_data_3_rules:
 	rm -rf tmp
 	./scripts/parallel_data_collect.sh -t 2000000 -r 3 -n 20
@@ -79,6 +87,11 @@ collect_data_1_rules:
 	./scripts/parallel_data_collect.sh -t 2000000 -r 1 -n 20
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_1_rules.pkl
 
+subsample_collect_data_all:
+	python subsample_state.py -s 2000000 -r 1
+	python subsample_state.py -s 2000000 -r 2
+	python subsample_state.py -s 2000000 -r 3
+
 collect_data_longer_segments:
 	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 2
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_2_length_3_rules_tmp.pkl
@@ -90,6 +103,14 @@ collect_data_longer_segments:
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_5_length_3_rules_tmp.pkl
 	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 6
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_6_length_3_rules_tmp.pkl
+
+collect_data_all:
+	make collect_data_1_rules
+	make collect_data_2_rules
+	make collect_data_3_rules
+	make subsample_collect_data_all
+	make collect_data_longer_segments
+
 
 
 backup:

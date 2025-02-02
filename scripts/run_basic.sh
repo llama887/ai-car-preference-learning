@@ -5,11 +5,12 @@ TRAJECTORIES=(1000000 100000 10000 1000)
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 -r <rules> [-p] [-e] [-h]"
+    echo "Usage: $0 -r <rules> [-p] [-e] [-h] [-s]"
     echo "  -r <rules>     Specify the rules value (integer)"
     echo "  -p             Run in parallel"
     echo "  -e             Enable ensembling"
     echo "  -h             Enable heatmap"
+    echo "  -s             Enable subsampling"
     exit 1
 }
 
@@ -18,8 +19,9 @@ rules=""
 parallel=false
 ensembling=false
 heatmap=false
+subsample=false
 
-while getopts "r:peh" opt; do
+while getopts "r:pehs" opt; do
     case "$opt" in
         r)
             rules=$OPTARG
@@ -32,6 +34,9 @@ while getopts "r:peh" opt; do
             ;;
         h)
             heatmap=true
+            ;;
+        s)
+            subsample=true
             ;;
         *)
             usage
@@ -57,6 +62,7 @@ MAIN_SCRIPT="main.py"
 # Create the zips directory if it doesn't exist
 mkdir -p zips_baseline
 mkdir -p zips_ensembling
+mkdir -p zips_subsample
 mkdir -p logs
 
 # Function to run a single instance of main.py
@@ -65,6 +71,16 @@ run_instance() {
     FIGURE_DIR="figures_t$TRAJ"
     TRAJECTORY_DIR="trajectories_t$TRAJ"
     ZIP_DIR="zips"
+    heatmap_flag = ""
+    subsample_flag = ""
+
+    if $heatmap; then
+        heatmap_flag="--heatmap"
+    fi
+
+    if $subsample; then
+        subsample_flag="-md subsampled_gargantuar_1_length_${rules}_rules.pkl"
+    fi
 
     # Remove the directories to prepare for the next run
     rm -rf figures* trajectories trajectories_t*
@@ -72,16 +88,16 @@ run_instance() {
     echo "Running with ${TRAJ} trajectories..."
 
     # Run the main.py script
-    if $heatmap; then
-        cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --heatmap --skip-plots --skip-retrain"
-    else
-        cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots --skip-retrain"
-    fi
+    cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots --skip-retrain $heatmap_flag $subsample_flag"
+
 
     ZIP_SUFFIX=""
     if $ensembling; then
         ZIP_SUFFIX+="_ensembling"
         ZIP_DIR+="_ensembling"
+    else if $subsample; then
+        ZIP_SUFFIX+="_subsample"
+        ZIP_DIR+="_subsample"
     else
         ZIP_DIR+="_baseline"
     fi
