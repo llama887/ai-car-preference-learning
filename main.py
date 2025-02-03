@@ -1,4 +1,5 @@
 import argparse
+import gc
 import os
 import pickle
 import sys
@@ -199,6 +200,7 @@ if __name__ == "__main__":
                 rules.SEGMENT_DISTRIBUTION_BY_RULES = [
                     len(s) / total_segments for s in data
                 ]
+                del data
         else:
             try:
                 rules.SEGMENT_DISTRIBUTION_BY_RULES = [
@@ -225,7 +227,7 @@ if __name__ == "__main__":
     if args.segment and args.segment < 1:
         raise Exception("Can not have segments with length < 1")
     agent.train_trajectory_length = args.segment if args.segment else 1
-
+    gc.collect()
     model_weights = ""
     if args.reward is None:
         if args.master_database and "subsampled" in args.master_database:
@@ -234,6 +236,7 @@ if __name__ == "__main__":
                 generate_database_from_segments(
                     data[: rules.NUMBER_OF_RULES + 1], args.trajectories[0]
                 )
+                del data
         else:
             # start the simulation in data collecting mode
             num_traj, collecting_rules_followed = start_simulation(
@@ -244,7 +247,7 @@ if __name__ == "__main__":
                 args.headless,
                 args.ensemble,
             )
-
+        gc.collect()
         print("Starting training on trajectories...")
         print(
             f"train_reward_function({database_path}, {args.epochs[0]}, {args.parameters}, {args.ensemble}, {args.figure}, )"

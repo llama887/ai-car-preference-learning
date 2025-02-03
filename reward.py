@@ -512,7 +512,7 @@ def train_ensemble(
         validation_accuracies.append(avg_val_acc)
         adjusted_validation_accuracies.append(avg_adjusted_val_acc)
 
-        if epoch % 100 == 0:
+        if epoch % 5 == 0:
             print(
                 f"Epoch {epoch}/{epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}, Train Acc: {avg_train_acc} (adjusted: {avg_adjusted_train_acc}), Val Acc: {avg_val_acc} (adjusted: {avg_adjusted_val_acc})"
             )
@@ -657,7 +657,8 @@ def train_model(
                 best_loss = average_validation_loss
                 torch.save(
                     net.state_dict(),
-                    model_path + f"_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth",
+                    model_path
+                    + f"_{10 ** round(math.log10(n_pairs))}_pairs_{rules.NUMBER_OF_RULES}_rules.pth",
                 )
                 print("MODEL SAVED AT EPOCH:", epoch)
             average_validation_accuracy = total_validation_accuracy / val_size
