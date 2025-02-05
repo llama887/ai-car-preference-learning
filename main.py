@@ -1,4 +1,5 @@
 import argparse
+import gc
 import os
 import pickle
 import sys
@@ -22,7 +23,6 @@ from debug_plots import (
 from reward import (
     train_reward_function,
 )
-from save_gridpoints import generate_grid_points
 from test_accuracy import (
     test_model,
 )
@@ -150,8 +150,12 @@ if __name__ == "__main__":
         "--heatmap", action="store_true", help="Plot heatmap of collected data"
     )
     parse.add_argument("--skip-plots", action="store_true", help="Skip debug plots")
-    parse.add_argument("--skip-retrain", action="store_true", help="Skip retraining agents")
-    parse.add_argument("--save-at-end", action="store_true", help="Save models when training is over")
+    parse.add_argument(
+        "--skip-retrain", action="store_true", help="Skip retraining agents"
+    )
+    parse.add_argument(
+        "--save-at-end", action="store_true", help="Save models when training is over"
+    )
 
     args = parse.parse_args()
 
@@ -199,6 +203,7 @@ if __name__ == "__main__":
                 rules.SEGMENT_DISTRIBUTION_BY_RULES = [
                     len(s) / total_segments for s in data
                 ]
+                del data
         else:
             try:
                 rules.SEGMENT_DISTRIBUTION_BY_RULES = [
@@ -225,7 +230,7 @@ if __name__ == "__main__":
     if args.segment and args.segment < 1:
         raise Exception("Can not have segments with length < 1")
     agent.train_trajectory_length = args.segment if args.segment else 1
-
+    gc.collect()
     model_weights = ""
     if args.reward is None:
         if args.master_database and "subsampled" in args.master_database:
@@ -234,6 +239,7 @@ if __name__ == "__main__":
                 generate_database_from_segments(
                     data[: rules.NUMBER_OF_RULES + 1], args.trajectories[0]
                 )
+                del data
         else:
             # start the simulation in data collecting mode
             num_traj, collecting_rules_followed = start_simulation(
@@ -244,7 +250,7 @@ if __name__ == "__main__":
                 args.headless,
                 args.ensemble,
             )
-
+        gc.collect()
         print("Starting training on trajectories...")
         print(
             f"train_reward_function({database_path}, {args.epochs[0]}, {args.parameters}, {args.ensemble}, {args.figure}, )"
@@ -256,7 +262,7 @@ if __name__ == "__main__":
             use_ensemble=args.ensemble,
             figure_folder_name=args.figure,
             return_stat=None,
-            save_at_end=args.save_at_end
+            save_at_end=args.save_at_end,
         )
 
         print("Finished training model...")
@@ -323,7 +329,9 @@ if __name__ == "__main__":
                 "ensemble": agent.ensemble,
                 "hidden-size": hidden_size,
                 "epochs": -1 if args.epochs is None else args.epochs[0],
-                "pairs-learned": -1 if args.trajectories is None else args.trajectories[0],
+                "pairs-learned": -1
+                if args.trajectories is None
+                else args.trajectories[0],
                 "agents-per-generation": 20,
             }
 
@@ -370,21 +378,18 @@ if __name__ == "__main__":
     with open(output_file, "wb") as f:
         pickle.dump((test_acc, adjusted_test_acc), f)
 
-    # if args.heatmap:
-    #     if rules.NUMBER_OF_RULES > 2:
-    #         print("Heatmap plotting only works for less than 2 rules.")
-    #     else:
-    #         reward_heatmap_plot.plot_reward_heatmap(
-    #             samples=reward_heatmap_plot.get_samples(
-    #                 args.parameters
-    #                 if args.parameters is not None
-    #                 else "best_params.yaml",
-    #                 "grid_points.pkl",
-    #             ),
-    #             number_of_rules=args.composition,
-    #             reward_model=agent.reward_network,
-    #             figure_path=reward.figure_path,
-    #         )
-
-    
-
+    if args.heatmap:
+        if rules.NUMBER_OF_RULES > 2:
+            print("Heatmap plotting only works for less than 2 rules.")
+        else:
+            reward_heatmap_plot.plot_reward_heatmap(
+                samples=reward_heatmap_plot.get_samples(
+                    args.parameters
+                    if args.parameters is not None
+                    else "best_params.yaml",
+                    "grid_points.pkl",
+                ),
+                number_of_rules=args.composition,
+                reward_model=agent.reward_network,
+                figure_path=reward.figure_path,
+            )

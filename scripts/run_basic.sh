@@ -65,32 +65,29 @@ mkdir -p zips_ensembling
 mkdir -p zips_subsample
 mkdir -p logs
 
+
+# Remove previous results
+rm -rf figures* trajectories trajectories_t*
+
 # Function to run a single instance of main.py
 run_instance() {
     TRAJ=$1
     FIGURE_DIR="figures_t$TRAJ"
     TRAJECTORY_DIR="trajectories_t$TRAJ"
     ZIP_DIR="zips"
-    heatmap_flag=""
-    subsample_flag=""
-
-    if $heatmap; then
-        heatmap_flag="--heatmap"
-    fi
-
-    if $subsample; then
-        subsample_flag="-md subsampled_gargantuar_1_length_${rules}_rules.pkl"
-    fi
-
-    # Remove the directories to prepare for the next run
-    rm -rf figures* trajectories trajectories_t*
 
     echo "Running with ${TRAJ} trajectories..."
 
-    # Run the main.py script
-    cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots $heatmap_flag $subsample_flag"
+    # Define the command
+    cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots"
 
+    if $heatmap; then
+        cmd+=" --heatmap"
+    fi
 
+    if $subsample; then
+        cmd+=" -md subsampled_gargantuar_1_length_${rules}_rules.pkl"
+    fi
     ZIP_SUFFIX=""
     if $ensembling; then
         ZIP_SUFFIX+="_ensembling"
@@ -102,10 +99,35 @@ run_instance() {
         ZIP_DIR+="_baseline"
     fi
 
-    echo "Executing: $cmd 2>&1 | tee logs/log_${TRAJ}_t_${rules}_r${ZIP_SUFFIX}"
-    eval $cmd 2>&1 | tee logs/log_${TRAJ}_t_${rules}_r${ZIP_SUFFIX}
+    LOG_FILE="logs/log_${TRAJ}_t_${rules}_r${ZIP_SUFFIX}.log"
 
-    # Check if the directories exist and zip them
+    # Retry logic
+    MAX_RETRIES=5
+    RETRY_DELAY=300  # Initial wait time (seconds)
+    attempt=1
+
+    while [ $attempt -le $MAX_RETRIES ]; do
+        echo "Attempt $attempt: Executing: $cmd 2>&1 | tee $LOG_FILE"
+        eval $cmd 2>&1 | tee $LOG_FILE || $cmd 2>&1 | tee $LOG_FILE
+        EXIT_CODE=${PIPESTATUS[0]}
+
+        # Check for OOM conditions
+        if grep -qi "out of memory\|killed process" $LOG_FILE || [ $EXIT_CODE -eq 137 ]; then
+            echo "Detected OOM error! Retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+            RETRY_DELAY=$((RETRY_DELAY * 2))  # Exponential backoff
+            attempt=$((attempt + 1))
+        else
+            break  # Exit loop if successful
+        fi
+    done
+
+    if [ $attempt -gt $MAX_RETRIES ]; then
+        echo "Run failed after $MAX_RETRIES attempts. Skipping..."
+        return 1
+    fi
+
+    # Zip results
     if [ -d "$FIGURE_DIR" ]; then
         zip -r "${ZIP_DIR}/${FIGURE_DIR}_r${rules}${ZIP_SUFFIX}.zip" $FIGURE_DIR
     else
@@ -122,9 +144,10 @@ run_instance() {
 
 }
 
+
 # Export the function and variables so they are available to parallel processes
 export -f run_instance
-export MAIN_SCRIPT EPOCHS GENERATIONS PARAM_FILE rules distribution segments ensembling heatmap subsample
+export MAIN_SCRIPT EPOCHS GENERATIONS PARAM_FILE rules distribution segments ensembling heatmap parallel 
 
 # Run instances either in parallel or sequentially
 if $parallel; then
