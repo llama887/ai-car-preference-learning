@@ -409,6 +409,8 @@ def break_into_segments(trajectory, rules_per_step, done):
     for i in range(train_trajectory_length + 1, len(trajectory)):
         current_segment.popleft()
         current_segment.append(trajectory[i])
+        if trajectory[i].action == -1:
+            break
         current_rule_sum += (
             rules_per_step[i - 1] - rules_per_step[i - 1 - train_trajectory_length]
         )
@@ -550,7 +552,8 @@ def generate_database(trajectory_path):
         saved_segments, \
         num_pairs, \
         saved_trajectories, \
-        train_trajectory_length
+        train_trajectory_length, \
+        master_database
     if run_type == "collect":
         # Break trajectories into trajectory segments
         trajectory_segments = []
@@ -654,10 +657,11 @@ def generate_database(trajectory_path):
 
         database_to_save = (
             trajectory_path
-            + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
+            + f"database_{number_of_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
             if subsample
             else sampled_database
         )
+        
         # Save To Database
         with open(
             database_to_save,
@@ -980,7 +984,7 @@ def run_population(
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
 
-        if "subsampled" not in master_database:
+        if "subsampled" not in master_database and master_database.find("tmp") != 0:
             master_database = f"database_gargantuar_{train_trajectory_length}_length_{rules.NUMBER_OF_RULES}_rules.pkl"
 
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)

@@ -56,9 +56,27 @@ run_generate_trueRF_parallel:
 	./scripts/run_trueRF.sh -p
 
 
-database_test.pkl:
-	./scripts/parallel_data_collect.sh -t 1000000 -r 2 -n 10 -p -g
-	python ./combine_gargantuar.py -d tmp -o database_test.pkl -r 2 -p --partial
+database_test_1_rules.pkl:
+	rm -rf tmp
+	./scripts/parallel_data_collect.sh -t 1000000 -r 1 -n 10 -g
+	python ./combine_gargantuar.py -d tmp -o database_test_1_rules.pkl -r 1 -p
+
+database_test_2_rules.pkl:
+	rm -rf tmp
+	./scripts/parallel_data_collect.sh -t 1000000 -r 2 -n 10 -g
+	python ./combine_gargantuar.py -d tmp -o database_test_2_rules.pkl -r 2 -p 
+
+database_test_3_rules.pkl:
+	rm -rf tmp
+	./scripts/parallel_data_collect.sh -t 1000000 -r 3 -n 10 -g
+	python ./combine_gargantuar.py -d tmp -o database_test_3_rules.pkl -r 3 -p
+
+
+get_testsets:
+	make database_test_3_rules.pkl
+	make database_test_2_rules.pkl
+	make database_test_1_rules.pkl
+	
 
 run_with_partial_rewards: database_test_2_rules.pkl
 	./scripts/run_partial_rewards.sh -r 3 -p 1
@@ -104,13 +122,18 @@ collect_data_longer_segments:
 	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 6
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_6_length_3_rules_tmp.pkl
 
+
+collect_data_only:
+	make collect_data_1_rules
+	make collect_data_2_rules
+	make collect_data_3_rules
+
 collect_data_all:
 	make collect_data_1_rules
 	make collect_data_2_rules
 	make collect_data_3_rules
 	make subsample_collect_data_all
 	make collect_data_longer_segments
-
 
 
 backup:

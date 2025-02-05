@@ -21,7 +21,7 @@ ensembling=false
 heatmap=false
 subsample=false
 
-while getopts "r:pehs" opt; do
+while getopts ":r:pehs" opt; do
     case "$opt" in
         r)
             rules=$OPTARG
@@ -54,7 +54,7 @@ fi
 distribution=$(printf -- "-d \"1/%d\" " $(seq 1 $rules | sed "s/.*/$((2 * rules))/"); printf -- "-d \"1/2\"")
 
 # Fixed parameters
-EPOCHS=50
+EPOCHS=75
 GENERATIONS=200
 PARAM_FILE="./best_params.yaml"
 MAIN_SCRIPT="main.py"
@@ -71,8 +71,8 @@ run_instance() {
     FIGURE_DIR="figures_t$TRAJ"
     TRAJECTORY_DIR="trajectories_t$TRAJ"
     ZIP_DIR="zips"
-    heatmap_flag = ""
-    subsample_flag = ""
+    heatmap_flag=""
+    subsample_flag=""
 
     if $heatmap; then
         heatmap_flag="--heatmap"
@@ -88,14 +88,14 @@ run_instance() {
     echo "Running with ${TRAJ} trajectories..."
 
     # Run the main.py script
-    cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots --skip-retrain $heatmap_flag $subsample_flag"
+    cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots $heatmap_flag $subsample_flag"
 
 
     ZIP_SUFFIX=""
     if $ensembling; then
         ZIP_SUFFIX+="_ensembling"
         ZIP_DIR+="_ensembling"
-    else if $subsample; then
+    elif $subsample; then
         ZIP_SUFFIX+="_subsample"
         ZIP_DIR+="_subsample"
     else
@@ -119,11 +119,12 @@ run_instance() {
     fi
 
     echo "Completed run with ${TRAJ} trajectories."
+
 }
 
 # Export the function and variables so they are available to parallel processes
 export -f run_instance
-export MAIN_SCRIPT EPOCHS GENERATIONS PARAM_FILE rules distribution segments ensembling
+export MAIN_SCRIPT EPOCHS GENERATIONS PARAM_FILE rules distribution segments ensembling heatmap subsample
 
 # Run instances either in parallel or sequentially
 if $parallel; then

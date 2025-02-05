@@ -522,32 +522,32 @@ if __name__ == "__main__":
 
     num_rules = args.composition
 
-    # (
-    #     true_satisfaction_segments,
-    #     aggregate_trained_satisfaction_segments,
-    #     aggregate_ensembling_trained_satisfaction_segments,
-    #     aggregate_baseline_accs,
-    #     aggregate_ensembling_accs,
-    # ) = unzipper_chungus_deluxe(num_rules, args.ensembling)
-
-    # if args.ensembling:
-    #     handle_plotting_sana(
-    #         true_satisfaction_segments,
-    #         aggregate_trained_satisfaction_segments,
-    #         aggregate_baseline_accs,
-    #         aggregate_ensembling_trained_satisfaction_segments,
-    #         aggregate_ensembling_accs,
-    #     )
-    # else:
-    #     handle_plotting_sana(
-    #         true_satisfaction_segments,
-            # aggregate_trained_satisfaction_segments,
-            # aggregate_baseline_accs,
-            # aggregate_ensembling_accs,
-    #     )
-
-    aggregate_baseline_accs, aggregate_ensembling_accs = unzipper_chungus(num_rules, args.ensembling)
-    handle_plotting_dissatisfaction(
+    (
+        true_satisfaction_segments,
+        aggregate_trained_satisfaction_segments,
+        aggregate_ensembling_trained_satisfaction_segments,
         aggregate_baseline_accs,
         aggregate_ensembling_accs,
-    )
+    ) = unzipper_chungus_deluxe(num_rules, args.ensembling)
+
+    if args.ensembling:
+        handle_plotting_sana(
+            true_satisfaction_segments,
+            aggregate_trained_satisfaction_segments,
+            aggregate_baseline_accs,
+            aggregate_ensembling_trained_satisfaction_segments,
+            aggregate_ensembling_accs,
+        )
+    else:
+        handle_plotting_sana(
+            true_satisfaction_segments,
+            aggregate_trained_satisfaction_segments,
+            aggregate_baseline_accs,
+            aggregate_ensembling_accs,
+        )
+
+    # aggregate_baseline_accs, aggregate_ensembling_accs = unzipper_chungus(num_rules, args.ensembling)
+    # handle_plotting_dissatisfaction(
+    #     aggregate_baseline_accs,
+    #     aggregate_ensembling_accs,
+    # )
