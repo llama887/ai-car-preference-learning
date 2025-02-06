@@ -46,16 +46,9 @@ if __name__ == "__main__":
         nargs=1,
         help="Path to save trajectory pkl files",
     )
-    parse.add_argument(
-        "-g",
-        "--generate",
-        action="store_true",
-        help="Do not first subsample",
-    )
     args = parse.parse_args()
 
-    if args.generate:
-        agent.subsample = False
+    agent.subsample = False
 
     if args.segment and args.segment < 1:
         raise Exception("Can not have segments with length < 1")
@@ -81,10 +74,8 @@ if __name__ == "__main__":
         ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
     
     if args.database:
-        if args.generate:
-            agent.sampled_database = args.database[0]
-        else:
-            agent.master_database = args.database[0]
+        agent.paired_database = args.database[0]
+        agent.master_database = args.database[0]
     if args.trajectory_path:
         agent.trajectories_path = args.trajectory_path[0]
     if args.trajectories is not None and args.trajectories[0] > 0:

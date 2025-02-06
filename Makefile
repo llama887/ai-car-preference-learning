@@ -58,17 +58,17 @@ run_generate_trueRF_parallel:
 
 database_test_1_rules.pkl:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 1000000 -r 1 -n 10 -g
+	./scripts/parallel_data_collect.sh -t 1000000 -r 1 -n 10
 	python ./combine_gargantuar.py -d tmp -o database_test_1_rules.pkl -r 1 -p
 
 database_test_2_rules.pkl:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 1000000 -r 2 -n 10 -g
+	./scripts/parallel_data_collect.sh -t 1000000 -r 2 -n 10
 	python ./combine_gargantuar.py -d tmp -o database_test_2_rules.pkl -r 2 -p 
 
 database_test_3_rules.pkl:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 1000000 -r 3 -n 10 -g
+	./scripts/parallel_data_collect.sh -t 1000000 -r 3 -n 10
 	python ./combine_gargantuar.py -d tmp -o database_test_3_rules.pkl -r 3 -p
 
 

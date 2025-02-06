@@ -25,8 +25,8 @@ os.environ["SDL_AUDIODRIVER"] = "dummy"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 trajectories_path = "trajectories/"
-master_database = ""
-sampled_database = None
+master_database = None
+paired_database = None
 
 # Constants
 
@@ -534,7 +534,7 @@ def generate_database_from_segments(segments, number_of_pairs):
         trajectory_path
         + f"database_{number_of_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
         if subsample
-        else sampled_database
+        else paired_database
     )
     # Save To Database
     with open(
@@ -659,7 +659,7 @@ def generate_database(trajectory_path):
             trajectory_path
             + f"database_{number_of_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
             if subsample
-            else sampled_database
+            else paired_database
         )
         
         # Save To Database
@@ -984,7 +984,7 @@ def run_population(
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
 
-        if "subsampled" not in master_database and master_database.find("tmp") != 0:
+        if not master_database:
             master_database = f"database_gargantuar_{train_trajectory_length}_length_{rules.NUMBER_OF_RULES}_rules.pkl"
 
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)

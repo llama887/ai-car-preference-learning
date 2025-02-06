@@ -88,6 +88,7 @@ run_instance() {
     if $subsample; then
         cmd+=" -md subsampled_gargantuar_1_length_${rules}_rules.pkl"
     fi
+
     ZIP_SUFFIX=""
     if $ensembling; then
         ZIP_SUFFIX+="_ensembling"
@@ -147,7 +148,7 @@ run_instance() {
 
 # Export the function and variables so they are available to parallel processes
 export -f run_instance
-export MAIN_SCRIPT EPOCHS GENERATIONS PARAM_FILE rules distribution segments ensembling heatmap parallel 
+export MAIN_SCRIPT EPOCHS GENERATIONS PARAM_FILE rules distribution segments ensembling heatmap parallel subsample
 
 # Run instances either in parallel or sequentially
 if $parallel; then

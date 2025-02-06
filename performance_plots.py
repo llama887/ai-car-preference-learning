@@ -48,7 +48,9 @@ def extract_acc(zip_file):
 
 
 def extract_trajectories(zip_file):
+    print("HERE:", zip_file)
     num_pairs = int(re.search(r"trajectories_t(\d+)*", zip_file).group(1))
+    print("NUMPAIRS:", num_pairs)
     trained_satisfaction_segments = []
 
     os.makedirs("temp_trajectories", exist_ok=True)
@@ -79,7 +81,8 @@ def extract_trajectories(zip_file):
     acc_pickle = glob.glob("temp_trajectories/trajectories*/test_accuracy.pkl")
     with open(acc_pickle[0], "rb") as f:
         test_acc, adjusted_test_acc = pickle.load(f)
-
+        
+    shutil.rmtree("temp_trajectories")
     return num_pairs, num_trajectories, trained_satisfaction_segments, adjusted_test_acc
 
 
@@ -149,7 +152,6 @@ def unzipper_chungus_deluxe(num_rules, ensembling):
             )
             rule_aggregate_segments[num_pairs] = trained_satisfaction_segments
             rule_aggregate_accs[num_pairs] = test_acc
-            shutil.rmtree("temp_trajectories")
 
         if ensembling:
             ensembling_zip_files = glob.glob(
