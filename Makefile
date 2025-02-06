@@ -31,9 +31,9 @@ run_baseline_with_subsampling_parallel:
 
 
 run_baseline_and_ensembling:
-	# ./scripts/run_basic.sh -r 3
-	# ./scripts/run_basic.sh -r 2
-	# ./scripts/run_basic.sh -r 1 
+	./scripts/run_basic.sh -r 3
+	./scripts/run_basic.sh -r 2
+	./scripts/run_basic.sh -r 1
 	./scripts/run_basic.sh -r 3 -e
 	./scripts/run_basic.sh -r 2	-e
 	./scripts/run_basic.sh -r 1	-e
