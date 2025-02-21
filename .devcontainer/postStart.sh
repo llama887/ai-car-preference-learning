@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# Make this script executable
-chmod +x aider.sh
-chmod +x run.sh
-
 # Function to check if SSH to GitHub works
 check_ssh() {
     ssh -T git@github.com &>/dev/null

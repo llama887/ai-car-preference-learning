@@ -5,6 +5,7 @@ import pickle
 import time
 
 import numpy as np
+import pandas as pd
 import pygame
 from imageio.v2 import imread
 from shapely.geometry import Polygon
@@ -121,6 +122,36 @@ def subsample_state(image_path, grid_resolution, tolerance=1.0):
     return valid_points
 
 
+def get_angle(x, y):
+    df = pd.read_csv("orientation_data.csv")
+    filtered_df = None
+    if 450 <= x <= 1550 and -y <= -600:
+        filtered_df = df[(df["X"] >= 450) & (df["X"] <= 1550) & (-df["Y"] <= -600)]
+    elif x >= 1500 and -y <= -600:
+        filtered_df = df[(df["X"] >= 1500) & (-df["Y"] <= -600)]
+    elif x >= 1500 and -y >= -600:
+        filtered_df = df[(df["X"] >= 1500) & (-df["Y"] >= -600)]
+    elif 400 <= x <= 1500 and -y >= -300:
+        filtered_df = df[(df["X"] >= 400) & (df["X"] <= 1500) & (-df["Y"] >= -300)]
+    elif x <= 450 and -y >= -200:
+        filtered_df = df[(df["X"] <= 450) & (-df["Y"] >= -200)]
+    elif x <= 600 and -150 >= -y >= -250:
+        filtered_df = df[(df["X"] <= 600) & (-df["Y"] <= -150) & (-df["Y"] >= -250)]
+    elif x <= 600 and -150 >= -y >= -500:
+        filtered_df = df[(df["X"] <= 600) & (-df["Y"] <= -150) & (-df["Y"] >= -500)]
+    elif x <= 500 and -y <= -500:
+        filtered_df = df[(df["X"] <= 500) & (-df["Y"] <= -500)]
+    else:
+        print(f"Invalid position: {x}, {y}")
+        return None
+
+    if filtered_df is not None and not filtered_df.empty:
+        return filtered_df["Angle"].mean()  # Compute the average orientation
+    else:
+        print(f"No data available for this section {x}, {y}")
+        return None  # No data available for this section
+
+
 def process_trajectory_segment(params):
     point_thing = None
     position_thing = None
@@ -149,25 +180,8 @@ def process_trajectory_segment(params):
         car.position = [point[1] - CAR_SIZE_X / 2, point[0] - CAR_SIZE_Y / 2]
         car_x = car.position[0]
         car_y = car.position[1]
-        if car_x >= 450 and car_x <= 1550 and -car_y <= -600:
-            base_angle = 0
-        elif car_x >= 1500 and -car_y <= -600:
-            base_angle = 10
-        elif car_x >= 1500 and -car_y >= -600:
-            base_angle = 130
-        elif car_x <= 1500 and car_x >= 400 and -car_y >= -300:
-            base_angle = 180
-        elif car_x <= 450 and -car_y >= -200:
-            base_angle = 180
-        elif car_x <= 600 and -car_y <= -150 and -car_y >= -250:
-            base_angle = 290
-        elif car_x <= 600 and -car_y <= -150 and -car_y >= -500:
-            base_angle = 300
-        elif car_x <= 500 and -car_y <= -500:
-            base_angle = 320
-        else:
-            print(f"Invalid position: {car_x}, {car_y}")
-        angle = angle_deviation + base_angle
+
+        angle = angle_deviation + get_angle(car_x, car_y)
         car.speed = speed
         car.angle = angle
         car.radars.clear()

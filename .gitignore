@@ -9,6 +9,7 @@ ai_dev/
 aider.sh
 *.zip
 environments/pref_learning
+venv
 
 __pycache__
 best_model*

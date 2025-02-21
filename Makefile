@@ -1,5 +1,6 @@
 run_baseline:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
+	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
 	./scripts/run_basic.sh -r 3 -h
 	./scripts/run_basic.sh -r 2 -h
 	./scripts/run_basic.sh -r 1 -h
@@ -8,6 +9,7 @@ run_baseline:
 
 run_baseline_parallel:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
+	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
 	./scripts/run_basic.sh -r 3 -p -h
 	./scripts/run_basic.sh -r 2 -p -h
 	./scripts/run_basic.sh -r 1 -p -h
@@ -15,6 +17,7 @@ run_baseline_parallel:
 
 run_baseline_with_subsampling:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
+	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
 	./scripts/run_basic.sh -r 3 -h -s
 	./scripts/run_basic.sh -r 2 -h -s
 	./scripts/run_basic.sh -r 1 -h -s
@@ -23,6 +26,7 @@ run_baseline_with_subsampling:
 
 run_baseline_with_subsampling_parallel:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
+	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
 	./scripts/run_basic.sh -r 3 -p -h -s
 	./scripts/run_basic.sh -r 2 -p -h -s
 	./scripts/run_basic.sh -r 1 -p -h -s

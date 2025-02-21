@@ -23,8 +23,9 @@ RUN apt-get update && \
     parallel \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install GitHub CLI (gh)
-RUN (type -p wget >/dev/null || (apt update && apt-get install wget -y)) \
+
+    # Install GitHub CLI (gh)
+    RUN (type -p wget >/dev/null || (apt update && apt-get install wget -y)) \
     && mkdir -p -m 755 /etc/apt/keyrings \
     && wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
     && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
@@ -36,6 +37,10 @@ RUN (type -p wget >/dev/null || (apt update && apt-get install wget -y)) \
 COPY requirements.txt /tmp/requirements.txt
 
 # Install dependencies
-RUN pip install --upgrade pip && \
-    pip install -r /tmp/requirements.txt
+RUN pip install --upgrade pip
 
+RUN pip install uv
+
+RUN uv pip install -r /tmp/requirements.txt --system
+
+RUN pip install --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126

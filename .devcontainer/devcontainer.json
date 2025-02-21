@@ -27,7 +27,8 @@
 				"shd101wyy.markdown-preview-enhanced",
 				"supermaven.supermaven",
 				"continue.continue",
-				"ms-vscode.makefile-tools"
+				"ms-vscode.makefile-tools",
+				"mechatroner.rainbow-csv"
 			],
 			"settings": {
 				"[python]": {
