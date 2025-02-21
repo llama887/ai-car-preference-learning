@@ -15,18 +15,18 @@ run_baseline_parallel:
 
 
 run_baseline_and_ensembling:
-	./scripts/run_basic.sh -r 3
-	./scripts/run_basic.sh -r 2
-	./scripts/run_basic.sh -r 1 
+	# ./scripts/run_basic.sh -r 3
+	# ./scripts/run_basic.sh -r 2
+	# ./scripts/run_basic.sh -r 1 
 	./scripts/run_basic.sh -r 3 -e
 	./scripts/run_basic.sh -r 2	-e
 	./scripts/run_basic.sh -r 1	-e
 	python performance_plots.py -c 3 -e
 
 run_baseline_and_ensembling_parallel:
-	./scripts/run_basic.sh -r 3 -p
-	./scripts/run_basic.sh -r 2 -p
-	./scripts/run_basic.sh -r 1 -p
+	# ./scripts/run_basic.sh -r 3 -p
+	# ./scripts/run_basic.sh -r 2 -p
+	# ./scripts/run_basic.sh -r 1 -p
 	./scripts/run_basic.sh -r 3 -p -e
 	./scripts/run_basic.sh -r 2 -p -e
 	./scripts/run_basic.sh -r 1 -p -e
@@ -58,17 +58,17 @@ run_generate_trueRF_parallel:
 
 database_test_1_rules.pkl:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 1000000 -r 1 -n 10
+	./scripts/parallel_data_collect.sh -t 1000000 -r 1 -n 10 -p
 	python ./combine_gargantuar.py -d tmp -o database_test_1_rules.pkl -r 1 -p
 
 database_test_2_rules.pkl:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 1000000 -r 2 -n 10
+	./scripts/parallel_data_collect.sh -t 1000000 -r 2 -n 10 -p
 	python ./combine_gargantuar.py -d tmp -o database_test_2_rules.pkl -r 2 -p 
 
 database_test_3_rules.pkl:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 1000000 -r 3 -n 10
+	./scripts/parallel_data_collect.sh -t 1000000 -r 3 -n 10 -p
 	python ./combine_gargantuar.py -d tmp -o database_test_3_rules.pkl -r 3 -p
 
 
@@ -92,18 +92,18 @@ run_on_subsampled_data:
 
 collect_data_3_rules:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 2000000 -r 3 -n 20
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_3_rules.pkl
+	./scripts/parallel_data_collect.sh -t 10000000 -r 3 -n 20
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_3_rules_new.pkl
 
 collect_data_2_rules:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 2000000 -r 2 -n 20
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_2_rules.pkl
+	./scripts/parallel_data_collect.sh -t 10000000 -r 2 -n 20
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_2_rules_new.pkl
 
 collect_data_1_rules:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 2000000 -r 1 -n 20
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_1_rules.pkl
+	./scripts/parallel_data_collect.sh -t 10000000 -r 1 -n 20
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_1_rules_new.pkl
 
 subsample_collect_data_all:
 	python subsample_state.py -s 2000000 -r 1

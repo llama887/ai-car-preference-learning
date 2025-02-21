@@ -79,7 +79,7 @@ run_instance() {
     echo "Running with ${TRAJ} trajectories..."
 
     # Define the command
-    cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots"
+    cmd="stdbuf -oL python -u $MAIN_SCRIPT -e $EPOCHS -t $TRAJ -g $GENERATIONS -p $PARAM_FILE -c $rules --figure $FIGURE_DIR --trajectory $TRAJECTORY_DIR $distribution --headless --skip-plots --save-at-end"
 
     if $heatmap; then
         cmd+=" --heatmap"
@@ -91,6 +91,7 @@ run_instance() {
 
     ZIP_SUFFIX=""
     if $ensembling; then
+        cmd+=" --ensemble"
         ZIP_SUFFIX+="_ensembling"
         ZIP_DIR+="_ensembling"
     elif $subsample; then

@@ -455,7 +455,7 @@ def graph_acc(aggregate_accs, title=None):
     for num_rules in rules:
         dataset_sizes = sorted(aggregate_accs[num_rules].keys())
         accs = [aggregate_accs[num_rules][size] for size in dataset_sizes]
-        plt.plot(dataset_sizes, accs,label=f"{num_rules} rules")
+        plt.plot(dataset_sizes, accs, "-o", label=f"{num_rules} rules")
     plt.xlabel("Number of Trajectory Pairs (Log Scale)")
     plt.xscale("log")
     plt.ylabel("Adjusted Testing Accuracy")
@@ -467,7 +467,7 @@ def graph_acc(aggregate_accs, title=None):
     for num_rules in rules:
         dataset_sizes = sorted(aggregate_accs[num_rules].keys())
         accs = [aggregate_accs[num_rules][size] for size in dataset_sizes]
-        plt.plot(dataset_sizes, accs,label=f"{num_rules} rules")
+        plt.plot(dataset_sizes, accs, "-o",label=f"{num_rules} rules")
     plt.xlabel("Number of Trajectory Pairs (Log Scale)")
     plt.xscale("log")
     plt.ylabel("Adjusted Testing Accuracy (Log Scale)")
@@ -483,7 +483,7 @@ def graph_acc_gap(aggregate_baseline_accs, aggregate_ensembling_accs):
     for num_rules in rules:
         dataset_sizes = sorted(aggregate_baseline_accs[num_rules].keys())
         accs = [aggregate_baseline_accs[num_rules][size] - aggregate_ensembling_accs[num_rules][size] for size in dataset_sizes]
-        plt.plot(dataset_sizes, accs,label=f"{num_rules} rules")
+        plt.plot(dataset_sizes, accs,"-o", label=f"{num_rules} rules")
     plt.xlabel("Number of Trajectory Pairs (Log Scale)")
     plt.xscale("log")
     plt.ylabel("Adjusted Testing Accuracy")
@@ -495,7 +495,7 @@ def graph_acc_gap(aggregate_baseline_accs, aggregate_ensembling_accs):
     for num_rules in rules:
         dataset_sizes = sorted(aggregate_baseline_accs[num_rules].keys())
         accs = [aggregate_baseline_accs[num_rules][size] - aggregate_ensembling_accs[num_rules][size] for size in dataset_sizes]
-        plt.plot(dataset_sizes, accs,label=f"{num_rules} rules")
+        plt.plot(dataset_sizes, accs, "-o", label=f"{num_rules} rules")
     plt.xlabel("Number of Trajectory Pairs (Log Scale)")
     plt.xscale("log")
     plt.ylabel("Adjusted Testing Accuracy")

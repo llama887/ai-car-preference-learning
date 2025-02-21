@@ -29,6 +29,7 @@ from test_accuracy import (
 
 os.environ["WANDB_SILENT"] = "true"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 
 def start_simulation(
@@ -187,7 +188,7 @@ if __name__ == "__main__":
     # Set distribution of segment rule satisfaction
     if args.composition and args.trajectories:
         rules.NUMBER_OF_RULES = args.composition
-        num_pairs = 10 * args.trajectories[0] if args.ensemble else args.trajectories[0]
+        num_pairs = agent.ENSEMBLE_MULTIPLIER * args.trajectories[0] if args.ensemble else args.trajectories[0]
         database_path = f"{agent.trajectories_path}database_{num_pairs}_pairs_{args.composition}_rules_{agent.train_trajectory_length}_length.pkl"
     else:
         print("Missing either -c flag or -t flag")

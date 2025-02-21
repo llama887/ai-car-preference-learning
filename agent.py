@@ -46,6 +46,7 @@ NUM_RADARS = 5
 STATE_ACTION_SIZE = 8
 
 DEFAULT_MAX_GENERATIONS = 1000
+ENSEMBLE_MULTIPLIER = 1
 
 current_generation = 0  # Generation counter
 reward_network = None
@@ -531,11 +532,12 @@ def generate_database_from_segments(segments, number_of_pairs):
         os.remove(old_pairs_path)
 
     database_to_save = (
+        paired_database if
+        paired_database else 
         trajectory_path
-        + f"database_{number_of_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
-        if subsample
-        else paired_database
+        + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
     )
+    
     # Save To Database
     with open(
         database_to_save,
@@ -656,10 +658,10 @@ def generate_database(trajectory_path):
             os.remove(old_pairs_path)
 
         database_to_save = (
+            paired_database if
+            paired_database else 
             trajectory_path
-            + f"database_{number_of_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
-            if subsample
-            else paired_database
+            + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
         )
         
         # Save To Database
@@ -669,7 +671,7 @@ def generate_database(trajectory_path):
         ) as f:
             pickle.dump(trajectory_pairs, f)
 
-        if subsample:
+        if master_database:
             # Create a temporary file path
             temp_database = f"{trajectory_path}_master_temp_{len(trajectory_pairs)}.pkl"
 
@@ -954,7 +956,7 @@ def run_population(
             config_path,
         )
         global num_pairs
-        num_pairs = number_of_pairs * (10 if use_ensemble else 1)
+        num_pairs = number_of_pairs * (ENSEMBLE_MULTIPLIER if use_ensemble else 1)
 
         global run_type, headless
         run_type = runType

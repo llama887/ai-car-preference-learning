@@ -4,7 +4,7 @@ trajectories=""
 rules=""
 segment_length=""
 number_of_processes=""
-partial_rewards=false
+paired=false
 
 while getopts "t:r:s:n:g" flag; do
     case "${flag}" in
@@ -12,7 +12,8 @@ while getopts "t:r:s:n:g" flag; do
         r) rules=${OPTARG};;
         s) segment_length=${OPTARG};;
         n) number_of_processes=${OPTARG};;
-        *) echo "Usage: $0 -t trajectories -r rules -n number_of_processes -s segment_length" >&2
+        p) paired=${OPTARG};;
+        *) echo "Usage: $0 -t trajectories -r rules -n number_of_processes -s segment_length -p paired_database " >&2
            exit 1 ;;
     esac
 done
@@ -40,6 +41,9 @@ for ((i=0; i<number_of_processes; i++)); do
     cmd="stdbuf -oL python -u collect_data.py -t $trajectories_per_process $distribution -db tmp/master_database_${i}.pkl --trajectory tmp/trajectory_${i}/ --headless"
     if [[ -n $segment_length ]]; then
         cmd="$cmd -s $segment_length"
+    fi
+    if $paired; then
+        cmd+=" -p"
     fi
     echo "Executing: $cmd"
     eval $cmd | tee tmp/output_$i.log &

@@ -7,7 +7,7 @@ matplotlib.use("Agg")
 
 # s1s2lr1r2
 
-with open("trajectories/database_1000000_pairs_1_rules_1_length.pkl", "rb") as f:
+with open("trajectories_t1000000/database_1000000_pairs_1_rules_1_length.pkl", "rb") as f:
     data = pickle.load(f)
 
 xy_counts = {}

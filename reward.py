@@ -23,6 +23,8 @@ import wandb
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 os.environ["TORCH_USE_CUDA_DSA"] = "1"
 os.environ["WANDB_SILENT"] = "true"
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 INPUT_SIZE = 8 * 2
 OPTUNA_N_TRIALS = 10
 
@@ -471,7 +473,7 @@ def train_ensemble(
                     )
                     val_loss += preference_loss(
                         validation_predicted_probabilities, validation_true_pref
-                    )
+                    ) 
                     val_acc += calculate_accuracy(
                         validation_predicted_probabilities, validation_true_pref
                     ) * validation_true_pref.size(0)
@@ -493,7 +495,7 @@ def train_ensemble(
                 best_val_losses[i] = val_loss
                 torch.save(
                     ensemble.model_list[i].state_dict(),
-                    ensemble_path + f"model_{epochs}_{i}.pth",
+                    ensemble_path + f"model_{epochs}_epochs_{dataset_size}_pairs_{rules.NUMBER_OF_RULES}_rules_{i}.pth",
                 )
                 print(f"MODEL {i} SAVED AT EPOCH: {epoch}")
 
@@ -505,8 +507,8 @@ def train_ensemble(
         avg_adjusted_val_acc = adjusted_val_acc_across_models / n_models
         best_loss = min(best_loss, avg_train_loss)
 
-        training_losses.append(avg_train_loss)
-        validation_losses.append(avg_val_loss)
+        training_losses.append(avg_train_loss.item())
+        validation_losses.append(avg_val_loss.item())
         training_accuracies.append(avg_train_acc)
         adjusted_training_accuracies.append(avg_adjusted_train_acc)
         validation_accuracies.append(avg_val_acc)
@@ -524,26 +526,34 @@ def train_ensemble(
         optimizer.step()
         scheduler.step()
 
-    global figure_path
-    plt.figure()
-    plt.plot(training_losses, label="Train Loss")
-    plt.plot(validation_losses, label="Validation Loss")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.legend()
-    plt.savefig(f"{figure_path}loss.png")
-    plt.close()
+    try:
+        global figure_path
+        if isinstance(training_losses, torch.Tensor):
+            print("training losses was a tensor")
+            training_losses = training_losses.cpu().numpy()
+        if isinstance(validation_losses, torch.Tensor):
+            validation_losses = validation_losses.cpu().numpy()
+        plt.figure()
+        plt.plot(training_losses, label="Train Loss")
+        plt.plot(validation_losses, label="Validation Loss")
+        plt.xlabel("Epochs")
+        plt.ylabel("Loss")
+        plt.legend()
+        plt.savefig(f"{figure_path}loss.png")
+        plt.close()
 
-    plt.figure()
-    plt.plot(training_accuracies, label="Train Accuracy")
-    plt.plot(validation_accuracies, label="Validation Accuracy")
-    plt.plot(adjusted_training_accuracies, label="Adjusted Training Accuracy")
-    plt.plot(adjusted_validation_accuracies, label="Adjusted Validation Accuracy")
-    plt.xlabel("Epochs")
-    plt.ylabel("Accuracy")
-    plt.legend()
-    plt.savefig(f"{figure_path}accuracy.png")
-    plt.close()
+        plt.figure()
+        plt.plot(training_accuracies, label="Train Accuracy")
+        plt.plot(validation_accuracies, label="Validation Accuracy")
+        plt.plot(adjusted_training_accuracies, label="Adjusted Training Accuracy")
+        plt.plot(adjusted_validation_accuracies, label="Adjusted Validation Accuracy")
+        plt.xlabel("Epochs")
+        plt.ylabel("Accuracy")
+        plt.legend()
+        plt.savefig(f"{figure_path}accuracy.png")
+        plt.close()
+    except:
+        print("Issue when plotting training and validation loss (they are tensors perhaps??)")
 
     training_output = best_loss
     if return_stat == "acc":
@@ -618,57 +628,7 @@ def train_model(
     epoch = 0
     try:
         while epoch < epochs:
-            # print("epoch:", epoch)
-            net.eval()
-            total_validation_loss = 0.0
-            total_validation_accuracy = 0.0
-            total_adjusted_validation_accuracy = 0.0
-            with torch.no_grad():
-                for (
-                    validation_traj1,
-                    validation_traj2,
-                    validation_true_pref,
-                    validation_score1,
-                    validation_score2,
-                ) in validation_dataloader:
-                    validation_rewards1 = net(validation_traj1)
-                    validation_rewards2 = net(validation_traj2)
-                    validation_predicted_probabilities = bradley_terry_model(
-                        validation_rewards1, validation_rewards2
-                    )
-                    validation_true_pref_dist = bradley_terry_model(
-                        validation_score1, validation_score2
-                    )
-                    total_validation_loss += preference_loss(
-                        validation_predicted_probabilities, validation_true_pref_dist
-                    )
-                    total_validation_accuracy += calculate_accuracy(
-                        validation_predicted_probabilities, validation_true_pref
-                    ) * validation_true_pref.size(0)
-                    total_adjusted_validation_accuracy += calculate_adjusted_accuracy(
-                        validation_predicted_probabilities,
-                        validation_true_pref,
-                        validation_score1,
-                        validation_score2,
-                    ) * validation_true_pref.size(0)
-
-            average_validation_loss = total_validation_loss / val_size
-            if average_validation_loss < best_loss:
-                best_loss = average_validation_loss
-                torch.save(
-                    net.state_dict(),
-                    model_path
-                    + f"_{10 ** round(math.log10(n_pairs))}_pairs_{rules.NUMBER_OF_RULES}_rules.pth",
-                )
-                print("MODEL SAVED AT EPOCH:", epoch)
-            average_validation_accuracy = total_validation_accuracy / val_size
-            average_adjusted_validation_accuracy = (
-                total_adjusted_validation_accuracy / val_size
-            )
-            validation_losses.append(average_validation_loss.item())
-            validation_accuracies.append(average_validation_accuracy)
-            adjusted_validation_accuracies.append(average_adjusted_validation_accuracy)
-
+            # Training
             net.train()
             total_loss = 0.0
             total_accuracy = 0.0
@@ -687,13 +647,14 @@ def train_model(
 
                 predicted_probabilities = bradley_terry_model(rewards1, rewards2)
                 total_probability += predicted_probabilities.sum().item()
-                loss = preference_loss(predicted_probabilities, batch_true_pref)
-                total_loss += loss.item()
 
+                loss = preference_loss(predicted_probabilities, batch_true_pref)
                 accuracy = calculate_accuracy(predicted_probabilities, batch_true_pref)
                 adjusted_accuracy = calculate_adjusted_accuracy(
                     predicted_probabilities, batch_true_pref, batch_score1, batch_score2
                 )
+
+                total_loss += loss.item() * batch_true_pref.size(0)
                 total_accuracy += accuracy * batch_true_pref.size(0)
                 total_adjusted_accuracy += adjusted_accuracy * batch_true_pref.size(0)
 
@@ -713,6 +674,62 @@ def train_model(
             average_adjusted_training_accuracy = total_adjusted_accuracy / train_size
             training_accuracies.append(average_training_accuracy)
             adjusted_training_accuracies.append(average_adjusted_training_accuracy)
+
+            # Validation
+            net.eval()
+            total_validation_loss = 0.0
+            total_validation_accuracy = 0.0
+            total_adjusted_validation_accuracy = 0.0
+            with torch.no_grad():
+                for (
+                    validation_traj1,
+                    validation_traj2,
+                    validation_true_pref,
+                    validation_score1,
+                    validation_score2,
+                ) in validation_dataloader:
+                    validation_rewards1 = net(validation_traj1)
+                    validation_rewards2 = net(validation_traj2)
+                    validation_predicted_probabilities = bradley_terry_model(
+                        validation_rewards1, validation_rewards2
+                    )
+                    # validation_true_pref = bradley_terry_model(
+                    #     validation_score1, validation_score2
+                    # )
+
+                    validation_loss = preference_loss(
+                        validation_predicted_probabilities, validation_true_pref
+                    )
+                    validation_accuracy = calculate_accuracy(
+                        validation_predicted_probabilities, validation_true_pref
+                    )
+                    adjusted_validation_accuracy = calculate_adjusted_accuracy(
+                        validation_predicted_probabilities,
+                        validation_true_pref,
+                        validation_score1,
+                        validation_score2,
+                    )
+
+                    total_validation_loss += validation_loss * validation_true_pref.size(0)
+                    total_validation_accuracy += validation_accuracy * validation_true_pref.size(0)
+                    total_adjusted_validation_accuracy += adjusted_validation_accuracy * validation_true_pref.size(0)
+
+            average_validation_loss = total_validation_loss / val_size 
+            if average_validation_loss < best_loss:
+                best_loss = average_validation_loss
+                torch.save(
+                    net.state_dict(),
+                    model_path
+                    + f"_{10 ** round(math.log10(n_pairs))}_pairs_{rules.NUMBER_OF_RULES}_rules.pth",
+                )
+                print("MODEL SAVED AT EPOCH:", epoch)
+            average_validation_accuracy = total_validation_accuracy / val_size
+            average_adjusted_validation_accuracy = (
+                total_adjusted_validation_accuracy / val_size
+            )
+            validation_losses.append(average_validation_loss.item())
+            validation_accuracies.append(average_validation_accuracy)
+            adjusted_validation_accuracies.append(average_adjusted_validation_accuracy)
 
             wandb.log(
                 {
@@ -781,6 +798,7 @@ def train_reward_function(
     return_stat=None,
     save_at_end=True,
 ):
+    torch.cuda.empty_cache()
     training_output_stat = None
     input_size = INPUT_SIZE
     if use_ensemble:
