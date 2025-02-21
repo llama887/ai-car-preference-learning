@@ -13,6 +13,22 @@ run_baseline_parallel:
 	./scripts/run_basic.sh -r 1 -p -h
 	python performance_plots.py -c 3
 
+run_baseline_with_subsampling:
+	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
+	./scripts/run_basic.sh -r 3 -h -s
+	./scripts/run_basic.sh -r 2 -h -s
+	./scripts/run_basic.sh -r 1 -h -s
+	python performance_plots.py -c 3
+
+
+run_baseline_with_subsampling_parallel:
+	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
+	./scripts/run_basic.sh -r 3 -p -h -s
+	./scripts/run_basic.sh -r 2 -p -h -s
+	./scripts/run_basic.sh -r 1 -p -h -s
+	python performance_plots.py -c 3
+
+
 
 run_baseline_and_ensembling:
 	# ./scripts/run_basic.sh -r 3
@@ -76,7 +92,7 @@ get_testsets:
 	make database_test_3_rules.pkl
 	make database_test_2_rules.pkl
 	make database_test_1_rules.pkl
-	
+
 
 run_with_partial_rewards: database_test_2_rules.pkl
 	./scripts/run_partial_rewards.sh -r 3 -p 1
