@@ -142,29 +142,25 @@ def accuracy_per_xy(
     return all_x, all_y, accuracy
 
 
-def get_section_centers_and_angles():
-    sections = [
-        # Format: ((x_min, x_max), (y_min, y_max), angle)
-        ((400, 800), (600, 1000), 0),    # Section 1
-        ((800, 1200), (600, 1000), 0),   # Section 2
-        ((1200, 1400), (600, 1000), 0),  # Section 3
-        ((1400, 1600), (800, 1000), 90), # Section 4
-        ((1400, 1600), (600, 800), 90),  # Section 5
-        ((1400, 1600), (400, 600), 90),  # Section 6
-        ((1400, 1600), (0, 400), 90),    # Section 7
-        ((1200, 1400), (0, 400), 180),   # Section 8
-        ((600, 1200), (0, 400), 180),    # Section 9
-        ((0, 600), (0, 200), 270),       # Section 10
-        ((0, 600), (200, 400), 270),     # Section 11
-        ((0, 600), (400, 600), 270),     # Section 12
-        ((0, 400), (600, 1000), 0),      # Section 13
-    ]
+def get_cluster_centers_and_angles(x, y, n_clusters=13):
+    from sklearn.cluster import KMeans
     
+    # Combine x and y into points
+    points = np.column_stack((x, y))
+    
+    # Perform K-means clustering
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+    kmeans.fit(points)
+    
+    # Get cluster centers
+    centers = kmeans.cluster_centers_
+    
+    # Get angles for each center
     centers_and_angles = []
-    for (x_min, x_max), (y_min, y_max), angle in sections:
-        center_x = (x_min + x_max) / 2
-        center_y = (y_min + y_max) / 2
-        centers_and_angles.append((center_x, center_y, angle))
+    for center in centers:
+        angle = get_angle(center[0], -center[1])  # Note: y is negated in the plot
+        if angle is not None:  # Only add if we got a valid angle
+            centers_and_angles.append((center[0], center[1], angle))
     
     return centers_and_angles
 
@@ -193,7 +189,7 @@ def plot_reward_heatmap(
     color_bar.set_label("Accuracy", fontsize=12)
 
     # Add orientation arrows
-    centers_and_angles = get_section_centers_and_angles()
+    centers_and_angles = get_cluster_centers_and_angles(x, y)
     arrow_length = 50  # Adjust this value to change arrow size
     for center_x, center_y, angle in centers_and_angles:
         dx = arrow_length * np.cos(np.radians(angle))
