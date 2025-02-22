@@ -31,3 +31,4 @@ models/*
 tmp/*
 *.pkl
 *.png
+.aider*

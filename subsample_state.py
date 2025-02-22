@@ -123,27 +123,75 @@ def subsample_state(image_path, grid_resolution, tolerance=1.0):
 
 
 def get_angle(x, y):
-    df = pd.read_csv("orientation_data.csv")
-    filtered_df = None
-    if 450 <= x <= 1550 and -y <= -600:
-        filtered_df = df[(df["X"] >= 450) & (df["X"] <= 1550) & (-df["Y"] <= -600)]
-    elif x >= 1500 and -y <= -600:
-        filtered_df = df[(df["X"] >= 1500) & (-df["Y"] <= -600)]
-    elif x >= 1500 and -y >= -600:
-        filtered_df = df[(df["X"] >= 1500) & (-df["Y"] >= -600)]
-    elif 400 <= x <= 1500 and -y >= -300:
-        filtered_df = df[(df["X"] >= 400) & (df["X"] <= 1500) & (-df["Y"] >= -300)]
-    elif x <= 450 and -y >= -200:
-        filtered_df = df[(df["X"] <= 450) & (-df["Y"] >= -200)]
-    elif x <= 600 and -150 >= -y >= -250:
-        filtered_df = df[(df["X"] <= 600) & (-df["Y"] <= -150) & (-df["Y"] >= -250)]
-    elif x <= 600 and -150 >= -y >= -500:
-        filtered_df = df[(df["X"] <= 600) & (-df["Y"] <= -150) & (-df["Y"] >= -500)]
-    elif x <= 500 and -y <= -500:
-        filtered_df = df[(df["X"] <= 500) & (-df["Y"] <= -500)]
-    else:
+    def _get_filtered_df(df: pd.DataFrame, x: float, y: float, filter_conditions):
+        for condition in filter_conditions:
+            if condition({'X': x, 'Y': y}):
+                return df[df.apply(condition, axis=1)]
         print(f"Invalid position: {x}, {y}")
         return None
+    def _create_filter_condition(x_condition, y_condition):
+        return lambda row: x_condition(row['X']) and y_condition(row['Y'])
+
+    df = pd.read_csv("orientation_data.csv")
+
+    filter_conditions = [
+        _create_filter_condition(
+            lambda x: 400 <= x <= 800,
+            lambda y: -y <= -600
+        ),
+        _create_filter_condition(
+            lambda x: 800 <= x <= 1200,
+            lambda y: -y <= -600
+        ),
+        _create_filter_condition(
+            lambda x: 1200 <= x <= 1400,
+            lambda y: -y <= -600
+        ),
+        _create_filter_condition(
+            lambda x: x >= 1400,
+            lambda y: -y <= -800
+        ),
+        _create_filter_condition(
+            lambda x: x >= 1400,
+            lambda y: -800 <= -y <= -600
+        ),
+        _create_filter_condition(
+            lambda x: x >= 1400,
+            lambda y: -600 <= -y <= -400
+        ),
+        _create_filter_condition(
+            lambda x: x >= 1400,
+            lambda y: -400 <= -y
+        ),
+        _create_filter_condition(
+            lambda x: 1200 <= x <= 1400,
+            lambda y: -y >= -400
+        ),
+        _create_filter_condition(
+            lambda x: 600 <= x <= 1200,
+            lambda y: -y >= -400
+        ),
+        _create_filter_condition(
+            lambda x: x <= 600,
+            lambda y: -y >= -200
+        ),
+        _create_filter_condition(
+            lambda x: x <= 600,
+            lambda y: -400 <= -y <= -200
+        ),
+        _create_filter_condition(
+            lambda x: x <= 600,
+            lambda y: -600 <= -y <= -400
+        ),
+        _create_filter_condition(
+            lambda x: x <= 400,
+            lambda y: -y <= -600
+        ),
+    ]
+
+    filtered_df = _get_filtered_df(df, x, y, filter_conditions)
+    if filtered_df is None:
+        print("No matching condition found")
 
     if filtered_df is not None and not filtered_df.empty:
         return filtered_df["Angle"].mean()  # Compute the average orientation

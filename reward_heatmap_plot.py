@@ -37,7 +37,6 @@ def segment_to_tensor(segment):
 def accuracy_per_xy(
     trajectory_segments, number_of_rules, reward_model_directory=None, reward_model=None
 ):
-    # Split by x and y
     print("Splitting by x and y...")
     count1 = 0
     count2 = 0
@@ -66,7 +65,6 @@ def accuracy_per_xy(
         f"Out of {len(xy_dict)} xy points, {count_diff} have segments that satisfy both rewards."
     )
     print(f"Found {count1} 1 and {count2} 0 examples.")
-    # make pairs
     print("Making pairs...")
     paired_dict = {}
     for xy in xy_dict:
@@ -77,8 +75,6 @@ def accuracy_per_xy(
             (xy_dict[xy][0][i], xy_dict[xy][1][i]) for i in range(number_of_pairs)
         ]
 
-    # remove xy with no pairs
-    # xy can have no pairs if everything satisfies the same number of rules
     print("Removing xy with no pairs...")
     start_count = len(xy_dict)
     for xy in list(xy_dict.keys()):
@@ -93,7 +89,6 @@ def accuracy_per_xy(
     y = []
     accuracy = []
 
-    # Evaluate accuracy with batching
     print("Evaluating accuracy with batching...")
     if not reward_model:
         model, _ = load_models([reward_model_directory])
@@ -101,7 +96,6 @@ def accuracy_per_xy(
         model = reward_model
     batch_size = 1024
 
-    # Prepare data for batching
     all_x, all_y, all_pairs = [], [], []
 
     for xy in paired_dict:
@@ -109,7 +103,6 @@ def accuracy_per_xy(
         all_y.append(xy[1])
         all_pairs.extend(paired_dict[xy])
 
-    # Convert pairs to tensors
     tensor_pairs_0 = [
         segment_to_tensor(pair[0])
         for pair in tqdm(all_pairs, desc="Converting to tensors 1")
@@ -120,18 +113,15 @@ def accuracy_per_xy(
         for pair in tqdm(all_pairs, desc="Converting to tensors 2")
     ]
 
-    # Create dataset and dataloader for batching
     dataset = TensorDataset(torch.stack(tensor_pairs_0), torch.stack(tensor_pairs_1))
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
-    # Run batched inference
     batch_accuracies = []
     for batch_0, batch_1 in tqdm(dataloader, desc="Processing batches"):
         outputs_0 = model(batch_0).detach().cpu().numpy()
         outputs_1 = model(batch_1).detach().cpu().numpy()
         batch_accuracies.extend((outputs_0 < outputs_1).astype(int))
 
-    # Map batch results back to XY pairs
     accuracy = []
     current_index = 0
     for xy in paired_dict:
@@ -145,24 +135,22 @@ def accuracy_per_xy(
 
 def get_cluster_centers_and_angles(x, y, n_clusters=13):
     from sklearn.cluster import KMeans
-    
-    # Combine x and y into points
+
     points = np.column_stack((x, y))
-    
-    # Perform K-means clustering
+
     kmeans = KMeans(n_clusters=n_clusters, random_state=42)
     kmeans.fit(points)
-    
-    # Get cluster centers
+
     centers = kmeans.cluster_centers_
-    
-    # Get angles for each center
+
     centers_and_angles = []
     for center in centers:
-        angle = get_angle(center[0], -center[1])  # Note: y is negated in the plot
-        if angle is not None:  # Only add if we got a valid angle
+        angle = get_angle(center[0], -center[1])
+        if angle is not None:
             centers_and_angles.append((center[0], center[1], angle))
-    
+        else:
+            print(f"Invalid angle for center {center}")
+
     return centers_and_angles
 
 def plot_reward_heatmap(
@@ -184,31 +172,30 @@ def plot_reward_heatmap(
 
     print("Plotting...")
 
-    fig, ax = plt.subplots()
-    scatter = ax.scatter(x, y, c=accuracy, cmap="viridis")
+    fig, ax = plt.subplots(figsize=(10, 8))
+    scatter = ax.scatter(x, y, c=accuracy, cmap="viridis", alpha=0.7)
     color_bar = plt.colorbar(scatter)
-    color_bar.set_label("Accuracy", fontsize=12)
+    color_bar.set_label("Accuracy")
 
-    # Add orientation arrows
     centers_and_angles = get_cluster_centers_and_angles(x, y)
-    arrow_length = 50  # Adjust this value to change arrow size
+    arrow_length = 0.05 * (max(x) - min(x))
     for center_x, center_y, angle in centers_and_angles:
         dx = arrow_length * np.cos(np.radians(angle))
         dy = arrow_length * np.sin(np.radians(angle))
         arrow = FancyArrowPatch(
-            (center_x, -center_y),
-            (center_x + dx, -(center_y + dy)),
-            arrowstyle='->',
+            (center_x, center_y),
+            (center_x + dx, center_y + dy),
+            arrowstyle='-|>',
             mutation_scale=15,
             color='red',
-            linewidth=2
+            linewidth=1.5,
+            zorder=10
         )
         ax.add_patch(arrow)
-
-    # Add arrow legend
-    ax.plot([], [], color='red', marker='>', linestyle='-', 
-            label='Car Orientation', markersize=10)
+    ax.plot([], [], color='red', marker='>', linestyle='-',
+            label='Car Orientation', markersize=8)
     ax.legend()
+
     if number_of_samples and number_of_rules:
         plt.title(
             f"Reward Heatmap ({number_of_samples} samples, {number_of_rules} rules)"
@@ -219,16 +206,16 @@ def plot_reward_heatmap(
     plt.ylabel("Y")
     plt.xlim(min(x), max(x))
     plt.ylim(min(y), max(y))
+
     if number_of_samples and number_of_rules:
         plt.savefig(
-            f"{figure_path}reward_heatmap_{number_of_samples}_t_{number_of_rules}_r.png",
-            dpi=300,
+            f"{figure_path}reward_heatmap_{number_of_samples}_t_{number_of_rules}_r.png", dpi=300
         )
         print(
             f"Saved to {figure_path}reward_heatmap_{number_of_samples}_samples_{number_of_rules}_rules.png"
         )
     else:
-        plt.savefig(f"{figure_path}reward_heatmap.png", dpi=300)
+        plt.savefig(f"{figure_path}reward_heatmap.png")
         print(f"Saved to {figure_path}reward_heatmap.png")
     plt.close()
 

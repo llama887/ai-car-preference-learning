@@ -302,5 +302,5 @@ if __name__ == "__main__":
     stats = neat.StatisticsReporter()
     population.add_reporter(stats)
 
-    # Run Simulation For A Maximum of 1000 Generations
-    population.run(run_simulation, 5)
+    # Run Simulation For A Maximum of 10 Generations
+    population.run(run_simulation, 10)
