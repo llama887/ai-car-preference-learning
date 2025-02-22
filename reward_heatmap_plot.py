@@ -5,7 +5,7 @@ import time
 
 import matplotlib
 import matplotlib.pyplot as plt
-
+from matplotlib.patches import FancyArrowPatch
 matplotlib.use("Agg")
 import torch
 import yaml
@@ -141,6 +141,32 @@ def accuracy_per_xy(
     return all_x, all_y, accuracy
 
 
+def get_section_centers_and_angles():
+    sections = [
+        # Format: ((x_min, x_max), (y_min, y_max), angle)
+        ((400, 800), (600, 1000), 0),    # Section 1
+        ((800, 1200), (600, 1000), 0),   # Section 2
+        ((1200, 1400), (600, 1000), 0),  # Section 3
+        ((1400, 1600), (800, 1000), 90), # Section 4
+        ((1400, 1600), (600, 800), 90),  # Section 5
+        ((1400, 1600), (400, 600), 90),  # Section 6
+        ((1400, 1600), (0, 400), 90),    # Section 7
+        ((1200, 1400), (0, 400), 180),   # Section 8
+        ((600, 1200), (0, 400), 180),    # Section 9
+        ((0, 600), (0, 200), 270),       # Section 10
+        ((0, 600), (200, 400), 270),     # Section 11
+        ((0, 600), (400, 600), 270),     # Section 12
+        ((0, 400), (600, 1000), 0),      # Section 13
+    ]
+    
+    centers_and_angles = []
+    for (x_min, x_max), (y_min, y_max), angle in sections:
+        center_x = (x_min + x_max) / 2
+        center_y = (y_min + y_max) / 2
+        centers_and_angles.append((center_x, center_y, angle))
+    
+    return centers_and_angles
+
 def plot_reward_heatmap(
     samples,
     reward_model_directory=None,
@@ -160,9 +186,31 @@ def plot_reward_heatmap(
 
     print("Plotting...")
 
-    plt.scatter(x, y, c=accuracy, cmap="viridis")
-    color_bar = plt.colorbar()
+    fig, ax = plt.subplots()
+    scatter = ax.scatter(x, y, c=accuracy, cmap="viridis")
+    color_bar = plt.colorbar(scatter)
     color_bar.set_label("Accuracy", fontsize=12)
+
+    # Add orientation arrows
+    centers_and_angles = get_section_centers_and_angles()
+    arrow_length = 50  # Adjust this value to change arrow size
+    for center_x, center_y, angle in centers_and_angles:
+        dx = arrow_length * np.cos(np.radians(angle))
+        dy = arrow_length * np.sin(np.radians(angle))
+        arrow = FancyArrowPatch(
+            (center_x, -center_y),
+            (center_x + dx, -(center_y + dy)),
+            arrowstyle='->',
+            mutation_scale=15,
+            color='red',
+            linewidth=2
+        )
+        ax.add_patch(arrow)
+
+    # Add arrow legend
+    ax.plot([], [], color='red', marker='>', linestyle='-', 
+            label='Car Orientation', markersize=10)
+    ax.legend()
     if number_of_samples and number_of_rules:
         plt.title(
             f"Reward Heatmap ({number_of_samples} samples, {number_of_rules} rules)"
