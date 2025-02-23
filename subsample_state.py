@@ -127,16 +127,26 @@ def get_angle(x, y):
         for condition in filter_conditions:
             if condition({'X': x, 'Y': y}):
                 return df[df.apply(condition, axis=1)]
-        print(f"Invalid position: {x}, {y}")
+            print(f"Invalid position: {x}, {y}")
         return None
     def _create_filter_condition(x_condition, y_condition):
         return lambda row: x_condition(row['X']) and y_condition(row['Y'])
 
     df = pd.read_csv("orientation_data.csv")
 
+    # Hard coded values for the bottom where too many cars die
+    if 600 <= x <= 800 and -y <= -600:
+        return 0
+    if 800 <= x <= 1200 and -y <= -600:
+        return 0
+
     filter_conditions = [
         _create_filter_condition(
-            lambda x: 400 <= x <= 800,
+            lambda x: 400 <= x <= 600,
+            lambda y: -y <= -600
+        ),
+        _create_filter_condition(
+            lambda x: 600 <= x <= 800,
             lambda y: -y <= -600
         ),
         _create_filter_condition(
