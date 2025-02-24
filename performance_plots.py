@@ -101,6 +101,7 @@ def unzipper_chungus(num_rules, ensembling):
 
         for zip_file in zip_files:
             num_pairs, test_acc = extract_acc(zip_file)
+            print(f"{rule_count} RULES, {num_pairs} PAIRS: ", test_acc)
             rule_aggregate_accs[num_pairs] = test_acc
             shutil.rmtree("temp_trajectories")
 
@@ -518,38 +519,48 @@ if __name__ == "__main__":
         action="store_true",
         help="number of rules",
     )
+    parse.add_argument(
+        "-p",
+        "--performance",
+        action="store_true",
+        help="make agent performance plot as well"
+    )
     args = parse.parse_args()
 
     use_tex()
 
     num_rules = args.composition
 
-    (
-        true_satisfaction_segments,
-        aggregate_trained_satisfaction_segments,
-        aggregate_ensembling_trained_satisfaction_segments,
-        aggregate_baseline_accs,
-        aggregate_ensembling_accs,
-    ) = unzipper_chungus_deluxe(num_rules, args.ensembling)
-
-    if args.ensembling:
-        handle_plotting_sana(
+    if args.performance:
+        (
             true_satisfaction_segments,
             aggregate_trained_satisfaction_segments,
-            aggregate_baseline_accs,
             aggregate_ensembling_trained_satisfaction_segments,
+            aggregate_baseline_accs,
             aggregate_ensembling_accs,
-        )
+        ) = unzipper_chungus_deluxe(num_rules, args.ensembling)
+
+        if args.ensembling:
+            handle_plotting_sana(
+                true_satisfaction_segments,
+                aggregate_trained_satisfaction_segments,
+                aggregate_baseline_accs,
+                aggregate_ensembling_trained_satisfaction_segments,
+                aggregate_ensembling_accs,
+            )
+        else:
+            handle_plotting_sana(
+                true_satisfaction_segments,
+                aggregate_trained_satisfaction_segments,
+                aggregate_baseline_accs,
+                aggregate_ensembling_accs,
+            )
+
     else:
-        handle_plotting_sana(
-            true_satisfaction_segments,
-            aggregate_trained_satisfaction_segments,
+        aggregate_baseline_accs, aggregate_ensembling_accs = unzipper_chungus(num_rules, args.ensembling)
+        handle_plotting_dissatisfaction(
             aggregate_baseline_accs,
             aggregate_ensembling_accs,
         )
-
-    # aggregate_baseline_accs, aggregate_ensembling_accs = unzipper_chungus(num_rules, args.ensembling)
-    # handle_plotting_dissatisfaction(
-    #     aggregate_baseline_accs,
-    #     aggregate_ensembling_accs,
-    # )
+    
+    print("Done Plotting.")

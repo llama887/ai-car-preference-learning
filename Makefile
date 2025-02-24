@@ -15,6 +15,8 @@ run_baseline_parallel:
 	./scripts/run_basic.sh -r 1 -p -h
 	python performance_plots.py -c 3
 
+
+
 run_baseline_with_subsampling:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
