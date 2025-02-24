@@ -948,10 +948,11 @@ def objective(trial):
     hidden_size = trial.suggest_int("hidden_size", 64, 1024)
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
-    dropout_prob = trial.suggest_float("dropout_prob", 0.1, 0.8)
-    batch_size = trial.suggest_int("batch_size", 128, 2048)
+    dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.8)
+    batch_size = trial.suggest_int("batch_size", 3333, 20000)
+    swaps=trial.suggest_int("swaps", 3, 3)
 
-    net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob=0).to(device)
+    net = TrajectoryRewardNet(input_size, hidden_size, dropout_prob).to(device)
     for param in net.parameters():
         if len(param.shape) > 1:
             nn.init.xavier_uniform_(param, gain=nn.init.calculate_gain("relu"))
@@ -984,8 +985,8 @@ def ensemble_objective(trial):
     hidden_size = trial.suggest_int("hidden_size", 64, 1024)
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
-    dropout_prob = trial.suggest_float("dropout_prob", 0.1, 0.8)
-    batch_size = trial.suggest_int("batch_size", 128, 2048)
+    dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.8)
+    batch_size = trial.suggest_int("batch_size", 3333, 20000)
     swaps = trial.suggest_int("swaps", 0, 10)
 
     ensemble = Ensemble(input_size, 3, hidden_size, dropout_prob).to(device)
@@ -998,7 +999,7 @@ def ensemble_objective(trial):
     )
 
     best_loss = train_ensemble(
-        ensemble, epochs, swaps, optimizer, study.user_attrs["file_path"]
+        ensemble, epochs, swaps, optimizer, study.user_attrs["file_path"], batch_size=batch_size
     )
 
     # Save the best model parameters

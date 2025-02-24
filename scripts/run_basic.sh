@@ -54,7 +54,7 @@ fi
 distribution=$(printf -- "-d \"1/%d\" " $(seq 1 $rules | sed "s/.*/$((2 * rules))/"); printf -- "-d \"1/2\"")
 
 # Fixed parameters
-EPOCHS=75
+EPOCHS=3000
 GENERATIONS=200
 PARAM_FILE="./best_params.yaml"
 MAIN_SCRIPT="main.py"
