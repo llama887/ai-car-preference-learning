@@ -46,7 +46,7 @@ NUM_RADARS = 5
 STATE_ACTION_SIZE = 8
 
 DEFAULT_MAX_GENERATIONS = 1000
-ENSEMBLE_MULTIPLIER = 1
+ENSEMBLE_MULTIPLIER = 3
 
 current_generation = 0  # Generation counter
 reward_network = None

@@ -77,7 +77,7 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
     total_diff = 0
     adjusted_correct = 0
 
-    test_dataset = TrajectoryDataset(test_file)
+    test_dataset = TrajectoryDataset(file_path=test_file, variance_pairs=None, preload=True)
     test_size = len(test_dataset)
     print("TEST SIZE:", test_size)
     test_dataloader = DataLoader(

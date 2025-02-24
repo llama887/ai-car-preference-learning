@@ -44,6 +44,9 @@ ENSEMBLE_SIZE = 3
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+def load_tensors(tensors):
+    return tuple([tensor.to(device) for tensor in tensors])
+
 class TrajectoryRewardNet(nn.Module):
     def __init__(self, input_size, hidden_size=128, dropout_prob=0.0):
         super(TrajectoryRewardNet, self).__init__()
@@ -185,7 +188,7 @@ class Ensemble(nn.Module):
 
 
 class TrajectoryDataset(Dataset):
-    def __init__(self, file_path, variance_pairs=None):
+    def __init__(self, file_path, variance_pairs=None, preload=False):
         self.first_trajectories = []
         self.second_trajectories = []
         self.labels = []
@@ -218,14 +221,17 @@ class TrajectoryDataset(Dataset):
 
             self.first_trajectories = torch.tensor(
                 self.first_trajectories, dtype=torch.float32
-            ).to(device)
+            )
             self.second_trajectories = torch.tensor(
                 self.second_trajectories, dtype=torch.float32
-            ).to(device)
+            )
 
-            self.labels = torch.tensor(self.labels, dtype=torch.float32).to(device)
-            self.score1 = torch.tensor(self.score1, dtype=torch.float32).to(device)
-            self.score2 = torch.tensor(self.score2, dtype=torch.float32).to(device)
+            self.labels = torch.tensor(self.labels, dtype=torch.float32)
+            self.score1 = torch.tensor(self.score1, dtype=torch.float32)
+            self.score2 = torch.tensor(self.score2, dtype=torch.float32)
+
+        if preload:
+            self.first_trajectories, self.second_trajectories, self.labels, self.score1, self.score2 = load_tensors([self.first_trajectories, self.second_trajectories, self.labels, self.score1, self.score2])
 
     def __getitem__(self, idx):
         traj1 = self.first_trajectories[idx]
@@ -250,8 +256,11 @@ def preference_loss(predicted_probabilities, true_preferences):
     return F.binary_cross_entropy(predicted_probabilities, true_preferences)
 
 
-def pick_highest_entropy_dataset(epoch, ensemble, train_dataset, subset_size):
+def pick_highest_entropy_dataset(epoch, ensemble, train_dataset, subset_size, preload=False):
     def get_variance(traj1, traj2):
+        if not preload:
+            traj1 = traj1.to(device)
+            traj2 = traj2.to(device)
         model_probabilities = []
         for model in ensemble.model_list:
             model_probabilities.append(bradley_terry_model(model(traj1), model(traj2)))
@@ -292,7 +301,7 @@ def pick_highest_entropy_dataset(epoch, ensemble, train_dataset, subset_size):
             variance_pairs["score1"].append(score1)
             variance_pairs["score2"].append(score2)
 
-        train_sampler = TrajectoryDataset("", variance_pairs)
+        train_sampler = TrajectoryDataset("", variance_pairs, preload)
 
     return train_sampler
 
@@ -357,7 +366,7 @@ def calculate_adjusted_accuracy(
 
 
 def train_ensemble(
-    ensemble, epochs, swaps, optimizer, batch_size, trajectory_path, return_stat
+    ensemble, epochs, swaps, optimizer, batch_size, trajectory_path, return_stat=None, preload=False
 ):
     n_models = len(ensemble.model_list)
     ensemble.to(device)
@@ -365,7 +374,7 @@ def train_ensemble(
         optimizer, start_factor=1.0, end_factor=0.01, total_iters=epochs
     )
 
-    full_dataset = TrajectoryDataset(trajectory_path)
+    full_dataset = TrajectoryDataset(trajectory_path, None, preload)
     dataset_size = len(full_dataset)
     train_size = int(train_ratio * dataset_size)
     val_size = dataset_size - train_size
@@ -397,10 +406,10 @@ def train_ensemble(
 
     epoch = 0
     while epoch < epochs:
-        if epoch % (epochs // (swaps + 1)) == 0:
+        if epoch % (epochs // swaps) == 0:
             print("SWAP:", epoch)
             train_subset = pick_highest_entropy_dataset(
-                epoch, ensemble, train_dataset, math.ceil(dataset_size / (swaps + 1))
+                epoch, ensemble, train_dataset, math.ceil(dataset_size / (swaps + 1)), preload
             )
             training_dataloaders = distribute_data(train_subset, batch_size, n_models)
 
@@ -430,14 +439,15 @@ def train_ensemble(
                 batch_reward1,
                 batch_reward2,
             ) in training_dataloaders[i]:
+                if not preload:
+                    batch_traj1, batch_traj2, batch_true_pref, batch_reward1, batch_reward2 = load_tensors([batch_traj1, batch_traj2, batch_true_pref, batch_reward1, batch_reward2])
+                
                 rewards1 = model(batch_traj1)
                 rewards2 = model(batch_traj2)
 
                 predicted_probabilities = bradley_terry_model(rewards1, rewards2)
-                model_loss += preference_loss(predicted_probabilities, batch_true_pref)
-                model_acc += calculate_accuracy(
-                    predicted_probabilities, batch_true_pref
-                ) * batch_true_pref.size(0)
+                model_loss += preference_loss(predicted_probabilities, batch_true_pref) * batch_true_pref.size(0)
+                model_acc += calculate_accuracy(predicted_probabilities, batch_true_pref) * batch_true_pref.size(0)
                 model_adjusted_acc += calculate_adjusted_accuracy(
                     predicted_probabilities,
                     batch_true_pref,
@@ -466,14 +476,17 @@ def train_ensemble(
                     validation_reward1,
                     validation_reward2,
                 ) in validation_dataloader:
+                    if not preload:
+                        validation_traj1, validation_traj2, validation_true_pref, validation_reward1, validation_reward2 = load_tensors([validation_traj1, validation_traj2, validation_true_pref, validation_reward1, validation_reward2])
                     validation_rewards1 = model(validation_traj1)
                     validation_rewards2 = model(validation_traj2)
+                    
                     validation_predicted_probabilities = bradley_terry_model(
                         validation_rewards1, validation_rewards2
                     )
                     val_loss += preference_loss(
                         validation_predicted_probabilities, validation_true_pref
-                    ) 
+                    ) * validation_true_pref.size(0)
                     val_acc += calculate_accuracy(
                         validation_predicted_probabilities, validation_true_pref
                     ) * validation_true_pref.size(0)
@@ -575,13 +588,14 @@ def train_model(
     batch_size=256,
     model_path="best.pth",
     return_stat=None,
+    preload=False
 ):
     print("BATCH_SIZE:", batch_size, "| file path:", file_path, "| epochs:", epochs)
     wandb.init(project="Micro Preference")
     wandb.watch(net, log="all")
 
     # Create the dataset
-    full_dataset = TrajectoryDataset(file_path)
+    full_dataset = TrajectoryDataset(file_path, None, preload)
 
     global n_pairs
     n_pairs = len(full_dataset)
@@ -642,6 +656,9 @@ def train_model(
                 batch_score1,
                 batch_score2,
             ) in train_dataloader:
+                if not preload:
+                    batch_traj1, batch_traj2, batch_true_pref, batch_score1, batch_score2 = load_tensors([batch_traj1, batch_traj2, batch_true_pref, batch_score1, batch_score2])
+
                 rewards1 = net(batch_traj1)
                 rewards2 = net(batch_traj2)
 
@@ -659,12 +676,8 @@ def train_model(
                 total_adjusted_accuracy += adjusted_accuracy * batch_true_pref.size(0)
 
                 loss.backward()
-                # plot_activations_and_gradients(net)
-
                 torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
-
                 optimizer.step()
-
                 scheduler.step()
 
             average_training_loss = total_loss / train_size
@@ -688,6 +701,9 @@ def train_model(
                     validation_score1,
                     validation_score2,
                 ) in validation_dataloader:
+                    if not preload:
+                        validation_traj1, validation_traj2, validation_true_pref, validation_score1, validation_score2 = load_tensors([validation_traj1, validation_traj2, validation_true_pref, validation_score1, validation_score2])
+
                     validation_rewards1 = net(validation_traj1)
                     validation_rewards2 = net(validation_traj2)
                     validation_predicted_probabilities = bradley_terry_model(
@@ -696,6 +712,7 @@ def train_model(
                     # validation_true_pref = bradley_terry_model(
                     #     validation_score1, validation_score2
                     # )
+                    
 
                     validation_loss = preference_loss(
                         validation_predicted_probabilities, validation_true_pref
@@ -905,6 +922,7 @@ def train_reward_function(
                     batch_size,
                     trajectories_file_path,
                     return_stat,
+                    False
                 )
                 if save_at_end:
                     for i in range(len(ensemble.model_list)):
@@ -932,6 +950,7 @@ def train_reward_function(
                     batch_size=batch_size,
                     model_path=models_path + f"model_{epochs}_epochs",
                     return_stat=return_stat,
+                    preload=True,
                 )
                 if save_at_end:
                     global n_pairs

@@ -23,7 +23,7 @@ from reward import (
 
 
 TRAJECTORIES=1000000
-EPOCHS=50
+EPOCHS=2000
 GENERATIONS=200
 param_file = "./best_params.yaml"
 use_ensemble = False
