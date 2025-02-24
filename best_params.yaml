@@ -1,6 +1,6 @@
-batch_size: 1701
-dropout_prob: 0.0
-hidden_size: 743
-learning_rate: 0.000912164178445159
-weight_decay: 2.303811330725387e-05
+batch_size: 6032
+dropout_prob: 0.015320771390691146
+hidden_size: 952
+learning_rate: 0.0005012577932434282
 swaps: 3
+weight_decay: 0.0003436955733346727
