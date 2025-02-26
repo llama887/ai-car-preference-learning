@@ -23,8 +23,10 @@ from reward import (
 
 
 TRAJECTORIES=1000000
-EPOCHS=2000
+EPOCHS=750
 GENERATIONS=200
+RULES_LIST = [1,2,3]
+
 param_file = "./best_params.yaml"
 use_ensemble = False
 headless = True
@@ -64,7 +66,7 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
     total_diff = 0
     adjusted_correct = 0
 
-    test_dataset = TrajectoryDataset(test_file)
+    test_dataset = TrajectoryDataset(test_file, None, True)
     test_size = len(test_dataset)
     print("TEST SIZE:", test_size)
     test_dataloader = DataLoader(
@@ -148,14 +150,15 @@ if __name__ == "__main__":
             batch_size = data["batch_size"]
 
     data_points = {}
-    for num_rules in range(1, 4):
+    for num_rules in RULES_LIST:
         rules.NUMBER_OF_RULES = num_rules
         distributions = generate_distribution(args.resolution, num_rules)
+        total_distributions = len(distributions) * len(RULES_LIST)
         data_x = sorted(distributions.keys())
         data_y = []
-        for satis in data_x:
+        for i, satis in enumerate(data_x):
             rules.SEGMENT_DISTRIBUTION_BY_RULES = distributions[satis]
-            print("CURRENT DISTRIBUTION:", distributions[satis])
+            print(f"CURRENT DISTRIBUTION ({len(distributions) * (num_rules - 1) + i} / {total_distributions}):", distributions[satis])
             database_path = f"{agent.trajectories_path}database_{TRAJECTORIES}_pairs_{rules.NUMBER_OF_RULES}_rules_{agent.train_trajectory_length}_length.pkl"
             model_weights = ""
 

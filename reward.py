@@ -183,8 +183,18 @@ class Ensemble(nn.Module):
     def forward(self, x):
         ret = []
         for model in self.model_list:
-            ret.append(model.forward(x))
+            x = x.to(next(model.parameters()).device)  
+            ret.append(model(x))
         return sum(ret) / len(ret)
+
+    def load_models_to_gpu(self):
+        for i in range(self.num_models):
+            self.model_list[i] = self.model_list[i].to(device)
+    
+    def unload_models(self):
+        for i in range(self.num_models):
+            self.model_list[i] = self.model_list[i].to("cpu")
+        torch.cuda.empty_cache()
 
 
 class TrajectoryDataset(Dataset):
@@ -257,6 +267,8 @@ def preference_loss(predicted_probabilities, true_preferences):
 
 
 def pick_highest_entropy_dataset(epoch, ensemble, train_dataset, subset_size, preload=False):
+    ensemble.load_models_to_gpu()
+
     def get_variance(traj1, traj2):
         if not preload:
             traj1 = traj1.to(device)
@@ -302,11 +314,14 @@ def pick_highest_entropy_dataset(epoch, ensemble, train_dataset, subset_size, pr
             variance_pairs["score2"].append(score2)
 
         train_sampler = TrajectoryDataset("", variance_pairs, preload)
+    
+    ensemble.unload_models()
 
     return train_sampler
 
 
-def distribute_data(train_subset, batch_size, num_models):
+def distribute_data(train_subset, batch_size, num_models, preload=False):
+    pin_mem = not preload
     train_sizes = [len(train_subset) // num_models for _ in range(num_models)]
     print("TRAIN_SIZES:", train_sizes)
     first_train_size = len(train_subset) - num_models * (
@@ -319,7 +334,7 @@ def distribute_data(train_subset, batch_size, num_models):
             train_datasets[i],
             batch_size=train_sizes[i] if train_sizes[i] < batch_size else batch_size,
             shuffle=True,
-            pin_memory=False,
+            pin_memory=pin_mem,
         )
         for i in range(num_models)
     ]
@@ -369,10 +384,11 @@ def train_ensemble(
     ensemble, epochs, swaps, optimizer, batch_size, trajectory_path, return_stat=None, preload=False
 ):
     n_models = len(ensemble.model_list)
-    ensemble.to(device)
     scheduler = lr_scheduler.LinearLR(
         optimizer, start_factor=1.0, end_factor=0.01, total_iters=epochs
     )
+
+    pin_mem = not preload 
 
     full_dataset = TrajectoryDataset(trajectory_path, None, preload)
     dataset_size = len(full_dataset)
@@ -384,7 +400,7 @@ def train_ensemble(
         val_dataset,
         batch_size=val_size if val_size < batch_size else batch_size,
         shuffle=False,
-        pin_memory=False,
+        pin_memory=pin_mem,
     )
 
     training_losses = []
@@ -411,7 +427,7 @@ def train_ensemble(
             train_subset = pick_highest_entropy_dataset(
                 epoch, ensemble, train_dataset, math.ceil(dataset_size / (swaps + 1)), preload
             )
-            training_dataloaders = distribute_data(train_subset, batch_size, n_models)
+            training_dataloaders = distribute_data(train_subset, batch_size, n_models, preload)
 
         loss_across_models = 0
         acc_across_models = 0
@@ -425,7 +441,7 @@ def train_ensemble(
             val_size = len(validation_dataloader.dataset)
 
             model = ensemble.model_list[i]
-            # Ensure loss is a tensor
+            model = model.to(device)
             model.train()
 
             model_loss = 0.0
@@ -511,6 +527,9 @@ def train_ensemble(
                     ensemble_path + f"model_{epochs}_epochs_{dataset_size}_pairs_{rules.NUMBER_OF_RULES}_rules_{i}.pth",
                 )
                 print(f"MODEL {i} SAVED AT EPOCH: {epoch}")
+            
+            model.to("cpu")
+            torch.cuda.empty_cache()
 
         avg_train_loss = loss_across_models / n_models
         avg_train_acc = acc_across_models / n_models
@@ -588,7 +607,7 @@ def train_model(
     batch_size=256,
     model_path="best.pth",
     return_stat=None,
-    preload=False
+    preload=True
 ):
     print("BATCH_SIZE:", batch_size, "| file path:", file_path, "| epochs:", epochs)
     wandb.init(project="Micro Preference")
@@ -610,18 +629,20 @@ def train_model(
     # Split the dataset into training and validation sets
     train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
 
+    pin_mem = not preload
+
     # Initialize Dataloaders
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=train_size if train_size < batch_size else batch_size,
         shuffle=True,
-        pin_memory=False,
+        pin_memory=pin_mem,
     )
     validation_dataloader = DataLoader(
         val_dataset,
         batch_size=val_size if val_size < batch_size else batch_size,
         shuffle=False,
-        pin_memory=False,
+        pin_memory=pin_mem,
     )
 
     if batch_size > train_size:

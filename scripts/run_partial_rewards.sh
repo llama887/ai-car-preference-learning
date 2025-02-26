@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Fixed parameters
-EPOCHS=50
+EPOCHS=750
 TRAJ=500000
 PARAM_FILE="./best_params.yaml"
 MAIN_SCRIPT="partial_rewards.py"
