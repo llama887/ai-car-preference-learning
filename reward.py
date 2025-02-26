@@ -1026,7 +1026,7 @@ def ensemble_objective(trial):
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3)
     weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3)
     dropout_prob = trial.suggest_float("dropout_prob", 0.0, 0.8)
-    batch_size = trial.suggest_int("batch_size", 3333, 20000)
+    batch_size = trial.suggest_int("batch_size", 5000, 20000)
     swaps = trial.suggest_int("swaps", 0, 10)
 
     ensemble = Ensemble(input_size, 3, hidden_size, dropout_prob).to(device)

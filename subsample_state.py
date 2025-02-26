@@ -122,92 +122,61 @@ def subsample_state(image_path, grid_resolution, tolerance=1.0):
     return valid_points
 
 
-def get_angle(x, y):
-    def _get_filtered_df(df: pd.DataFrame, x: float, y: float, filter_conditions):
-        for condition in filter_conditions:
-            if condition({'X': x, 'Y': y}):
-                return df[df.apply(condition, axis=1)]
-            print(f"Invalid position: {x}, {y}")
-        return None
-    def _create_filter_condition(x_condition, y_condition):
-        return lambda row: x_condition(row['X']) and y_condition(row['Y'])
+import pandas as pd
+import numpy as np
 
+# Precompute the angle dictionary
+def precompute_angle_dict():
     df = pd.read_csv("orientation_data.csv")
+    angle_dict = {}
 
-    # Hard coded values for the bottom where too many cars die
-    if 600 <= x <= 800 and -y <= -600:
-        return 0
-    if 800 <= x <= 1200 and -y <= -600:
-        return 0
-
+    def _create_key(x_range, y_range):
+        return (x_range[0], x_range[1], y_range[0], y_range[1])
+    
     filter_conditions = [
-        _create_filter_condition(
-            lambda x: 400 <= x <= 600,
-            lambda y: -y <= -600
-        ),
-        _create_filter_condition(
-            lambda x: 600 <= x <= 800,
-            lambda y: -y <= -600
-        ),
-        _create_filter_condition(
-            lambda x: 800 <= x <= 1200,
-            lambda y: -y <= -600
-        ),
-        _create_filter_condition(
-            lambda x: 1200 <= x <= 1400,
-            lambda y: -y <= -600
-        ),
-        _create_filter_condition(
-            lambda x: x >= 1400,
-            lambda y: -y <= -800
-        ),
-        _create_filter_condition(
-            lambda x: x >= 1400,
-            lambda y: -800 <= -y <= -600
-        ),
-        _create_filter_condition(
-            lambda x: x >= 1400,
-            lambda y: -600 <= -y <= -400
-        ),
-        _create_filter_condition(
-            lambda x: x >= 1400,
-            lambda y: -400 <= -y
-        ),
-        _create_filter_condition(
-            lambda x: 1200 <= x <= 1400,
-            lambda y: -y >= -400
-        ),
-        _create_filter_condition(
-            lambda x: 600 <= x <= 1200,
-            lambda y: -y >= -400
-        ),
-        _create_filter_condition(
-            lambda x: x <= 600,
-            lambda y: -y >= -200
-        ),
-        _create_filter_condition(
-            lambda x: x <= 600,
-            lambda y: -400 <= -y <= -200
-        ),
-        _create_filter_condition(
-            lambda x: x <= 600,
-            lambda y: -600 <= -y <= -400
-        ),
-        _create_filter_condition(
-            lambda x: x <= 400,
-            lambda y: -y <= -600
-        ),
+        ((400, 600), (-np.inf, -600)),
+        ((600, 800), (-np.inf, -600)),
+        ((800, 1200), (-np.inf, -600)),
+        ((1200, 1400), (-np.inf, -600)),
+        ((1400, np.inf), (-np.inf, -600)),
+        ((1400, np.inf), (-800, -600)),
+        ((1400, np.inf), (-600, -400)),
+        ((1400, np.inf), (-400, np.inf)),
+        ((1200, 1400), (-400, np.inf)),
+        ((600, 1200), (-400, np.inf)),
+        ((0, 600), (-200, np.inf)),
+        ((0, 600), (-400, -200)),
+        ((0, 600), (-600, -400)),
+        ((0, 400), (-np.inf, -600)),
+        ((0, 600), (-np.inf, -600)),
     ]
 
-    filtered_df = _get_filtered_df(df, x, y, filter_conditions)
-    if filtered_df is None:
-        print("No matching condition found")
+    for x_range, y_range in filter_conditions:
+        mask = (df['X'] >= x_range[0]) & (df['X'] < x_range[1]) & \
+               (-df['Y'] > y_range[0]) & (-df['Y'] <= y_range[1])
+        filtered_df = df[mask]
+        if not filtered_df.empty:
+            key = _create_key(x_range, y_range)
+            angle_dict[key] = filtered_df["Angle"].mean()
 
-    if filtered_df is not None and not filtered_df.empty:
-        return filtered_df["Angle"].mean()  # Compute the average orientation
-    else:
-        print(f"No data available for this section {x}, {y}")
-        return None  # No data available for this section
+    # Hard coded values for the bottom where too many cars die
+    angle_dict[(600, 800, -np.inf, -600)] = 0
+    angle_dict[(800, 1200, -np.inf, -600)] = 0
+
+    return angle_dict
+
+# Global variable to store the precomputed angle dictionary
+ANGLE_DICT = precompute_angle_dict()
+
+def get_angle(x, y):
+    y = -y  # Invert y to match the original function's coordinate system
+
+    for (x_min, x_max, y_min, y_max), angle in ANGLE_DICT.items():
+        if x_min <= x < x_max and y_min < y <= y_max:
+            return angle
+    
+    print(f"No data available for this section {x}, {y}")
+    return None
 
 
 def process_trajectory_segment(params):

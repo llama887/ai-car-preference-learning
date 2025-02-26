@@ -159,6 +159,7 @@ def plot_reward_heatmap(
     number_of_rules=1,
     reward_model=None,
     figure_path="figures/",
+    arrows=False,
 ):
     assert reward_model_directory or reward_model, (
         "Must provide either reward_model_directory or reward_model"
@@ -177,23 +178,24 @@ def plot_reward_heatmap(
     color_bar = plt.colorbar(scatter)
     color_bar.set_label("Accuracy")
 
-    centers_and_angles = get_cluster_centers_and_angles(x, y)
-    arrow_length = 0.05 * (max(x) - min(x))
-    for center_x, center_y, angle in centers_and_angles:
-        dx = arrow_length * np.cos(np.radians(angle))
-        dy = arrow_length * np.sin(np.radians(angle))
-        arrow = FancyArrowPatch(
-            (center_x, center_y),
-            (center_x + dx, center_y + dy),
-            arrowstyle='-|>',
-            mutation_scale=15,
-            color='red',
-            linewidth=1.5,
-            zorder=10
-        )
-        ax.add_patch(arrow)
-    ax.plot([], [], color='red', marker='>', linestyle='-',
-            label='Car Orientation', markersize=8)
+    if arrows:
+        centers_and_angles = get_cluster_centers_and_angles(x, y)
+        arrow_length = 0.05 * (max(x) - min(x))
+        for center_x, center_y, angle in centers_and_angles:
+            dx = arrow_length * np.cos(np.radians(angle))
+            dy = arrow_length * np.sin(np.radians(angle))
+            arrow = FancyArrowPatch(
+                (center_x, center_y),
+                (center_x + dx, center_y + dy),
+                arrowstyle='-|>',
+                mutation_scale=15,
+                color='red',
+                linewidth=1.5,
+                zorder=10
+            )
+            ax.add_patch(arrow)
+        ax.plot([], [], color='red', marker='>', linestyle='-',
+                label='Car Orientation', markersize=8)
     ax.legend()
 
     if number_of_samples and number_of_rules:
