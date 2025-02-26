@@ -23,7 +23,7 @@ from reward import (
 
 
 TRAJECTORIES=1000000
-EPOCHS=750
+EPOCHS=3000
 GENERATIONS=200
 RULES_LIST = [1,2,3]
 
@@ -188,7 +188,15 @@ if __name__ == "__main__":
             test_acc, adjusted_test_acc = test_model(model_path, test_path, hidden_size, batch_size)
             data_y.append(adjusted_test_acc)
         data_points[num_rules] = (data_x.copy(), data_y.copy())
-    
+
+        figure_folder = "distribution_experiment/"
+        os.makedirs(figure_folder, exist_ok=True)
+        with open(
+                figure_folder + "output.pkl",
+                "wb",
+            ) as f:
+                pickle.dump(data_points, f)
+        
     figure_folder = "distribution_experiment/"
     os.makedirs(figure_folder, exist_ok=True)
     with open(
