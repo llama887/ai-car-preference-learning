@@ -189,7 +189,6 @@ if __name__ == "__main__":
     if args.composition and args.trajectories:
         rules.NUMBER_OF_RULES = args.composition
         num_pairs = agent.ENSEMBLE_MULTIPLIER * args.trajectories[0] if args.ensemble else args.trajectories[0]
-        database_path = f"{agent.trajectories_path}database_{num_pairs}_pairs_{args.composition}_rules_{agent.train_trajectory_length}_length.pkl"
     else:
         print("Missing either -c flag or -t flag")
 
@@ -233,13 +232,14 @@ if __name__ == "__main__":
     agent.train_trajectory_length = args.segment if args.segment else 1
     gc.collect()
     model_weights = ""
+    
     if args.reward is None:
         if args.master_database and "subsampled" in args.master_database:
             with open(args.master_database, "rb") as file:
                 data = pickle.load(file)
-                generate_database_from_segments(
+                num_pairs=int(generate_database_from_segments(
                     data[: rules.NUMBER_OF_RULES + 1], args.trajectories[0]
-                )
+                ) / 2)
                 del data
         else:
             # start the simulation in data collecting mode
@@ -252,6 +252,7 @@ if __name__ == "__main__":
                 args.ensemble,
             )
         gc.collect()
+        database_path = f"{agent.trajectories_path}database_{num_pairs}_pairs_{args.composition}_rules_{agent.train_trajectory_length}_length.pkl"
         print("Starting training on trajectories...")
         print(
             f"train_reward_function({database_path}, {args.epochs[0]}, {args.parameters}, {args.ensemble}, {args.figure}, )"
