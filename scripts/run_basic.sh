@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Default array of trajectories if none are provided as input
-TRAJECTORIES=(1000000 100000 10000 1000)
+TRAJECTORIES=(100000 10000 1000 100)
 
 # Function to display usage
 usage() {
@@ -92,8 +92,8 @@ run_instance() {
     ZIP_SUFFIX=""
     if $ensembling; then
         cmd+=" --ensemble"
-        ZIP_SUFFIX+="ensembling"
-        ZIP_DIR+="ensembling"
+        ZIP_SUFFIX+="_ensembling"
+        ZIP_DIR+="_ensembling"
     elif $subsample; then
         ZIP_SUFFIX+="_subsample"
         ZIP_DIR+="_subsample"
