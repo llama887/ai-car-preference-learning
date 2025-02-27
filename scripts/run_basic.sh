@@ -92,8 +92,8 @@ run_instance() {
     ZIP_SUFFIX=""
     if $ensembling; then
         cmd+=" --ensemble"
-        ZIP_SUFFIX+="_ensembling"
-        ZIP_DIR+="_ensembling"
+        ZIP_SUFFIX+="ensembling"
+        ZIP_DIR+="ensembling"
     elif $subsample; then
         ZIP_SUFFIX+="_subsample"
         ZIP_DIR+="_subsample"

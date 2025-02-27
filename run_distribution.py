@@ -158,7 +158,7 @@ if __name__ == "__main__":
         data_y = []
         for i, satis in enumerate(data_x):
             rules.SEGMENT_DISTRIBUTION_BY_RULES = distributions[satis]
-            print(f"CURRENT DISTRIBUTION ({len(distributions) * (num_rules - 1) + i} / {total_distributions}):", distributions[satis])
+            print(f"CURRENT DISTRIBUTION ({len(distributions) * (num_rules - 1) + i + 1} / {total_distributions}):", distributions[satis])
             database_path = f"{agent.trajectories_path}database_{TRAJECTORIES}_pairs_{rules.NUMBER_OF_RULES}_rules_{agent.train_trajectory_length}_length.pkl"
             model_weights = ""
 
