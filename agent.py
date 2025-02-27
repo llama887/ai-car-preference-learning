@@ -545,6 +545,8 @@ def generate_database_from_segments(segments, number_of_pairs):
     ) as f:
         pickle.dump(trajectory_pairs, f)
 
+    return len(trajectory_segments)
+
 
 def generate_database(trajectory_path):
     trajectory_pairs = []
