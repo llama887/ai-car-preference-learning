@@ -297,6 +297,16 @@ def handle_plotting_dissatisfaction(
         graph_acc_gap(aggregate_baseline_accs, aggregate_ensembling_accs)
     
 
+def handle_plotting_statesampling(
+    aggregate_baseline_accs,
+    aggregate_statesampling_accs=None,
+):
+    for rules in aggregate_baseline_accs:
+        aggregate_baseline_accs[rules] = {1000000 : aggregate_baseline_accs[rules][1000000]}
+        
+    graph_acc(aggregate_statesampling_accs, title="testing_acc_statesampling")
+    graph_acc_gap(aggregate_baseline_accs, aggregate_statesampling_accs, f"{reward.figure_path}testing_acc_statesampling_gap")
+
 def graph_normalized_segments_over_generations(
     trueRF_average_satisfaction_segments,
     aggregate_trainedRF_average_satisfaction_segments,
@@ -478,31 +488,33 @@ def graph_acc(aggregate_accs, title=None):
     plt.close()
 
 
-def graph_acc_gap(aggregate_baseline_accs, aggregate_ensembling_accs):
+def graph_acc_gap(aggregate_baseline_accs, aggregate_other_accs, title=None):
+    if not title:
+        title = f"{reward.figure_path}testing_acc_ensembling_gap"
     rules = aggregate_baseline_accs.keys()
     plt.figure()
     for num_rules in rules:
         dataset_sizes = sorted(aggregate_baseline_accs[num_rules].keys())
-        accs = [aggregate_baseline_accs[num_rules][size] - aggregate_ensembling_accs[num_rules][size] for size in dataset_sizes]
+        accs = [aggregate_baseline_accs[num_rules][size] - aggregate_other_accs[num_rules][size] for size in dataset_sizes]
         plt.plot(dataset_sizes, accs,"-o", label=f"{num_rules} rules")
     plt.xlabel("Number of Trajectory Pairs (Log Scale)")
     plt.xscale("log")
     plt.ylabel("Adjusted Testing Accuracy")
     plt.legend()
-    plt.savefig(f"{reward.figure_path}testing_acc_ensembling_gap.png")
+    plt.savefig(f"{title}.png")
     plt.close()
 
     plt.figure()
     for num_rules in rules:
         dataset_sizes = sorted(aggregate_baseline_accs[num_rules].keys())
-        accs = [aggregate_baseline_accs[num_rules][size] - aggregate_ensembling_accs[num_rules][size] for size in dataset_sizes]
+        accs = [aggregate_baseline_accs[num_rules][size] - aggregate_other_accs[num_rules][size] for size in dataset_sizes]
         plt.plot(dataset_sizes, accs, "-o", label=f"{num_rules} rules")
     plt.xlabel("Number of Trajectory Pairs (Log Scale)")
     plt.xscale("log")
     plt.ylabel("Adjusted Testing Accuracy")
     plt.yscale("log")
     plt.legend()
-    plt.savefig(f"{reward.figure_path}testing_acc_ensembling_gap_accLog.png")
+    plt.savefig(f"{title}_accLog.png")
     plt.close()
 
 if __name__ == "__main__":
@@ -524,6 +536,12 @@ if __name__ == "__main__":
         "--performance",
         action="store_true",
         help="make agent performance plot as well"
+    )
+    parse.add_argument(
+        "-s",
+        "--state_sampling",
+        action="store_true",
+        help="plot against state sampling"
     )
     args = parse.parse_args()
 
@@ -562,5 +580,21 @@ if __name__ == "__main__":
             aggregate_baseline_accs,
             aggregate_ensembling_accs,
         )
+
+        if args.state_sampling:
+            aggregate_statesampling_accs = {
+                1: "",
+                2: "",
+                3: "",
+            }
+
+            for rule in aggregate_statesampling_accs:
+                file = aggregate_statesampling_accs[rule]
+                with open(file, "rb") as f:
+                    test_acc, adjusted_test_acc = pickle.load(f)
+                aggregate_statesampling_accs[rule] = {1000000 : adjusted_test_acc}
+            
+            handle_plotting_dissatisfaction(aggregate_baseline_accs, aggregate_statesampling_accs)
+
     
     print("Done Plotting.")
