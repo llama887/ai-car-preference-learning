@@ -21,6 +21,11 @@ zips_ensembling_path = "zips_ensembling/"
 
 T_VALUE_95 = stats.t.ppf((1 + 0.95) / 2, df=19)
 
+yticks = [1, 0.999, 0.99, 0.9, 0.8, 0.6]
+logged_yticks = [-np.log10(-np.log10(y)) if y != 1 else 1 for y in yticks]
+print(logged_yticks)
+
+
 def use_tex():
     plt.rcParams.update({
         "text.usetex": True,
@@ -478,11 +483,13 @@ def graph_acc(aggregate_accs, title=None):
     for num_rules in rules:
         dataset_sizes = sorted(aggregate_accs[num_rules].keys())
         accs = [aggregate_accs[num_rules][size] for size in dataset_sizes]
-        plt.plot(dataset_sizes, accs, "-o",label=f"{num_rules} rules")
+        logged_accs = [-np.log10(-np.log10(acc)) for acc in accs]
+        print(logged_accs)
+        plt.plot(dataset_sizes, logged_accs, "-o",label=f"{num_rules} rules")
     plt.xlabel("Number of Trajectory Pairs (Log Scale)")
     plt.xscale("log")
     plt.ylabel("Adjusted Testing Accuracy (Log Scale)")
-    plt.yscale("log")
+    plt.yticks(logged_yticks, yticks)
     plt.legend()
     plt.savefig(f"{reward.figure_path}{title}_accLog.png", dpi=600)
     plt.close()
