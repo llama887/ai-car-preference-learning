@@ -31,7 +31,7 @@ run_baseline_with_subsampling_parallel:
 	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
 	stdbuf -oL python -u main.py -e 3000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 1 -d "1/2" -d "1/2" -md subsampled_gargantuar_1_length_1_rules.pkl --heatmap --skip-retrain --save-at-end --trajectory subsampled_trajectories_r1 --figure subsampled_figures_r1 2>&1 | tee logs/log_1_r_subsample.log &
 	stdbuf -oL python -u main.py -e 3000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 2 -d "3/12" -d "3/12" -d "6/12" -md subsampled_gargantuar_1_length_2_rules.pkl --heatmap --skip-retrain --save-at-end --trajectory subsampled_trajectories_r2 --figure subsampled_figures_r2 2>&1 | tee logs/log_2_r_subsample.log &
-	stdbuf -oL python -u main.py -e 3000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 3 -d "1/6" -d "1/6" -d "1/6" -d "3/6" -md subsampled_gargantuar_1_length_3_rules.pkl --heatmap --skip-retrain --save-at-end --trajectory subsampled_trajectories_r2 --figure subsampled_figures_r2 2>&1 | tee logs/log_3_r_subsample.log &
+	stdbuf -oL python -u main.py -e 3000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 3 -d "1/6" -d "1/6" -d "1/6" -d "3/6" -md subsampled_gargantuar_1_length_3_rules.pkl --heatmap --skip-retrain --save-at-end --trajectory subsampled_trajectories_r3 --figure subsampled_figures_r2 2>&1 | tee logs/log_3_r_subsample.log &
 	wait
 
 run_baseline_and_ensembling:
