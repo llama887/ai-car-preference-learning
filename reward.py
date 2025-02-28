@@ -198,7 +198,7 @@ class Ensemble(nn.Module):
 
 
 class TrajectoryDataset(Dataset):
-    def __init__(self, file_path, variance_pairs=None, preload=False):
+    def __init__(self, file_path, variance_pairs=None, preload=True):
         self.first_trajectories = []
         self.second_trajectories = []
         self.labels = []
@@ -266,7 +266,7 @@ def preference_loss(predicted_probabilities, true_preferences):
     return F.binary_cross_entropy(predicted_probabilities, true_preferences)
 
 
-def pick_highest_entropy_dataset(epoch, ensemble, train_dataset, subset_size, preload=False):
+def pick_highest_entropy_dataset(epoch, ensemble, train_dataset, subset_size, preload=True):
     ensemble.load_models_to_gpu()
 
     def get_variance(traj1, traj2):
@@ -943,7 +943,7 @@ def train_reward_function(
                     batch_size,
                     trajectories_file_path,
                     return_stat,
-                    False
+                    True,
                 )
                 if save_at_end:
                     for i in range(len(ensemble.model_list)):
