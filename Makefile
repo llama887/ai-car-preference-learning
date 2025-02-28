@@ -99,7 +99,7 @@ get_testsets:
 
 
 run_with_partial_rewards: database_test_2_rules.pkl
-	./scripts/run_partial_rewards.sh -r 3 -p 1
+	./scripts/run_partial_rewards.sh -r 3 -p 6
 	python simplex.py
 
 run_on_subsampled_data:

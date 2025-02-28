@@ -23,7 +23,6 @@ T_VALUE_95 = stats.t.ppf((1 + 0.95) / 2, df=19)
 
 yticks = [1, 0.999, 0.99, 0.9, 0.8, 0.6]
 logged_yticks = [-np.log10(-np.log10(y)) if y != 1 else 1 for y in yticks]
-print(logged_yticks)
 
 
 def use_tex():

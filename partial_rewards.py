@@ -112,7 +112,7 @@ def process_distribution(args):
             accs = train_reward_function(
                 database_path, epochs, parameters, False, None, "acc"
             )
-            test_acc, adjusted_test_acc = test_model(f"models/model_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth", "database_test.pkl", hidden_size, batch_size)
+            test_acc, adjusted_test_acc = test_model(f"models/partial_{i}_model_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth", "database_test.pkl", hidden_size, batch_size)
             accs["final_test_acc"] = test_acc
             accs["final_adjusted_test_acc"] = adjusted_test_acc
             return (a, b, c, accs)
@@ -209,12 +209,12 @@ if __name__ == "__main__":
         batch_size = data["batch_size"]
 
     a, b, c, i = args.a, args.b, args.c, args.i 
+    reward.models_path = f"models/partial_{i}_"
     
     
     total_iterations = calculate_iterations(args.resolution)
     task =  (a, b, c, i, num_pairs, "./config/data_collection_config.txt", args.epochs[0], args.parameters, args.headless, total_iterations, hidden_size, batch_size)
-    # test_model(f"models/model_{50}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth", "database_test.pkl", hidden_size, batch_size)
-            
+
     result = process_distribution(task)
     a, b, c, accs = result
 

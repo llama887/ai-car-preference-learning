@@ -148,6 +148,7 @@ if __name__ == "__main__":
     args = parse.parse_args()
 
     reward.models_path = "models_dist_exp/"
+    os.makedirs(reward.models_path, exist_ok=True)
 
     hidden_size = ""
     batch_size = ""

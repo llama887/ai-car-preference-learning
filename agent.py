@@ -1002,6 +1002,9 @@ def run_population(
                         if "subsampled" in master_database:
                             saved_segments = data[: rules.NUMBER_OF_RULES + 1]
                         saved_segments = data
+                        for i in range(len(saved_segments)):
+                            saved_segments[i] = saved_segments[i][:2000000]
+                        del data
                 except Exception:
                     print(f"COULD NOT LOAD FROM MASTER DB: {master_database}")
                     saved_segments = []
