@@ -760,7 +760,7 @@ def train_model(
                     model_path
                     + f"_{10 ** round(math.log10(n_pairs))}_pairs_{rules.NUMBER_OF_RULES}_rules.pth",
                 )
-                print("MODEL SAVED AT EPOCH:", epoch)
+                # print("MODEL SAVED AT EPOCH:", epoch)
             average_validation_accuracy = total_validation_accuracy / val_size
             average_adjusted_validation_accuracy = (
                 total_adjusted_validation_accuracy / val_size
