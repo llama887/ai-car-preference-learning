@@ -47,28 +47,34 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def load_tensors(tensors):
     return tuple([tensor.to(device) for tensor in tensors])
 
-class TrajectoryRewardNet(nn.Module):
+class TrajectoryRewardNet(nn.Sequential):
     def __init__(self, input_size, hidden_size=128, dropout_prob=0.0):
-        super(TrajectoryRewardNet, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.ln1 = nn.LayerNorm(hidden_size)
-        self.dropout1 = nn.Dropout(dropout_prob)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.ln2 = nn.LayerNorm(hidden_size)
-        self.dropout2 = nn.Dropout(dropout_prob)
-        self.fc3 = nn.Linear(hidden_size, hidden_size)
-        self.ln3 = nn.LayerNorm(hidden_size)
-        self.dropout3 = nn.Dropout(dropout_prob)
-        self.fc4 = nn.Linear(hidden_size, hidden_size)
-        self.ln4 = nn.LayerNorm(hidden_size)
-        self.dropout4 = nn.Dropout(dropout_prob)
-        self.fc5 = nn.Linear(hidden_size, hidden_size // 2)
-        self.ln5 = nn.LayerNorm(hidden_size // 2)
-        self.dropout5 = nn.Dropout(dropout_prob)
-        self.fc6 = nn.Linear(hidden_size // 2, hidden_size // 4)
-        self.ln6 = nn.LayerNorm(hidden_size // 4)
-        self.dropout6 = nn.Dropout(dropout_prob)
-        self.fc7 = nn.Linear(hidden_size // 4, 1)
+        super(TrajectoryRewardNet, self).__init__(
+            nn.Linear(input_size, hidden_size),
+            nn.LayerNorm(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(dropout_prob),
+            nn.Linear(hidden_size, hidden_size),
+            nn.LayerNorm(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(dropout_prob),
+            nn.Linear(hidden_size, hidden_size),
+            nn.LayerNorm(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(dropout_prob),
+            nn.Linear(hidden_size, hidden_size),
+            nn.LayerNorm(hidden_size),
+            nn.ReLU(),
+            nn.Dropout(dropout_prob),
+            nn.Linear(hidden_size, hidden_size // 2),
+            nn.LayerNorm(hidden_size // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout_prob),
+            nn.Linear(hidden_size // 2, hidden_size // 4),
+            nn.LayerNorm(hidden_size // 4),
+            nn.ReLU(),
+            nn.Dropout(dropout_prob),
+            nn.Linear(hidden_size // 4, 1))
 
         self.best_loss = np.inf
         self.training_losses = []
@@ -76,87 +82,21 @@ class TrajectoryRewardNet(nn.Module):
         self.training_accuracies = []
         self.validation_accuracies = []
 
-    def forward(self, x):
-        x = F.relu(self.ln1(self.fc1(x)))
-        x = self.dropout1(x)
-        x = F.relu(self.ln2(self.fc2(x)))
-        x = self.dropout2(x)
-        x = F.relu(self.ln3(self.fc3(x)))
-        x = self.dropout3(x)
-        x = F.relu(self.ln4(self.fc4(x)))
-        x = self.dropout4(x)
-        x = F.relu(self.ln5(self.fc5(x)))
-        x = self.dropout5(x)
-        x = F.relu(self.ln6(self.fc6(x)))
-        x = self.dropout6(x)
-        x = self.fc7(x)
-        return x
-
-    def train_step(self, training_dataloader, validation_dataloader):
-        self.train()
-
-        train_size = len(training_dataloader.dataset)
-        val_size = len(validation_dataloader.dataset)
-
-        total_loss = 0.0
-        total_accuracy = 0.0
-        total_probability = 0.0
-
-        for (
-            batch_traj1,
-            batch_traj2,
-            batch_true_pref,
-            batch_score1,
-            batch_score2,
-        ) in training_dataloader:
-            rewards1 = self.forward(batch_traj1)
-            rewards2 = self.forward(batch_traj2)
-
-            predicted_probabilities = bradley_terry_model(rewards1, rewards2)
-            total_probability += predicted_probabilities.sum().item()
-            loss = preference_loss(predicted_probabilities, batch_true_pref)
-            total_loss += loss.item()
-            accuracy = calculate_accuracy(predicted_probabilities, batch_true_pref)
-            total_accuracy += accuracy * batch_true_pref.size(0)
-
-        average_training_loss = total_loss / train_size
-        average_training_accuracy = total_accuracy / train_size
-
-        self.eval()
-        total_validation_loss = 0.0
-        total_validation_accuracy = 0.0
-        with torch.no_grad():
-            for (
-                validation_traj1,
-                validation_traj2,
-                validation_true_pref,
-                validation_score1,
-                validation_score2,
-            ) in validation_dataloader:
-                validation_rewards1 = self.forward(validation_traj1)
-                validation_rewards2 = self.forward(validation_traj2)
-                validation_predicted_probabilities = bradley_terry_model(
-                    validation_rewards1, validation_rewards2
-                )
-                validation_true_pref_dist = bradley_terry_model(
-                    validation_score1, validation_score2
-                )
-                total_validation_loss += preference_loss(
-                    validation_predicted_probabilities, validation_true_pref_dist
-                )
-                total_validation_accuracy += calculate_accuracy(
-                    validation_predicted_probabilities, validation_true_pref
-                ) * validation_true_pref.size(0)
-
-        average_validation_loss = total_validation_loss / val_size
-        average_validation_accuracy = total_validation_accuracy / val_size
-
-        return (
-            average_training_loss,
-            average_training_accuracy,
-            average_validation_loss,
-            average_validation_accuracy,
-        )
+    # def forward(self, x):
+    #     x = F.relu(self.ln1(self.fc1(x)))
+    #     x = self.dropout1(x)
+    #     x = F.relu(self.ln2(self.fc2(x)))
+    #     x = self.dropout2(x)
+    #     x = F.relu(self.ln3(self.fc3(x)))
+    #     x = self.dropout3(x)
+    #     x = F.relu(self.ln4(self.fc4(x)))
+    #     x = self.dropout4(x)
+    #     x = F.relu(self.ln5(self.fc5(x)))
+    #     x = self.dropout5(x)
+    #     x = F.relu(self.ln6(self.fc6(x)))
+    #     x = self.dropout6(x)
+    #     x = self.fc7(x)
+    #     return x
 
 
 class Ensemble(nn.Module):
@@ -179,6 +119,8 @@ class Ensemble(nn.Module):
             )
         else:
             self.model_list = nn.ModuleList(models_list)
+
+        # self.load_models_to_gpu()
 
     def forward(self, x):
         ret = []
@@ -267,8 +209,6 @@ def preference_loss(predicted_probabilities, true_preferences):
 
 
 def pick_highest_entropy_dataset(epoch, ensemble, train_dataset, subset_size, preload=True):
-    ensemble.load_models_to_gpu()
-
     def get_variance(traj1, traj2):
         if not preload:
             traj1 = traj1.to(device)
@@ -314,9 +254,6 @@ def pick_highest_entropy_dataset(epoch, ensemble, train_dataset, subset_size, pr
             variance_pairs["score2"].append(score2)
 
         train_sampler = TrajectoryDataset("", variance_pairs, preload)
-    
-    ensemble.unload_models()
-
     return train_sampler
 
 
@@ -458,8 +395,9 @@ def train_ensemble(
                 if not preload:
                     batch_traj1, batch_traj2, batch_true_pref, batch_reward1, batch_reward2 = load_tensors([batch_traj1, batch_traj2, batch_true_pref, batch_reward1, batch_reward2])
                 
-                rewards1 = model(batch_traj1)
-                rewards2 = model(batch_traj2)
+                combined_batch = torch.cat([batch_traj1, batch_traj2], dim=0)
+                combined_rewards = model(combined_batch)
+                rewards1, rewards2 = torch.split(combined_rewards, [batch_traj1.shape[0], batch_traj2.shape[0]], dim=0)
 
                 predicted_probabilities = bradley_terry_model(rewards1, rewards2)
                 model_loss += preference_loss(predicted_probabilities, batch_true_pref) * batch_true_pref.size(0)
@@ -478,75 +416,79 @@ def train_ensemble(
             acc_across_models += model_acc
             adjusted_acc_across_models += model_adjusted_acc
 
-            val_loss = 0.0
-            val_acc = 0.0
-            val_adjusted_acc = 0.0
+            if epochs % 10 == 0:
+                val_loss = 0.0
+                val_acc = 0.0
+                val_adjusted_acc = 0.0
 
-            # Validation steps and logging
-            model.eval()
-            with torch.no_grad():
-                for (
-                    validation_traj1,
-                    validation_traj2,
-                    validation_true_pref,
-                    validation_reward1,
-                    validation_reward2,
-                ) in validation_dataloader:
-                    if not preload:
-                        validation_traj1, validation_traj2, validation_true_pref, validation_reward1, validation_reward2 = load_tensors([validation_traj1, validation_traj2, validation_true_pref, validation_reward1, validation_reward2])
-                    validation_rewards1 = model(validation_traj1)
-                    validation_rewards2 = model(validation_traj2)
-                    
-                    validation_predicted_probabilities = bradley_terry_model(
-                        validation_rewards1, validation_rewards2
-                    )
-                    val_loss += preference_loss(
-                        validation_predicted_probabilities, validation_true_pref
-                    ) * validation_true_pref.size(0)
-                    val_acc += calculate_accuracy(
-                        validation_predicted_probabilities, validation_true_pref
-                    ) * validation_true_pref.size(0)
-                    val_adjusted_acc += calculate_adjusted_accuracy(
-                        validation_predicted_probabilities,
+                # Validation steps and logging
+                model.eval()
+                with torch.no_grad():
+                    for (
+                        validation_traj1,
+                        validation_traj2,
                         validation_true_pref,
                         validation_reward1,
                         validation_reward2,
-                    ) * validation_true_pref.size(0)
+                    ) in validation_dataloader:
+                        if not preload:
+                            validation_traj1, validation_traj2, validation_true_pref, validation_reward1, validation_reward2 = load_tensors([validation_traj1, validation_traj2, validation_true_pref, validation_reward1, validation_reward2])
+                        combined_val_batch = torch.cat([validation_traj1, validation_traj2], dim=0)
+                        combined_val_rewards = model(combined_val_batch)
+                        validation_rewards1, validation_rewards2 = torch.split(combined_val_rewards, [validation_traj1.shape[0], validation_traj2.shape[0]], dim=0)
+                        
+                        validation_predicted_probabilities = bradley_terry_model(
+                            validation_rewards1, validation_rewards2
+                        )
+                        val_loss += preference_loss(
+                            validation_predicted_probabilities, validation_true_pref
+                        ) * validation_true_pref.size(0)
+                        val_acc += calculate_accuracy(
+                            validation_predicted_probabilities, validation_true_pref
+                        ) * validation_true_pref.size(0)
+                        val_adjusted_acc += calculate_adjusted_accuracy(
+                            validation_predicted_probabilities,
+                            validation_true_pref,
+                            validation_reward1,
+                            validation_reward2,
+                        ) * validation_true_pref.size(0)
 
-            val_loss /= val_size
-            val_acc /= val_size
-            val_adjusted_acc /= val_size
-            val_loss_across_models += val_loss
-            val_acc_across_models += val_acc
-            adjusted_val_acc_across_models += val_adjusted_acc
+                val_loss /= val_size
+                val_acc /= val_size
+                val_adjusted_acc /= val_size
+                val_loss_across_models += val_loss
+                val_acc_across_models += val_acc
+                adjusted_val_acc_across_models += val_adjusted_acc
 
-            if val_loss < best_val_losses[i]:
-                best_val_losses[i] = val_loss
-                torch.save(
-                    ensemble.model_list[i].state_dict(),
-                    ensemble_path + f"model_{epochs}_epochs_{dataset_size}_pairs_{rules.NUMBER_OF_RULES}_rules_{i}.pth",
-                )
-                print(f"MODEL {i} SAVED AT EPOCH: {epoch}")
-            
+                if val_loss < best_val_losses[i]:
+                    best_val_losses[i] = val_loss
+                    torch.save(
+                        ensemble.model_list[i].state_dict(),
+                        ensemble_path + f"model_{epochs}_epochs_{dataset_size}_pairs_{rules.NUMBER_OF_RULES}_rules_{i}.pth",
+                    )
+                    print(f"MODEL {i} SAVED AT EPOCH: {epoch}")
             model.to("cpu")
             torch.cuda.empty_cache()
 
+    
         avg_train_loss = loss_across_models / n_models
         avg_train_acc = acc_across_models / n_models
         avg_adjusted_train_acc = adjusted_acc_across_models / n_models
-        avg_val_loss = val_loss_across_models / n_models
-        avg_val_acc = val_acc_across_models / n_models
-        avg_adjusted_val_acc = adjusted_val_acc_across_models / n_models
         best_loss = min(best_loss, avg_train_loss)
 
         training_losses.append(avg_train_loss.item())
-        validation_losses.append(avg_val_loss.item())
         training_accuracies.append(avg_train_acc)
         adjusted_training_accuracies.append(avg_adjusted_train_acc)
-        validation_accuracies.append(avg_val_acc)
-        adjusted_validation_accuracies.append(avg_adjusted_val_acc)
 
-        if epoch % 5 == 0:
+        if epoch % 10 == 0:
+            avg_val_loss = val_loss_across_models / n_models
+            avg_val_acc = val_acc_across_models / n_models
+            avg_adjusted_val_acc = adjusted_val_acc_across_models / n_models
+
+            validation_losses.append(avg_val_loss.item())
+            validation_accuracies.append(avg_val_acc)
+            adjusted_validation_accuracies.append(avg_adjusted_val_acc)
+
             print(
                 f"Epoch {epoch}/{epochs}, Train Loss: {avg_train_loss}, Val Loss: {avg_val_loss}, Train Acc: {avg_train_acc} (adjusted: {avg_adjusted_train_acc}), Val Acc: {avg_val_acc} (adjusted: {avg_adjusted_val_acc})"
             )
@@ -680,8 +622,9 @@ def train_model(
                 if not preload:
                     batch_traj1, batch_traj2, batch_true_pref, batch_score1, batch_score2 = load_tensors([batch_traj1, batch_traj2, batch_true_pref, batch_score1, batch_score2])
 
-                rewards1 = net(batch_traj1)
-                rewards2 = net(batch_traj2)
+                combined_batch = torch.cat([batch_traj1, batch_traj2], dim=0)
+                combined_rewards = net(combined_batch)
+                rewards1, rewards2 = torch.split(combined_rewards, [batch_traj1.shape[0], batch_traj2.shape[0]], dim=0)
 
                 predicted_probabilities = bradley_terry_model(rewards1, rewards2)
                 total_probability += predicted_probabilities.sum().item()
@@ -710,78 +653,76 @@ def train_model(
             adjusted_training_accuracies.append(average_adjusted_training_accuracy)
 
             # Validation
-            net.eval()
-            total_validation_loss = 0.0
-            total_validation_accuracy = 0.0
-            total_adjusted_validation_accuracy = 0.0
-            with torch.no_grad():
-                for (
-                    validation_traj1,
-                    validation_traj2,
-                    validation_true_pref,
-                    validation_score1,
-                    validation_score2,
-                ) in validation_dataloader:
-                    if not preload:
-                        validation_traj1, validation_traj2, validation_true_pref, validation_score1, validation_score2 = load_tensors([validation_traj1, validation_traj2, validation_true_pref, validation_score1, validation_score2])
-
-                    validation_rewards1 = net(validation_traj1)
-                    validation_rewards2 = net(validation_traj2)
-                    validation_predicted_probabilities = bradley_terry_model(
-                        validation_rewards1, validation_rewards2
-                    )
-                    # validation_true_pref = bradley_terry_model(
-                    #     validation_score1, validation_score2
-                    # )
-                    
-
-                    validation_loss = preference_loss(
-                        validation_predicted_probabilities, validation_true_pref
-                    )
-                    validation_accuracy = calculate_accuracy(
-                        validation_predicted_probabilities, validation_true_pref
-                    )
-                    adjusted_validation_accuracy = calculate_adjusted_accuracy(
-                        validation_predicted_probabilities,
+            if epoch % 10 == 0:
+                net.eval()
+                total_validation_loss = 0.0
+                total_validation_accuracy = 0.0
+                total_adjusted_validation_accuracy = 0.0
+                with torch.no_grad():
+                    for (
+                        validation_traj1,
+                        validation_traj2,
                         validation_true_pref,
                         validation_score1,
                         validation_score2,
+                    ) in validation_dataloader:
+                        if not preload:
+                            validation_traj1, validation_traj2, validation_true_pref, validation_score1, validation_score2 = load_tensors([validation_traj1, validation_traj2, validation_true_pref, validation_score1, validation_score2])
+
+                        combined_val_batch = torch.cat([validation_traj1, validation_traj2], dim=0)
+                        combined_val_rewards = net(combined_val_batch)
+                        validation_rewards1, validation_rewards2 = torch.split(combined_val_rewards, [validation_traj1.shape[0], validation_traj2.shape[0]], dim=0)
+                        
+                        validation_predicted_probabilities = bradley_terry_model(
+                            validation_rewards1, validation_rewards2
+                        )                    
+
+                        validation_loss = preference_loss(
+                            validation_predicted_probabilities, validation_true_pref
+                        )
+                        validation_accuracy = calculate_accuracy(
+                            validation_predicted_probabilities, validation_true_pref
+                        )
+                        adjusted_validation_accuracy = calculate_adjusted_accuracy(
+                            validation_predicted_probabilities,
+                            validation_true_pref,
+                            validation_score1,
+                            validation_score2,
+                        )
+
+                        total_validation_loss += validation_loss * validation_true_pref.size(0)
+                        total_validation_accuracy += validation_accuracy * validation_true_pref.size(0)
+                        total_adjusted_validation_accuracy += adjusted_validation_accuracy * validation_true_pref.size(0)
+
+                average_validation_loss = total_validation_loss / val_size 
+                if average_validation_loss < best_loss:
+                    best_loss = average_validation_loss
+                    torch.save(
+                        net.state_dict(),
+                        model_path
+                        + f"_{10 ** round(math.log10(n_pairs))}_pairs_{rules.NUMBER_OF_RULES}_rules.pth",
                     )
-
-                    total_validation_loss += validation_loss * validation_true_pref.size(0)
-                    total_validation_accuracy += validation_accuracy * validation_true_pref.size(0)
-                    total_adjusted_validation_accuracy += adjusted_validation_accuracy * validation_true_pref.size(0)
-
-            average_validation_loss = total_validation_loss / val_size 
-            if average_validation_loss < best_loss:
-                best_loss = average_validation_loss
-                torch.save(
-                    net.state_dict(),
-                    model_path
-                    + f"_{10 ** round(math.log10(n_pairs))}_pairs_{rules.NUMBER_OF_RULES}_rules.pth",
+                    # print("MODEL SAVED AT EPOCH:", epoch)
+                average_validation_accuracy = total_validation_accuracy / val_size
+                average_adjusted_validation_accuracy = (
+                    total_adjusted_validation_accuracy / val_size
                 )
-                # print("MODEL SAVED AT EPOCH:", epoch)
-            average_validation_accuracy = total_validation_accuracy / val_size
-            average_adjusted_validation_accuracy = (
-                total_adjusted_validation_accuracy / val_size
-            )
-            validation_losses.append(average_validation_loss.item())
-            validation_accuracies.append(average_validation_accuracy)
-            adjusted_validation_accuracies.append(average_adjusted_validation_accuracy)
+                validation_losses.append(average_validation_loss.item())
+                validation_accuracies.append(average_validation_accuracy)
+                adjusted_validation_accuracies.append(average_adjusted_validation_accuracy)
 
-            wandb.log(
-                {
-                    "Train Loss": average_training_loss,
-                    "Validation Loss": average_validation_loss.item(),
-                    "Train Accuracy": average_training_accuracy,
-                    "Validation Accuracy": average_validation_accuracy,
-                    "Adjusted Train Accuracy": average_adjusted_training_accuracy,
-                    "Adjusted Validation Accuracy": average_adjusted_validation_accuracy,
-                },
-                step=epoch,
-            )
+                wandb.log(
+                    {
+                        "Train Loss": average_training_loss,
+                        "Validation Loss": average_validation_loss.item(),
+                        "Train Accuracy": average_training_accuracy,
+                        "Validation Accuracy": average_validation_accuracy,
+                        "Adjusted Train Accuracy": average_adjusted_training_accuracy,
+                        "Adjusted Validation Accuracy": average_adjusted_validation_accuracy,
+                    },
+                    step=epoch,
+                )
 
-            if epoch % 10 == 0:
                 print(
                     f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss}, Val Loss: {average_validation_loss.item()}, Train Acc: {average_training_accuracy} (adjusted: {average_adjusted_training_accuracy}), Val Acc: {average_validation_accuracy} (adjusted: {average_adjusted_validation_accuracy})"
                 )

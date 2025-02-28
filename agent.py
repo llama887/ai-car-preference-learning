@@ -46,7 +46,7 @@ NUM_RADARS = 5
 STATE_ACTION_SIZE = 8
 
 DEFAULT_MAX_GENERATIONS = 1000
-ENSEMBLE_MULTIPLIER = 10
+ENSEMBLE_MULTIPLIER = 5
 
 current_generation = 0  # Generation counter
 reward_network = None
@@ -1002,9 +1002,6 @@ def run_population(
                         if "subsampled" in master_database:
                             saved_segments = data[: rules.NUMBER_OF_RULES + 1]
                         saved_segments = data
-                        for i in range(len(saved_segments)):
-                            saved_segments[i] = saved_segments[i][:2000000]
-                        del data
                 except Exception:
                     print(f"COULD NOT LOAD FROM MASTER DB: {master_database}")
                     saved_segments = []
