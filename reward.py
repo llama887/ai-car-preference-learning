@@ -571,7 +571,7 @@ def train_ensemble(
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
         plt.legend()
-        plt.savefig(f"{figure_path}loss.png")
+        plt.savefig(f"{figure_path}loss.png", dpi=600)
         plt.close()
 
         plt.figure()
@@ -582,7 +582,7 @@ def train_ensemble(
         plt.xlabel("Epochs")
         plt.ylabel("Accuracy")
         plt.legend()
-        plt.savefig(f"{figure_path}accuracy.png")
+        plt.savefig(f"{figure_path}accuracy.png", dpi=600)
         plt.close()
     except:
         print("Issue when plotting training and validation loss (they are tensors perhaps??)")
@@ -801,7 +801,7 @@ def train_model(
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
     plt.legend()
-    plt.savefig(f"{figure_path}loss.png")
+    plt.savefig(f"{figure_path}loss.png", dpi=600)
     plt.close()
 
     plt.figure()
@@ -812,7 +812,7 @@ def train_model(
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy")
     plt.legend()
-    plt.savefig(f"{figure_path}accuracy.png")
+    plt.savefig(f"{figure_path}accuracy.png", dpi=600)
     plt.close()
 
     training_output = best_loss

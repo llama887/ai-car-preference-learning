@@ -210,7 +210,7 @@ def graph_normalized_segments_over_generations(
         plt.xlabel("Generation")
         plt.ylabel("Ground Truth Reward (wrt GT Agent)")
         plt.legend()
-        plt.savefig(f"{reward.figure_path}average_norm_{rule}_rules.png")
+        plt.savefig(f"{reward.figure_path}average_norm_{rule}_rules.png", dpi=600)
         plt.close()
 
         plt.figure()

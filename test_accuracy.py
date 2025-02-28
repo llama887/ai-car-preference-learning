@@ -146,7 +146,7 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
 
     title = "test_violin"
     plt.legend()
-    plt.savefig(f"{reward.figure_path}{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png", dpi=600)
     plt.close()
 
     with open(f"{agent.trajectories_path}/violin_data.pkl", "wb") as f:

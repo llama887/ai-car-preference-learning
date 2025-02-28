@@ -211,7 +211,7 @@ def plot_reward_heatmap(
 
     if number_of_samples and number_of_rules:
         plt.savefig(
-            f"{figure_path}reward_heatmap_{number_of_samples}_t_{number_of_rules}_r.png", dpi=300
+            f"{figure_path}reward_heatmap_{number_of_samples}_t_{number_of_rules}_r.png", dpi=600
         )
         print(
             f"Saved to {figure_path}reward_heatmap_{number_of_samples}_samples_{number_of_rules}_rules.png"

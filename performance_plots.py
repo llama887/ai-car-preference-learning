@@ -349,7 +349,7 @@ def graph_normalized_segments_over_generations(
         figure_title = f"{reward.figure_path}average_norm_{rule}_rules"
         if plot_type:
             figure_title += f"_{plot_type}"
-        plt.savefig(f"{figure_title}.png")
+        plt.savefig(f"{figure_title}.png", dpi=600)
         plt.close()
 
 
@@ -393,7 +393,7 @@ def graph_gap_over_pairs(trueRF_best_generation, aggregate_trainedRF_best_genera
     plt.xscale("log")
     plt.ylabel("Average Gap in Reward (Reward_GT - Reward_Trained)")
     plt.legend()
-    plt.savefig(f"{reward.figure_path}gap.png")
+    plt.savefig(f"{reward.figure_path}gap.png", dpi=600)
     plt.close()
 
     os.makedirs(reward.figure_path, exist_ok=True)
@@ -416,7 +416,7 @@ def graph_gap_over_pairs(trueRF_best_generation, aggregate_trainedRF_best_genera
     plt.xscale("log")
     plt.ylabel("Average Gap in Reward (Reward_GT - Reward_Trained)")
     plt.legend()
-    plt.savefig(f"{reward.figure_path}gap_w_error.png")
+    plt.savefig(f"{reward.figure_path}gap_w_error.png", dpi=600)
     plt.close()
 
 
@@ -456,7 +456,7 @@ def graph_gap_over_pairs_w_ensembling(
     plt.xscale("log")
     plt.ylabel("Average Gap in Reward (Baseline - Ensembling)")
     plt.legend()
-    plt.savefig(f"{reward.figure_path}gap_ensembling.png")
+    plt.savefig(f"{reward.figure_path}gap_ensembling.png", dpi=600)
     plt.close()
 
 
@@ -471,7 +471,7 @@ def graph_acc(aggregate_accs, title=None):
     plt.xscale("log")
     plt.ylabel("Adjusted Testing Accuracy")
     plt.legend()
-    plt.savefig(f"{reward.figure_path}{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png", dpi=600)
     plt.close()
 
 
@@ -484,7 +484,7 @@ def graph_acc(aggregate_accs, title=None):
     plt.ylabel("Adjusted Testing Accuracy (Log Scale)")
     plt.yscale("log")
     plt.legend()
-    plt.savefig(f"{reward.figure_path}{title}_accLog.png")
+    plt.savefig(f"{reward.figure_path}{title}_accLog.png", dpi=600)
     plt.close()
 
 
@@ -501,7 +501,7 @@ def graph_acc_gap(aggregate_baseline_accs, aggregate_other_accs, title=None):
     plt.xscale("log")
     plt.ylabel("Adjusted Testing Accuracy")
     plt.legend()
-    plt.savefig(f"{title}.png")
+    plt.savefig(f"{title}.png", dpi=600)
     plt.close()
 
     plt.figure()
@@ -514,7 +514,7 @@ def graph_acc_gap(aggregate_baseline_accs, aggregate_other_accs, title=None):
     plt.ylabel("Adjusted Testing Accuracy")
     plt.yscale("log")
     plt.legend()
-    plt.savefig(f"{title}_accLog.png")
+    plt.savefig(f"{title}_accLog.png", dpi=600)
     plt.close()
 
 if __name__ == "__main__":

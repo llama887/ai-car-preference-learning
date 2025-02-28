@@ -135,7 +135,7 @@ def graph_normalized_segments_over_generations(
     plt.legend()
 
     figure_title = f"{reward.figure_path}average_norm"
-    plt.savefig(f"{figure_title}.png")
+    plt.savefig(f"{figure_title}.png", dpi=600)
     plt.close()
 
 
@@ -155,7 +155,7 @@ def graph_gap_over_pairs(aggregate_trainedRF_average_satisfaction_segments):
     plt.xlabel("Segment Length")
     plt.ylabel("Average Gap in Reward (Reward_GT - Reward_Trained)")
     plt.legend()
-    plt.savefig(f"{reward.figure_path}gap.png")
+    plt.savefig(f"{reward.figure_path}gap.png", dpi=600)
     plt.close()
 
 

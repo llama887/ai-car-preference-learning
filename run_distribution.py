@@ -101,7 +101,7 @@ def plot_data(figure_folder, data_points):
     plt.xlabel("% Satisfaction Segments")
     plt.ylabel("Adjusted Testing Accuracy")
     plt.legend()
-    plt.savefig(f"{figure_folder}distribution.png")
+    plt.savefig(f"{figure_folder}distribution.png", dpi=600)
     plt.close()
 
 def start_simulation(
