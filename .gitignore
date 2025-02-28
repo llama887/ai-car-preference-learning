@@ -18,6 +18,8 @@ best.pth
 figures/*
 figures*
 trajectories*
+*figures*
+*trajectories*
 database*
 /home/alex/ai-car-preference-learning/database_gargantuar.pkl
 test.py
