@@ -16,6 +16,7 @@ from reward import (
     TrajectoryDataset,
     prepare_single_trajectory
 )
+import reward
 
 rules.PARTIAL_REWARD = True
 rules.NUMBER_OF_RULES = 2
@@ -201,6 +202,7 @@ if __name__ == "__main__":
         print("Missing either -p flag or -t flag")
         sys.exit()
 
+    reward.models_path = "models_partial_rewards/"
     num_pairs = args.trajectories[0]
     with open(args.parameters, "r") as file:
         data = yaml.safe_load(file)

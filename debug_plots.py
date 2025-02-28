@@ -283,7 +283,7 @@ def plot_trajectories(trajectories, title):
     plt.xlabel("X")
     plt.ylabel("Y")
     plt.grid(True)
-    plt.savefig(f"{reward.figure_path}{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png", dpi=600)
     plt.close()
 
 
@@ -295,7 +295,7 @@ def plot_bradley_terry(data1, title, data2=None):
     else:
         sns.histplot(data1, kde=True)
     plt.title(title)
-    plt.savefig(f"{reward.figure_path}{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png", dpi=600)
     plt.close()
 
 
@@ -316,7 +316,7 @@ def plot_trajectory_order(data, title):
     )
     plt.title("Sorted Trajectories: Trained vs Ground Truth Reward")
     plt.legend()
-    plt.savefig(f"{reward.figure_path}{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png", dpi=600)
     plt.close()
 
 
@@ -426,7 +426,7 @@ def graph_satisfaction_segments_over_generations(averages, maxes):
     plt.ylabel("Number of Expert Trajectories")
     plt.title("Ground Truth vs Trained Agent: Average Ground Truth Reward")
     plt.legend()
-    plt.savefig(f"{reward.figure_path}average.png")
+    plt.savefig(f"{reward.figure_path}average.png", dpi=600)
     plt.close()
 
     plt.figure()
@@ -436,7 +436,7 @@ def graph_satisfaction_segments_over_generations(averages, maxes):
     plt.ylabel("Number of Expert Trajectories")
     plt.title("Ground Truth vs Trained Agents: Max Ground Truth Reward")
     plt.legend()
-    plt.savefig(f"{reward.figure_path}max.png")
+    plt.savefig(f"{reward.figure_path}max.png", dpi=600)
     plt.close()
 
 
@@ -455,7 +455,7 @@ def graph_against_trained_reward(averages, maxes):
     plt.ylabel("Avg. Fitness Per Generation")
     plt.title("Avg. Fitness wrt Trained Reward")
     plt.legend()
-    plt.savefig(f"{reward.figure_path}average_trained_reward.png")
+    plt.savefig(f"{reward.figure_path}average_trained_reward.png", dpi=600)
     plt.close()
 
     plt.figure()
@@ -465,7 +465,7 @@ def graph_against_trained_reward(averages, maxes):
     plt.ylabel("Max Fitness Per Generation")
     plt.title("Max Fitness wrt Trained Reward")
     plt.legend()
-    plt.savefig(f"{reward.figure_path}max_trained_reward.png")
+    plt.savefig(f"{reward.figure_path}max_trained_reward.png", dpi=600)
     plt.close()
 
 
@@ -522,7 +522,7 @@ def graph_segment_rules_vs_reward(
     
     plt.title(title)
     plt.legend()
-    plt.savefig(f"{reward.figure_path}{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png", dpi=600)
     plt.close()
 
     save = segment_type == "retrained"
@@ -631,7 +631,7 @@ def graph_segment_distance_vs_reward(
     plt.ylabel("Reward of Trajectory Segment")
     plt.title(title)
     plt.legend()
-    plt.savefig(f"{reward.figure_path}{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png", dpi=600)
     plt.close()
 
 
@@ -664,7 +664,7 @@ def plot_rules_followed_distribution(rules_followed, title):
     plt.legend(handles=legend_handles, title="Rules")
 
     # Save and close the plot
-    plt.savefig(f"{reward.figure_path}{title}.png")
+    plt.savefig(f"{reward.figure_path}{title}.png", dpi=600)
 
 
 def load_models(reward_paths):
