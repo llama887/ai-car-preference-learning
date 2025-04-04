@@ -55,144 +55,35 @@ def start_simulation(
         agent.rules_followed,
     )
 
+def process_args(args):
+    # Display simulator or not
+    if args.headless:
+        os.environ["SDL_VIDEODRIVER"] = "dummy"
 
-def parse_to_float(s):
-    try:
-        return float(s)
-    except ValueError:
-        try:
-            numerator, denominator = map(float, s.split("/"))
-            return numerator / denominator
-        except (ValueError, ZeroDivisionError):
-            raise ValueError(f"Cannot convert '{s}' to float")
-
-
-if __name__ == "__main__":
-    parse = argparse.ArgumentParser(
-        description="Training a Reward From Synthetic Preferences"
-    )
-    parse.add_argument(
-        "-e",
-        "--epochs",
-        type=int,
-        nargs=1,
-        help="Number of epochs to train the model",
-    )
-    parse.add_argument(
-        "-t",
-        "--trajectories",
-        type=int,
-        nargs=1,
-        help="Number of pairs of segments to collect",
-    )
-    parse.add_argument(
-        "-s",
-        "--segment",
-        type=int,
-        help="Length of segments",
-    )
-    parse.add_argument(
-        "-f",
-        "--figure",
-        type=str,
-        help="Figure Folder Name",
-    )
-    parse.add_argument(
-        "--trajectory",
-        type=str,
-        help="Trajectory Folder Name",
-    )
-    parse.add_argument(
-        "-g",
-        "--generations",
-        type=int,
-        nargs=1,
-        help="Number of generations to train the agent",
-    )
-    parse.add_argument(
-        "-p",
-        "--parameters",
-        type=str,
-        help="Directory to hyperparameter yaml file",
-    )
-    parse.add_argument(
-        "--headless", action="store_true", help="Run simulation without GUI"
-    )
-    parse.add_argument(
-        "--ensemble", action="store_true", help="Train an ensemble of 3 predictors"
-    )
-    parse.add_argument(
-        "-r",
-        "--reward",
-        type=str,
-        action="append",
-        help="Directory to reward function weights",
-    )
-    parse.add_argument(
-        "-c",
-        "--composition",
-        type=int,
-        help="number of rules",
-    )
-    parse.add_argument(
-        "-d",
-        "--distribution",
-        type=str,
-        action="append",
-        help="Distribution of segments collected",
-    )
-    parse.add_argument(
-        "-md",
-        "--master-database",
-        type=str,
-        help="Path to master database",
-    )
-    parse.add_argument(
-        "--heatmap", action="store_true", help="Plot heatmap of collected data"
-    )
-    parse.add_argument("--skip-plots", action="store_true", help="Skip debug plots")
-    parse.add_argument(
-        "--skip-retrain", action="store_true", help="Skip retraining agents"
-    )
-    parse.add_argument(
-        "--save-at-end", action="store_true", help="Save models when training is over"
-    )
-
-    args = parse.parse_args()
-
-    if args.master_database:
-        agent.master_database = args.master_database
-
+    # Validate Inputs
     if (
         (args.trajectories is not None and args.trajectories[0] < 0)
         or (args.generations is not None and args.generations[0] < 0)
         or (args.epochs is not None and args.epochs[0] < 0)
     ):
-        print("Invalid input. All arguments must be positive integers.")
+        print("Invalid input. Trajectories, Generations, and Epochs must be positive integers.")
         sys.exit(1)
-
-    # Display simulator or not
-    if args.headless:
-        os.environ["SDL_VIDEODRIVER"] = "dummy"
-
-    if args.trajectory:
-        agent.trajectories_path = args.trajectory + "/"
-        os.makedirs(agent.trajectories_path, exist_ok=True)
-    trajectory_path = agent.trajectories_path
+        
+    # Set number of rules
+    rules.NUMBER_OF_RULES = args.composition
 
     # Set segment length
     if args.segment and args.segment < 1:
         raise Exception("Can not have segments with length < 1")
     agent.train_trajectory_length = args.segment if args.segment else 1
 
-    # Set distribution of segment rule satisfaction
-    if args.composition and args.trajectories:
-        rules.NUMBER_OF_RULES = args.composition
-        num_pairs = agent.ENSEMBLE_MULTIPLIER * args.trajectories[0] if args.ensemble else args.trajectories[0]
-    else:
-        print("Missing either -c flag or -t flag")
+    # Set Master Database
+    if args.master_database:
+        agent.master_database = args.master_database
 
+    # Set Distribution, (Default is half satisfaction, half split amongst non-satisfaction (as in rules.py))
     if args.distribution:
+        # If statesampling, load the distribution from the master database
         if args.master_database and "subsampled" in args.master_database:
             with open(args.master_database, "rb") as file:
                 data = pickle.load(file)
@@ -226,13 +117,139 @@ if __name__ == "__main__":
             assert sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1, (
                 f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
             )
+    else:
+        rules.SEGMENT_DISTRIBUTION_BY_RULES = [0.5 / rules.NUMBER_OF_RULES] * rules.NUMBER_OF_RULES + [0.5] 
 
-    if args.segment and args.segment < 1:
-        raise Exception("Can not have segments with length < 1")
-    agent.train_trajectory_length = args.segment if args.segment else 1
-    gc.collect()
+    if args.order:
+        rules.RULE_ORDER = [int(o) for o in args.order]
+        if sorted(rules.RULE_ORDER) != list(range(1, rules.NUMBER_OF_RULES + 1)):
+            raise Exception(
+                "Order of rules must be a permutation of the numbers 1 to NUMBER_OF_RULES"
+            )
+        rules.RULE_ORDER = rules.RULE_ORDER + [float('inf')] * (rules.TOTAL_RULES - len(rules.RULE_ORDER))
+        print("RULE ORDER:", rules.RULE_ORDER)
+
+
+def parse_to_float(s):
+    try:
+        return float(s)
+    except ValueError:
+        try:
+            numerator, denominator = map(float, s.split("/"))
+            return numerator / denominator
+        except (ValueError, ZeroDivisionError):
+            raise ValueError(f"Cannot convert '{s}' to float")
+
+
+if __name__ == "__main__":
+    parse = argparse.ArgumentParser(
+        description="Training a Reward From Synthetic Preferences"
+    )
+    parse.add_argument(
+        "-e",
+        "--epochs",
+        type=int,
+        nargs=1,
+        help="Number of epochs to train the model",
+        required=True,
+    )
+    parse.add_argument(
+        "-t",
+        "--trajectories",
+        type=int,
+        nargs=1,
+        help="Number of pairs of segments to collect",
+        required=True,
+    )
+    parse.add_argument(
+        "-s",
+        "--segment",
+        type=int,
+        help="Length of segments",
+    )
+    parse.add_argument(
+        "-f",
+        "--figure",
+        type=str,
+        help="Figure Folder Name",
+    )
+    parse.add_argument(
+        "--trajectory",
+        type=str,
+        help="Trajectory Folder Name",
+    )
+    parse.add_argument(
+        "-g",
+        "--generations",
+        type=int,
+        nargs=1,
+        help="Number of generations to train the agent",
+        required=True,
+    )
+    parse.add_argument(
+        "-p",
+        "--parameters",
+        type=str,
+        help="Directory to hyperparameter yaml file",
+    )
+    parse.add_argument(
+        "--headless", action="store_true", help="Run simulation without GUI"
+    )
+    parse.add_argument(
+        "--ensemble", action="store_true", help="Train an ensemble of 3 predictors"
+    )
+    parse.add_argument(
+        "-r",
+        "--reward",
+        type=str,
+        action="append",
+        help="Directory to reward function weights",
+    )
+    parse.add_argument(
+        "-c",
+        "--composition",
+        type=int,
+        help="number of rules",
+        required=True,
+    )
+    parse.add_argument(
+        "-d",
+        "--distribution",
+        type=str,
+        action="append",
+        help="Distribution of segments collected",
+    )
+    parse.add_argument(
+        "-o",
+        "--order",
+        type=int,
+        action="append",
+        help="Order of rules",
+    )
+    parse.add_argument(
+        "-md",
+        "--master-database",
+        type=str,
+        help="Path to master database",
+    )
+    parse.add_argument(
+        "--heatmap", action="store_true", help="Plot heatmap of collected data"
+    )
+    parse.add_argument("--skip-plots", action="store_true", help="Skip debug plots")
+    parse.add_argument(
+        "--skip-retrain", action="store_true", help="Skip retraining agents"
+    )
+    parse.add_argument(
+        "--save-at-end", action="store_true", help="Save models when training is over"
+    )
+    args = parse.parse_args()
+
+    process_args(args)
+    trajectory_path = agent.trajectories_path
+    num_pairs = agent.ENSEMBLE_MULTIPLIER * args.trajectories[0] if args.ensemble else args.trajectories[0]
+
     model_weights = ""
-    
+
     if args.reward is None:
         if args.master_database and "subsampled" in args.master_database:
             with open(args.master_database, "rb") as file:
@@ -251,6 +268,7 @@ if __name__ == "__main__":
                 args.headless,
                 args.ensemble,
             )
+
         gc.collect()
         database_path = f"{agent.trajectories_path}database_{num_pairs}_pairs_{args.composition}_rules_{agent.train_trajectory_length}_length.pkl"
         print("Starting training on trajectories...")
@@ -301,7 +319,7 @@ if __name__ == "__main__":
             args.ensemble,
         )
 
-    # run simulation on trained reward function
+    # Trained Reward Testing and Simulation
     with open(
         args.parameters if args.parameters is not None else "best_params.yaml", "r"
     ) as file:
@@ -311,6 +329,15 @@ if __name__ == "__main__":
 
 
     load_models(model_weights, hidden_size)
+
+    output_file = f"{agent.trajectories_path}/test_accuracy.pkl"
+    testset_file = f"database_test_{rules.NUMBER_OF_RULES}_rules.pkl"
+    test_acc, adjusted_test_acc, acc_pairings = test_model(
+        model_weights, testset_file, hidden_size, batch_size
+    )
+    with open(output_file, "wb") as f:
+        pickle.dump({"test_acc" : test_acc, "adjusted_test_acc" : adjusted_test_acc, "acc_pairings" : acc_pairings}, f)
+
     if not args.skip_retrain:
         print("Simulating on trained reward function...")
         trainedPairs, trained_rules_followed = start_simulation(
@@ -372,15 +399,9 @@ if __name__ == "__main__":
             )
         else:
             print("Plotting skipped.")
+        
 
-    output_file = f"{agent.trajectories_path}/test_accuracy.pkl"
-    test_file = f"database_test_{rules.NUMBER_OF_RULES}_rules.pkl"
-    test_acc, adjusted_test_acc = test_model(
-        model_weights, test_file, hidden_size, batch_size
-    )
-    with open(output_file, "wb") as f:
-        pickle.dump((test_acc, adjusted_test_acc), f)
-
+    # HEAT MAPS
     try:
         if args.heatmap:
             if rules.NUMBER_OF_RULES > 2:

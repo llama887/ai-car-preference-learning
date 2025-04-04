@@ -46,7 +46,9 @@ def extract_acc(zip_file):
 
     acc_pickle = glob.glob("temp_trajectories/trajectories*/test_accuracy.pkl")
     with open(acc_pickle[0], "rb") as f:
-        test_acc, adjusted_test_acc = pickle.load(f)
+        data = pickle.load(f)
+        test_acc = data['test_acc']
+        adjusted_test_acc = data['adjusted_test_acc']
 
     return num_pairs, adjusted_test_acc
 
@@ -84,7 +86,9 @@ def extract_trajectories(zip_file):
 
     acc_pickle = glob.glob("temp_trajectories/trajectories*/test_accuracy.pkl")
     with open(acc_pickle[0], "rb") as f:
-        test_acc, adjusted_test_acc = pickle.load(f)
+        data = pickle.load(f)
+        test_acc = data['test_acc']
+        adjusted_test_acc = data['adjusted_test_acc']
         
     shutil.rmtree("temp_trajectories")
     return num_pairs, num_trajectories, trained_satisfaction_segments, adjusted_test_acc
@@ -597,7 +601,9 @@ if __name__ == "__main__":
             for rule in aggregate_statesampling_accs:
                 file = aggregate_statesampling_accs[rule]
                 with open(file, "rb") as f:
-                    test_acc, adjusted_test_acc = pickle.load(f)
+                    data = pickle.load(f)
+                    test_acc = data['test_acc']
+                    adjusted_test_acc = data['adjusted_test_acc']
                 aggregate_statesampling_accs[rule] = {1000000 : adjusted_test_acc}
             
             handle_plotting_dissatisfaction(aggregate_baseline_accs, aggregate_statesampling_accs)

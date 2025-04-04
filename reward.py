@@ -467,8 +467,6 @@ def train_ensemble(
                         ensemble_path + f"model_{epochs}_epochs_{dataset_size}_pairs_{rules.NUMBER_OF_RULES}_rules_{i}.pth",
                     )
                     print(f"MODEL {i} SAVED AT EPOCH: {epoch}")
-            model.to("cpu")
-            torch.cuda.empty_cache()
 
     
         avg_train_loss = loss_across_models / n_models

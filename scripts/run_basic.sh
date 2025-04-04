@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Default array of trajectories if none are provided as input
-TRAJECTORIES=(1000000 100000 10000 1000)
+TRAJECTORIES=(100000 10000 1000 100)
 
 # Function to display usage
 usage() {

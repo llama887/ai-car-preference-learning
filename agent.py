@@ -20,6 +20,7 @@ import yaml
 import reward
 import rules
 from reward import Ensemble, TrajectoryRewardNet, prepare_single_trajectory
+from segment import StateActionPair
 
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
@@ -64,66 +65,18 @@ game_map = None
 rules_followed = []
 
 
-class StateActionPair:
-    def __init__(self, radars, action, position, alive):
-        if len(radars) != 5:
-            raise ValueError("radars must be 5 floats")
-        if len(position) != 2:
-            raise ValueError("position must be 2 floats")
-        try:
-            self.radars = radars.tolist()
-        except AttributeError:
-            self.radars = radars
-        try:
-            self.action = action.tolist()
-        except AttributeError:
-            self.action = action
-        try:
-            self.position = position.tolist()
-        except AttributeError:
-            self.position = position
-        self.alive = alive
-
-    def __iter__(self):
-        return iter(self.radars + [self.action] + self.position)
-
-    def __getitem__(self, index):
-        if 0 <= index < NUM_RADARS:
-            return self.radars[index]
-        elif index == NUM_RADARS:
-            return self.action
-        elif NUM_RADARS + 1 <= index < NUM_RADARS + 3:
-            return self.position[index - NUM_RADARS - 1]
-        else:
-            raise IndexError("Index out of range")
-
-    def __repr__(self):
-        return (
-            "StateActionPair: <Radars: "
-            + str([radar for radar in self.radars])
-            + ", Action: "
-            + str(self.action)
-            + ", Position: "
-            + str(self.position)
-            + ">"
-        )
-
-    def __len__(self):
-        return 8
-
-
 class Trajectory:
     def __init__(self, s, t, r):
         self.num_satisfaction_segments = s
         self.traj = t.copy()
         self.total_reward = r
 
-    def truncate(self, trajectory):
+    def truncate(self, trajectory, truncate_length=3):
         trajectory_length = len(trajectory)
-        truncated_trajectory = trajectory[:3]
-        if trajectory_length > 3:
+        truncated_trajectory = trajectory[:truncate_length]
+        if trajectory_length > truncate_length:
             truncated_trajectory.append(
-                f"...{trajectory_length - 3} more StateActionPairs"
+                f"...{trajectory_length - truncate_length} more StateActionPairs"
             )
         return truncated_trajectory
 
@@ -139,7 +92,6 @@ class Trajectory:
             + str(self.total_reward)
             + "\n"
         )
-
 
 class Car:
     def __init__(self, color="blue"):
@@ -1002,6 +954,8 @@ def run_population(
                         if "subsampled" in master_database:
                             saved_segments = data[: rules.NUMBER_OF_RULES + 1]
                         saved_segments = data
+                        for i in range(len(saved_segments)):
+                            saved_segments[i] = saved_segments[i][:2000000]
                 except Exception:
                     print(f"COULD NOT LOAD FROM MASTER DB: {master_database}")
                     saved_segments = []

@@ -21,6 +21,52 @@ from reward import (
     TrajectoryRewardNet
 )
 
+def check_dataset(test_file):
+    with open(test_file, "rb") as f:
+        test_dataset = pickle.load(f)
+    
+
+    wrong_counter = 0
+    for i in range(len(test_dataset)):
+        traj1, traj2, true_pref, score1, score2 = test_dataset[i]
+        if i < 5:
+            print(f"Trajectory {i}:", traj1, "Score:", score1)
+        rescore1 = rules.check_rules_one(traj1, rules.NUMBER_OF_RULES)[0]
+        rescore2 = rules.check_rules_one(traj2, rules.NUMBER_OF_RULES)[0]
+        if (rescore1 == rules.NUMBER_OF_RULES) != score1:
+            wrong_counter += 1
+        if (rescore2 == rules.NUMBER_OF_RULES) != score2:
+            wrong_counter += 1
+    print(f"Total mismatches before Dataset: {wrong_counter} / {len(test_dataset)}")
+
+    wrong_counter = 0
+    wrong_score = 0 
+    test_dataset = TrajectoryDataset(file_path=test_file, variance_pairs=None, preload=True)
+    test_size = len(test_dataset)
+    print("TEST SIZE:", test_size)
+    test_dataloader = DataLoader(
+        test_dataset,
+        batch_size = 1,
+        shuffle=False,
+        pin_memory=False,
+    )
+    for i in range(len(test_dataloader.dataset)):
+        traj1, traj2, true_pref, score1, score2 = test_dataloader.dataset[i]
+        # if i < 5:
+        #     print(f"Trajectory {i}:", traj1, "Score:", score1)
+        rescore1 = rules.check_batch_rules(traj1, rules.NUMBER_OF_RULES, i < 5)[0]
+        rescore2 = rules.check_batch_rules(traj2, rules.NUMBER_OF_RULES, False)[0]
+        if (rescore1 == rules.NUMBER_OF_RULES) != score1:
+            wrong_counter += 1
+        if test_dataset[i][3] != score1:
+            wrong_score += 1
+        if (rescore2 == rules.NUMBER_OF_RULES) != score2:
+            wrong_counter += 1
+        if test_dataset[i][4] != score2:
+            wrong_score += 1
+    print(f"Total mismatches after Dataset: {wrong_counter} / {len(test_dataloader.dataset)}")
+    print(f"Wrong scores: {wrong_score} / {len(test_dataloader.dataset)}")
+
 
 
 def load_models(reward_paths, hidden_size):
@@ -74,10 +120,6 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
     
     model = load_models(model_path, hidden_size)
 
-    total_correct = 0
-    total_diff = 0
-    adjusted_correct = 0
-
     test_dataset = TrajectoryDataset(file_path=test_file, variance_pairs=None, preload=True)
     test_size = len(test_dataset)
     print("TEST SIZE:", test_size)
@@ -88,35 +130,45 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
         pin_memory=False,
     )
 
-    segment_rules_satisfied = []
-    segment_rewards = []
+    segment_rules_satisfied = [[],[]]
+    segment_rewards = [[], []]
+    segment_true_scores = [[], []]
+
     with torch.no_grad():
         for test_traj1, test_traj2, test_true_pref, test_score1, test_score2 in tqdm(test_dataloader, desc="Testing Model:"):
             test_rewards1 = model(test_traj1)
             test_rewards2 = model(test_traj2)
 
-            segment_rules_satisfied.extend(rules.check_batch_rules(test_traj1, rules.NUMBER_OF_RULES))
-            segment_rules_satisfied.extend(rules.check_batch_rules(test_traj2, rules.NUMBER_OF_RULES))
-            segment_rewards.extend(test_rewards1.tolist())
-            segment_rewards.extend(test_rewards2.tolist())
-
-            predictions = (test_rewards1 >= test_rewards2).squeeze()
-            correct_predictions = (predictions == test_true_pref).sum().item()
-            total_correct += correct_predictions
-
-            different_rewards = (test_score1 != test_score2)
-            num_diff_in_batch = different_rewards.sum().item()
-            total_diff += num_diff_in_batch
-
-            adjusted_correct += (different_rewards & (predictions == test_true_pref)).sum().item()
-            
-        test_acc = total_correct / test_size
-        adjusted_test_acc = adjusted_correct / total_diff if total_diff > 0 else 0
+            segment_rules_satisfied[0].extend(rules.check_batch_rules(test_traj1, rules.NUMBER_OF_RULES))
+            segment_rules_satisfied[1].extend(rules.check_batch_rules(test_traj2, rules.NUMBER_OF_RULES))
+            segment_rewards[0].extend(test_rewards1.tolist())
+            segment_rewards[1].extend(test_rewards2.tolist())
+            segment_true_scores[0].extend(test_score1.tolist())
+            segment_true_scores[1].extend(test_score2.tolist())
 
 
 
-    for i in range(len(segment_rewards)):
-        segment_rewards[i] = segment_rewards[i][0][0]
+
+    n_pairs = len(segment_rewards[0])
+    for i in range(n_pairs):
+        segment_rewards[0][i] = segment_rewards[0][i][0][0]
+        segment_rewards[1][i] = segment_rewards[1][i][0][0]
+
+
+    print("\nVerifying true scores match rules satisfied:")
+    mismatches = 0
+    for idx in range(n_pairs):
+        for traj_idx in [0, 1]:
+            expected_score = 1 if segment_rules_satisfied[traj_idx][idx] == rules.NUMBER_OF_RULES else 0
+            actual_score = segment_true_scores[traj_idx][idx]
+            if expected_score != actual_score:
+                mismatches += 1
+                print(f"rule issue: Trajectory {idx}-{traj_idx} has {segment_rules_satisfied[traj_idx][idx]} rules satisfied but score={actual_score}")
+
+    if mismatches == 0:
+        print("All scores correctly match the number of rules satisfied!")
+    else:
+        print(f"Found {mismatches} mismatches between rules satisfied and true scores.")
 
     # segment_rules_satisfied_types = set()
     # for elem in segment_rules_satisfied:
@@ -124,9 +176,44 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
     # print(segment_rules_satisfied_types)
 
     # segment_rewards_types = set()
-    # for elem in segment_rewards:
+    # for elem in segment_rewards[0]:
     #     segment_rewards_types.add(type(elem))
     # print(segment_rewards_types)
+
+    total_correct = 0
+    total_diff = 0
+    total_adjusted_correct = 0
+    acc_pairings = [[0, 0] * rules.NUMBER_OF_RULES for _ in range(rules.NUMBER_OF_RULES)]
+    error = 0
+
+    for i in range(n_pairs):
+        different_reward = (segment_true_scores[0][i] != segment_true_scores[1][i])
+        if different_reward and segment_rules_satisfied[0][i] != rules.NUMBER_OF_RULES and segment_rules_satisfied[1][i] != rules.NUMBER_OF_RULES:
+            # print(segment_rules_satisfied[0][i], segment_rules_satisfied[1][i])
+            error += 1
+        prediction = segment_rewards[0][i] >= segment_rewards[1][i]
+        true_pref = segment_true_scores[0][i] >= segment_true_scores[1][i]
+        correct = prediction == true_pref
+        adjusted_correct = different_reward * correct
+
+        if segment_rules_satisfied[0][i] == rules.NUMBER_OF_RULES and segment_rules_satisfied[1][i] != rules.NUMBER_OF_RULES:
+            acc_pairings[segment_rules_satisfied[1][i]][0] += adjusted_correct
+            acc_pairings[segment_rules_satisfied[1][i]][1] += 1
+        if segment_rules_satisfied[1][i] == rules.NUMBER_OF_RULES and segment_rules_satisfied[0][i] != rules.NUMBER_OF_RULES:
+            acc_pairings[segment_rules_satisfied[0][i]][0] += adjusted_correct
+            acc_pairings[segment_rules_satisfied[0][i]][1] += 1
+        
+        total_correct += correct
+        total_diff += different_reward
+        total_adjusted_correct += adjusted_correct
+
+    test_acc = total_correct / n_pairs
+    print(total_adjusted_correct, "/", total_diff)
+    print(error)
+    adjusted_test_acc = total_adjusted_correct / total_diff if total_diff > 0 else 0
+
+    segment_rules_satisfied = segment_rules_satisfied[0] + segment_rules_satisfied[1]
+    segment_rewards = segment_rewards[0] + segment_rewards[1]
 
     df = pd.DataFrame(
         {
@@ -152,6 +239,19 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
     with open(f"{agent.trajectories_path}/violin_data.pkl", "wb") as f:
         pickle.dump(df, f)
 
-    return test_acc, adjusted_test_acc
+
+    print("TEST ACCURACY:", test_acc, "ADJUSTED TEST ACCURACY:", adjusted_test_acc)
+    print("ACCURACY BREAKDOWN:")
+    for i in range(len(acc_pairings)):
+        print(f"{i} RULES vs. {rules.NUMBER_OF_RULES} RULES (SATISFACTION):[{acc_pairings[i][0]} / {acc_pairings[i][1]}] ({acc_pairings[i][0] / acc_pairings[i][1]})")
+    return test_acc, adjusted_test_acc, acc_pairings
+
+rules.NUMBER_OF_RULES = 2
+# check_dataset("database_test_2_rules.pkl")
+# test_model(
+#     model_path=["models/model_3000_epochs_100000_pairs_2_rules.pth"],
+#     test_file="database_test_2_rules.pkl",
+#     hidden_size=952,
+#     batch_size=6032)
 
     
