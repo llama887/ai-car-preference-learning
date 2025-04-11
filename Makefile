@@ -1,7 +1,7 @@
 run_baseline:
-	# if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
-	# if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
-	# ./scripts/run_basic.sh -r 3 -h
+	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
+	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
+	./scripts/run_basic.sh -r 3 -h
 	./scripts/run_basic.sh -r 2 -h
 	./scripts/run_basic.sh -r 1 -h
 	python performance_plots.py -c 3
@@ -112,17 +112,17 @@ run_on_subsampled_data:
 
 collect_data_3_rules:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 10000000 -r 3 -n 20
+	./scripts/parallel_data_collect.sh -t 10000000 -r 3 -n 10
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_3_rules_new.pkl
 
 collect_data_2_rules:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 10000000 -r 2 -n 20
+	./scripts/parallel_data_collect.sh -t 10000000 -r 2 -n 10
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_2_rules_new.pkl
 
 collect_data_1_rules:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 10000000 -r 1 -n 20
+	./scripts/parallel_data_collect.sh -t 10000000 -r 1 -n 10
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_1_rules_new.pkl
 
 subsample_collect_data_all:

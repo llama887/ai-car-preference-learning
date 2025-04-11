@@ -33,3 +33,4 @@ models/*
 tmp/*
 *.pkl
 .aider*
+simplex
