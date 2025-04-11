@@ -16,7 +16,7 @@ import neat
 import pygame
 import torch
 import yaml
-
+from orientation.get_orientation import get_angle
 import reward
 import rules
 from reward import Ensemble, TrajectoryRewardNet, prepare_single_trajectory
@@ -94,7 +94,7 @@ class Trajectory:
         )
 
 class Car:
-    def __init__(self, color="blue"):
+    def __init__(self, position=[830, 920], angle=0, color="blue"):
         # Load Car Sprite and Rotate
         if color == "red":
             self.sprite = pygame.image.load("sprites/red_car.png").convert()
@@ -105,8 +105,8 @@ class Car:
         self.sprite = pygame.transform.scale(self.sprite, (CAR_SIZE_X, CAR_SIZE_Y))
         self.rotated_sprite = self.sprite
         self.color = color
-        self.position = [830, 920]  # Starting Position
-        self.angle = 0
+        self.position = position  # Starting Position
+        self.angle = angle
         self.speed = 0
         self.rules_per_step = []
         self.num_satisfaction_segments = 0
@@ -704,14 +704,16 @@ def run_simulation(genomes, config):
     # Initialize PyGame And The Display
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
-
+    with open("grid_points.pkl", "rb") as f:
+        grid_points = pickle.load(f)
     # For All Genomes Passed Create A New Neural Network
     for i, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
         g.fitness = 0
-
-        cars.append(Car())
+        random_trajectory_segment = random.choice(random.choice(grid_points))
+        random_position = random_trajectory_segment[0].position
+        cars.append(Car(position=random_position, angle=get_angle(random_position[0], random_position[1])) )
     for i, car in enumerate(cars):
         cars[i].id = i
     global run_type
