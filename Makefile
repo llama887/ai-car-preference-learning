@@ -112,17 +112,17 @@ run_on_subsampled_data:
 
 collect_data_3_rules:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 10000000 -r 3 -n 10
+	./scripts/parallel_data_collect.sh -t 10000000 -r 3 -n 2000
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_3_rules_new.pkl
 
 collect_data_2_rules:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 10000000 -r 2 -n 10
+	./scripts/parallel_data_collect.sh -t 10000000 -r 2 -n 2000
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_2_rules_new.pkl
 
 collect_data_1_rules:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 10000000 -r 1 -n 10
+	./scripts/parallel_data_collect.sh -t 10000000 -r 1 -n 2000
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_1_rules_new.pkl
 
 subsample_collect_data_all:
@@ -144,9 +144,14 @@ collect_data_longer_segments:
 
 
 collect_data_only:
+	 if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	make collect_data_1_rules
 	make collect_data_2_rules
 	make collect_data_3_rules
+
+collect_data_only_parallel:
+	 if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
+	make collect_data_1_rules & make collect_data_2_rules & make collect_data_3_rules
 
 collect_data_all:
 	make collect_data_1_rules
