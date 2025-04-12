@@ -578,10 +578,13 @@ def train_ensemble(
 
         plt.figure()
         plt.plot(plot_train_losses, label="Train Loss (per epoch)")
+        # --- CHANGE START ---
+        # Only plot validation loss if the number of points matches the calculated epochs
         if validation_epochs and len(validation_epochs) == len(plot_val_losses):
              plt.plot(validation_epochs, plot_val_losses, label="Validation Loss (per check)", marker='o', linestyle='--')
-        else:
-             print(f"Skipping validation loss plot due to mismatch: {len(validation_epochs)} epochs vs {len(plot_val_losses)} points")
+        elif plot_val_losses: # If validation losses exist but lengths mismatch
+             print(f"Skipping ensemble validation loss plot due to epoch/point mismatch: {len(validation_epochs)} validation epochs vs {len(plot_val_losses)} validation points recorded.")
+        # --- CHANGE END ---
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
         plt.legend()
@@ -591,12 +594,18 @@ def train_ensemble(
         plt.figure()
         plt.plot(plot_train_acc, label="Train Accuracy (per epoch)")
         plt.plot(plot_adj_train_acc, label="Adjusted Training Accuracy (per epoch)")
+        # --- CHANGE START ---
+        # Only plot validation accuracy if the number of points matches the calculated epochs
         if validation_epochs and len(validation_epochs) == len(plot_val_acc):
              plt.plot(validation_epochs, plot_val_acc, label="Validation Accuracy (per check)", marker='o', linestyle='--')
-             plt.plot(validation_epochs, plot_adj_val_acc, label="Adjusted Validation Accuracy (per check)", marker='x', linestyle=':')
-        else:
-             print(f"Skipping validation accuracy plot due to mismatch: {len(validation_epochs)} epochs vs {len(plot_val_acc)} points")
-
+             # Ensure adjusted accuracy also matches length before plotting
+             if len(validation_epochs) == len(plot_adj_val_acc):
+                 plt.plot(validation_epochs, plot_adj_val_acc, label="Adjusted Validation Accuracy (per check)", marker='x', linestyle=':')
+             else:
+                 print(f"Skipping ensemble adjusted validation accuracy plot due to epoch/point mismatch: {len(validation_epochs)} validation epochs vs {len(plot_adj_val_acc)} adjusted points recorded.")
+        elif plot_val_acc: # If validation accuracies exist but lengths mismatch
+             print(f"Skipping ensemble validation accuracy plot due to epoch/point mismatch: {len(validation_epochs)} validation epochs vs {len(plot_val_acc)} validation points recorded.")
+        # --- CHANGE END ---
         plt.xlabel("Epochs")
         plt.ylabel("Accuracy")
         plt.legend()
@@ -887,14 +896,13 @@ def train_model(
         plt.figure()
         plt.plot(plot_train_losses, label="Train Loss (per epoch)")
         # --- CHANGE START ---
-        # Plot validation loss using its own length for the x-axis points, but use validation_epochs for correct epoch labels
+        # Only plot validation loss if the number of points matches the calculated epochs
         if validation_epochs and len(validation_epochs) == len(plot_val_losses):
              plt.plot(validation_epochs, plot_val_losses, label="Validation Loss (per check)", marker='o', linestyle='--')
-        elif plot_val_losses: # Plot even if lengths mismatch, using simple range for x-axis
-             print(f"Plotting validation loss with simple range due to epoch/point mismatch: {len(validation_epochs)} epochs vs {len(plot_val_losses)} points")
-             plt.plot(range(len(plot_val_losses)), plot_val_losses, label="Validation Loss (points)", marker='o', linestyle='--')
+        elif plot_val_losses: # If validation losses exist but lengths mismatch
+             print(f"Skipping validation loss plot due to epoch/point mismatch: {len(validation_epochs)} validation epochs vs {len(plot_val_losses)} validation points recorded.")
         # --- CHANGE END ---
-        plt.xlabel("Epochs / Validation Checks") # Adjust label slightly
+        plt.xlabel("Epochs") # Revert label
         plt.ylabel("Loss")
         plt.legend()
         plt.savefig(f"{figure_path}loss.png", dpi=600)
@@ -904,17 +912,18 @@ def train_model(
         plt.plot(plot_train_acc, label="Train Accuracy (per epoch)")
         plt.plot(plot_adj_train_acc, label="Adjusted Training Accuracy (per epoch)")
         # --- CHANGE START ---
-        # Plot validation accuracy using its own length for the x-axis points, but use validation_epochs for correct epoch labels
+        # Only plot validation accuracy if the number of points matches the calculated epochs
         if validation_epochs and len(validation_epochs) == len(plot_val_acc):
              plt.plot(validation_epochs, plot_val_acc, label="Validation Accuracy (per check)", marker='o', linestyle='--')
-             plt.plot(validation_epochs, plot_adj_val_acc, label="Adjusted Validation Accuracy (per check)", marker='x', linestyle=':')
-        elif plot_val_acc: # Plot even if lengths mismatch, using simple range for x-axis
-             print(f"Plotting validation accuracy with simple range due to epoch/point mismatch: {len(validation_epochs)} epochs vs {len(plot_val_acc)} points")
-             plt.plot(range(len(plot_val_acc)), plot_val_acc, label="Validation Accuracy (points)", marker='o', linestyle='--')
-             if len(plot_adj_val_acc) == len(plot_val_acc): # Only plot adjusted if it also matches the primary val acc length
-                 plt.plot(range(len(plot_adj_val_acc)), plot_adj_val_acc, label="Adjusted Validation Accuracy (points)", marker='x', linestyle=':')
+             # Ensure adjusted accuracy also matches length before plotting
+             if len(validation_epochs) == len(plot_adj_val_acc):
+                 plt.plot(validation_epochs, plot_adj_val_acc, label="Adjusted Validation Accuracy (per check)", marker='x', linestyle=':')
+             else:
+                 print(f"Skipping adjusted validation accuracy plot due to epoch/point mismatch: {len(validation_epochs)} validation epochs vs {len(plot_adj_val_acc)} adjusted points recorded.")
+        elif plot_val_acc: # If validation accuracies exist but lengths mismatch
+             print(f"Skipping validation accuracy plot due to epoch/point mismatch: {len(validation_epochs)} validation epochs vs {len(plot_val_acc)} validation points recorded.")
         # --- CHANGE END ---
-        plt.xlabel("Epochs / Validation Checks") # Adjust label slightly
+        plt.xlabel("Epochs") # Revert label
         plt.ylabel("Accuracy")
         plt.legend()
         plt.savefig(f"{figure_path}accuracy.png", dpi=600)
