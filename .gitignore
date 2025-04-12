@@ -34,3 +34,5 @@ tmp/*
 *.pkl
 .aider*
 simplex
+*.out
+*.err
