@@ -886,11 +886,15 @@ def train_model(
 
         plt.figure()
         plt.plot(plot_train_losses, label="Train Loss (per epoch)")
+        # --- CHANGE START ---
+        # Plot validation loss using its own length for the x-axis points, but use validation_epochs for correct epoch labels
         if validation_epochs and len(validation_epochs) == len(plot_val_losses):
              plt.plot(validation_epochs, plot_val_losses, label="Validation Loss (per check)", marker='o', linestyle='--')
-        else:
-             print(f"Skipping validation loss plot due to mismatch: {len(validation_epochs)} epochs vs {len(plot_val_losses)} points")
-        plt.xlabel("Epochs")
+        elif plot_val_losses: # Plot even if lengths mismatch, using simple range for x-axis
+             print(f"Plotting validation loss with simple range due to epoch/point mismatch: {len(validation_epochs)} epochs vs {len(plot_val_losses)} points")
+             plt.plot(range(len(plot_val_losses)), plot_val_losses, label="Validation Loss (points)", marker='o', linestyle='--')
+        # --- CHANGE END ---
+        plt.xlabel("Epochs / Validation Checks") # Adjust label slightly
         plt.ylabel("Loss")
         plt.legend()
         plt.savefig(f"{figure_path}loss.png", dpi=600)
