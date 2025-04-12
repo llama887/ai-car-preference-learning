@@ -935,7 +935,7 @@ def train_reward_function(
     use_ensemble=False,
     figure_folder_name=None,
     return_stat=None,
-    # save_at_end=True, # This flag is no longer needed, saving handled internally
+    save_at_end=True, # This flag is no longer needed, saving handled internally
 ):
     torch.cuda.empty_cache()
     training_output_stat = None
