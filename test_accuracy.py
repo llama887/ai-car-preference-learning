@@ -135,7 +135,7 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
     segment_true_scores = [[], []]
 
     with torch.no_grad():
-        for test_traj1, test_traj2, test_true_pref, test_score1, test_score2 in tqdm(test_dataloader, desc="Testing Model:"):
+        for test_traj1, test_traj2, test_true_pref, test_score1, test_score2 in tqdm(test_dataloader, desc="Testing Model"):
             test_rewards1 = model(test_traj1)
             test_rewards2 = model(test_traj2)
 

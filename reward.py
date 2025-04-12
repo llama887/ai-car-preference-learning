@@ -341,7 +341,7 @@ def train_ensemble(
     )
 
     # --- Early Stopping Initialization ---
-    patience = 50 # Hardcoded patience
+    patience = 10 # Hardcoded patience
     validation_frequency = 50 # Check validation every 50 epochs
     best_avg_val_loss = float('inf')
     epochs_no_improve = 0 # Counts validation checks without improvement
