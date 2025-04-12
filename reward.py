@@ -545,7 +545,7 @@ def train_ensemble(
     if best_ensemble_states:
         print(f"Saving best ensemble found with avg validation loss: {best_avg_val_loss:.4f}")
         for i, state_dict in enumerate(best_ensemble_states):
-            save_path = ensemble_path + f"model_{epochs}_epochs_{dataset_size}_pairs_{rules.NUMBER_OF_RULES}_rules_{i}_BEST.pth"
+            save_path = ensemble_path + f"model_{epochs}_epochs_{dataset_size}_pairs_{rules.NUMBER_OF_RULES}_rules_{i}.pth"
             torch.save(state_dict, save_path)
             print(f"Saved best state for model {i} to {save_path}")
     else:
@@ -856,7 +856,7 @@ def train_model(
         n_pairs_magnitude = 0
 
     if best_model_state:
-        final_save_path = model_path + f"_{n_pairs_magnitude}_pairs_{rules.NUMBER_OF_RULES}_rules_BEST.pth"
+        final_save_path = model_path + f"_{n_pairs_magnitude}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
         torch.save(best_model_state, final_save_path)
         print(f"Best model state saved to {final_save_path} with validation loss: {best_loss:.4f}")
     else:
