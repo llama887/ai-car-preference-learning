@@ -112,18 +112,18 @@ run_on_subsampled_data:
 
 collect_data_3_rules:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 10000000 -r 3 -n 2000
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_3_rules_new.pkl
+	./scripts/parallel_data_collect.sh -t 10000000 -r 3 -n 2000 -d tmp_3
+	python ./combine_gargantuar.py -d tmp_3 -o database_gargantuar_1_length_3_rules_new.pkl
 
 collect_data_2_rules:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 10000000 -r 2 -n 2000
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_2_rules_new.pkl
+	./scripts/parallel_data_collect.sh -t 10000000 -r 2 -n 2000 -d tmp_2
+	python ./combine_gargantuar.py -d tmp_2 -o database_gargantuar_1_length_2_rules_new.pkl
 
 collect_data_1_rules:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 10000000 -r 1 -n 2000
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length_1_rules_new.pkl
+	./scripts/parallel_data_collect.sh -t 10000000 -r 1 -n 2000 -d tmp_1
+	python ./combine_gargantuar.py -d tmp_1 -o database_gargantuar_1_length_1_rules_new.pkl
 
 subsample_collect_data_all:
 	python subsample_state.py -s 2000000 -r 1

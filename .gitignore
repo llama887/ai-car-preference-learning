@@ -30,7 +30,7 @@ tensorboard_logs/*
 logs/*
 models/*
 .DS_Store
-tmp/*
+tmp*
 *.pkl
 .aider*
 simplex
