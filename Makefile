@@ -10,9 +10,10 @@ run_baseline:
 run_baseline_parallel:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
-	./scripts/run_basic.sh -r 3 -p -h
-	./scripts/run_basic.sh -r 2 -p -h
-	./scripts/run_basic.sh -r 1 -p -h
+	./scripts/run_basic.sh -r 3 -p -h &
+	./scripts/run_basic.sh -r 2 -p -h &
+	./scripts/run_basic.sh -r 1 -p -h &
+	wait
 	python performance_plots.py -c 3
 
 
