@@ -72,8 +72,8 @@ rm -rf figures* trajectories trajectories_t*
 # Function to run a single instance of main.py
 run_instance() {
     TRAJ=$1
-    FIGURE_DIR="figures_t$TRAJ"
-    TRAJECTORY_DIR="trajectories_t$TRAJ"
+    FIGURE_DIR="figures_t${TRAJ}_r${rules}"
+    TRAJECTORY_DIR="trajectories_t${TRAJ}_r${rules}"
     ZIP_DIR="zips"
 
     echo "Running with ${TRAJ} trajectories..."

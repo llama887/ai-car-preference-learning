@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=random_init
+#SBATCH --job-name=collect_data
 #SBATCH --array=0-1999
-#SBATCH --output=random_init_%A_%a.out
-#SBATCH --error=random_init_%A_%a.err
+#SBATCH --output=collect_data_%A_%a.out
+#SBATCH --error=collect_data_%A_%a.err
 #SBATCH --mail-type=START,END,FAIL
 #SBATCH --mail-user=fyy2003@nyu.edu
-#SBATCH --time=24:00:00 
+#SBATCH --time=48:00:00 
 #SBATCH --cpus-per-task=1            
 #SBATCH --mem=16G
 #SBATCH --account=pr_100_tandon_priority
@@ -38,5 +38,5 @@ pip install -r /scratch/$USER/ai-car-preference-learning/.devcontainer/requireme
 
 export SLURM_ARRAY_TASK_ID=${SLURM_ARRAY_TASK_ID}
 
-make collect_data_only_parallel
-
+make collect_data_all
+make get_testsets

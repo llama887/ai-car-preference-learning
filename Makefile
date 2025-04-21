@@ -114,17 +114,17 @@ run_on_subsampled_data:
 collect_data_3_rules:
 	rm -rf tmp
 	./scripts/parallel_data_collect.sh -t 10000000 -r 3 -n 2000 -d tmp_3
-	python ./combine_gargantuar.py -d tmp_3 -o database_gargantuar_1_length_3_rules_new.pkl
+	python ./combine_gargantuar.py -d tmp_3 -o database_gargantuar_1_length_3_rules.pkl
 
 collect_data_2_rules:
 	rm -rf tmp
 	./scripts/parallel_data_collect.sh -t 10000000 -r 2 -n 2000 -d tmp_2
-	python ./combine_gargantuar.py -d tmp_2 -o database_gargantuar_1_length_2_rules_new.pkl
+	python ./combine_gargantuar.py -d tmp_2 -o database_gargantuar_1_length_2_rules.pkl
 
 collect_data_1_rules:
 	rm -rf tmp
 	./scripts/parallel_data_collect.sh -t 10000000 -r 1 -n 2000 -d tmp_1
-	python ./combine_gargantuar.py -d tmp_1 -o database_gargantuar_1_length_1_rules_new.pkl
+	python ./combine_gargantuar.py -d tmp_1 -o database_gargantuar_1_length_1_rules.pkl
 
 subsample_collect_data_all:
 	python subsample_state.py -s 2000000 -r 1
@@ -161,6 +161,16 @@ collect_data_all:
 	make subsample_collect_data_all
 	make collect_data_longer_segments
 
+run_hpc_baseline_task:
+	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
+	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
+
+	if [ "$(SLURM_ARRAY_TASK_ID)" = "1" ]; then ./scripts/run_basic.sh -r 1 -p -h; fi
+	if [ "$(SLURM_ARRAY_TASK_ID)" = "2" ]; then ./scripts/run_basic.sh -r 2 -p -h; fi
+	if [ "$(SLURM_ARRAY_TASK_ID)" = "3" ]; then \
+		./scripts/run_basic.sh -r 3 -p -h; \
+		python performance_plots.py -c 3; \
+	fi
 
 backup:
 	mv zips_baseline_last zips_baseline_delete
