@@ -21,6 +21,8 @@ import reward
 import rules
 from reward import Ensemble, TrajectoryRewardNet, prepare_single_trajectory
 from segment import StateActionPair
+from itertools import combinations
+from collections import defaultdict
 
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
@@ -313,7 +315,7 @@ class Car:
         global run_type, saved_segments, saved_trajectories
         if run_type == "collect":
             global num_pairs
-            status = collection_status(num_pairs)
+            status = collection_status(saved_segments, num_pairs)
             new_segments = break_into_segments(
                 self.trajectory, self.rules_per_step, status
             )
@@ -325,8 +327,8 @@ class Car:
             )
 
 
-def display_master_segments(saved_segments):
-    print("MASTER DATABASE CURRENTLY HAS:")
+def display_saved_segments(saved_segments):
+    print("SAVED SEGMENTS CURRENTLY HAS:")
     if not saved_segments:
         print("NO SEGMENTS")
     for i, seg in enumerate(saved_segments):
@@ -429,6 +431,8 @@ def sample_segments(saved_segments):
     return sampled_segments
 
 
+
+# STALE
 def generate_database_from_segments(segments, number_of_pairs):
     global trajectories_path
     trajectory_path = trajectories_path
@@ -500,20 +504,19 @@ def generate_database_from_segments(segments, number_of_pairs):
     return len(trajectory_segments)
 
 
-def generate_database(trajectory_path):
+def generate_database(trajectory_path, saved_data, datatype, segment_generation_mode='random'):
     trajectory_pairs = []
 
     global \
         run_type, \
-        saved_segments, \
         num_pairs, \
-        saved_trajectories, \
         train_trajectory_length, \
         master_database
-    if run_type == "collect":
+    
+    if datatype == "segments":
         # Break trajectories into trajectory segments
         trajectory_segments = []
-        sampled_segments = sample_segments(saved_segments)
+        sampled_segments = sample_segments(saved_data)
         print(
             "SEGMENT POOL FOR DATA COLLECTION:",
             list((f"{i}: {len(seg)}" for i, seg in enumerate(sampled_segments))),
@@ -524,7 +527,6 @@ def generate_database(trajectory_path):
         if len(trajectory_segments) % 2 != 0:
             trajectory_segments.pop()
 
-        segment_generation_mode = "random"
         if segment_generation_mode == "random":
             random.shuffle(trajectory_segments)
             same_reward = 0
@@ -602,21 +604,17 @@ def generate_database(trajectory_path):
 
         print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
-        # Delete old database if it is redundant (same size)
-        old_pairs_path = (
-            trajectory_path
-            + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
-        )
-        if os.path.exists(old_pairs_path):
-            print("Removing old database with same pairs and rules...")
-            os.remove(old_pairs_path)
-
         database_to_save = (
             paired_database if
             paired_database else 
             trajectory_path
             + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
         )
+
+        # Delete old database if it is redundant (same size)
+        if os.path.exists(database_to_save):
+            print("Removing old database with same pairs and rules...")
+            os.remove(database_to_save)
         
         # Save To Database
         with open(
@@ -625,19 +623,20 @@ def generate_database(trajectory_path):
         ) as f:
             pickle.dump(trajectory_pairs, f)
 
-        if master_database:
+        if master_database and not paired_database:
             # Create a temporary file path
             temp_database = f"{trajectory_path}_master_temp_{len(trajectory_pairs)}.pkl"
 
             # Save new master database to a temporary file
             with open(temp_database, "wb") as f:
-                pickle.dump(saved_segments, f)
+                new_database = save_as_database(saved_data)
+                pickle.dump(new_database, f)
 
             if os.path.exists(temp_database):
                 try:
                     print("Replacing old master database with the new one...")
                     if os.path.exists(master_database):
-                        print("Removing old master database...")
+                        print(f"Removing old master database... {master_database}")
                         os.remove(master_database)
                     os.rename(temp_database, master_database)
                     print("Master database updated successfully.")
@@ -647,15 +646,15 @@ def generate_database(trajectory_path):
                 print("Failed to create the temporary database file.")
 
         return len(trajectory_pairs)
-
+    
     else:
         trajectories = []
-        for i in range(len(saved_trajectories)):
+        for i in range(len(saved_data)):
             trajectories.append(
                 Trajectory(
-                    s=saved_trajectories[i][0],
-                    t=saved_trajectories[i][1],
-                    r=saved_trajectories[i][2],
+                    s=saved_data[i][0],
+                    t=saved_data[i][1],
+                    r=saved_data[i][2],
                 )
             )
 
@@ -806,7 +805,7 @@ def run_simulation(genomes, config):
                         len(saved_segments[i]) - old_lengths[i],
                         f"SEGMENTS SATISFYING {i} RULES ON AVERAGE.",
                     )
-                display_master_segments(saved_segments)
+                display_saved_segments(saved_segments)
             break
 
         if not headless:
@@ -873,16 +872,58 @@ def run_simulation(genomes, config):
         clock.tick(60)  # 60 FPS
 
 
-def finished_collecting(number_of_pairs):
-    return collection_status(number_of_pairs) == [True] * (rules.NUMBER_OF_RULES + 1)
+def show_database_segments(database):
+    print("DATABASE SEGMENTS:")
+    for key in sorted(database.keys(), key=lambda x: len(x)):
+        print(f"Rules: {key}, # Segments: {len(database[key])}")
+
+def load_from_garg(database):
+    try:
+        with open(database, "rb") as file:
+            data = pickle.load(file)
+            print(f"USING MASTER DB: {database}")
+            # if "subsampled" in master_database: # Franklin can fix ig?
+            #     saved_segments = data[: rules.NUMBER_OF_RULES + 1]
+
+        show_database_segments(data)
+
+        loaded_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
+        for i in range(rules.NUMBER_OF_RULES + 1):
+            for combination in combinations(rules.RULES_INCLUDED, i):
+                loaded_segments[i].extend(data[combination])
+        return loaded_segments
+                
+    except Exception:
+        print(f"COULD NOT LOAD FROM MASTER DB: {master_database}")
+        return [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
+
+def save_as_database(segments):
+    database = defaultdict(list)
+    for segment_i_rules in segments:
+        for segment in segment_i_rules:
+            _, _, rules_followed = rules.check_rules_one(segment, rules.NUMBER_OF_RULES)
+            database[tuple(rules_followed)].append(segment)
+
+    if os.path.exists(master_database):
+        with open(master_database, "rb") as file:
+            old_database = pickle.load(file)
+            for key in database:
+                if key not in old_database:
+                    old_database[key] = database[key]
+                elif len(database[key]) > len(old_database[key]):
+                    old_database[key] = database[key]
+    return old_database
 
 
-def collection_status(number_of_pairs):
+def finished_collecting(saved_data, number_of_pairs):
+    return collection_status(saved_data, number_of_pairs) == [True] * (rules.NUMBER_OF_RULES + 1)
+
+
+def collection_status(saved_data, number_of_pairs):
     rule_finished = [False] * (rules.NUMBER_OF_RULES + 1)
-    global saved_segments, ensemble
     for i in range(rules.NUMBER_OF_RULES + 1):
         if (
-            len(saved_segments[i])
+            len(saved_data[i])
             >= number_of_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
         ):
             rule_finished[i] = True
@@ -914,6 +955,8 @@ def run_population(
 
         global run_type, headless
         run_type = runType
+        datatype = "segments" if run_type == "collect" else "trajectories"
+
         headless = noHead
         if headless:
             os.environ["SDL_VIDEODRIVER"] = "dummy"
@@ -941,34 +984,20 @@ def run_population(
         population.add_reporter(stats)
 
         if not master_database:
-            master_database = f"database_gargantuar_{train_trajectory_length}_length_{rules.NUMBER_OF_RULES}_rules.pkl"
+            master_database = f"database_gargantuar_{train_trajectory_length}_length.pkl"
 
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
         missing_segments = "subsampled" not in master_database
         if run_type == "collect":
             if subsample:
-                try:
-                    with open(master_database, "rb") as file:
-                        data = pickle.load(file)
-                        print(f"USING MASTER DB: {master_database}")
-                        if "subsampled" in master_database:
-                            saved_segments = data[: rules.NUMBER_OF_RULES + 1]
-                        saved_segments = data
-                        for i in range(len(saved_segments)):
-                            saved_segments[i] = saved_segments[i][:2000000]
-                except Exception:
-                    print(f"COULD NOT LOAD FROM MASTER DB: {master_database}")
-                    saved_segments = []
+                saved_segments = load_from_garg(master_database)
             else:
-                saved_segments = []
+                saved_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
 
-            display_master_segments(saved_segments)
+            display_saved_segments(saved_segments)
             display_requested_segments(num_pairs)
 
-            while len(saved_segments) < rules.NUMBER_OF_RULES + 1:
-                saved_segments.append([])
-
-            if finished_collecting(num_pairs):
+            if finished_collecting(saved_segments, num_pairs):
                 missing_segments = False
                 print("SEGMENT COUNT SATISFIED! Subsampling...")
             else:
@@ -982,7 +1011,7 @@ def run_population(
         if run_type != "collect" or missing_segments:
             while True:
                 population.run(run_simulation, 1)
-                if run_type == "collect" and finished_collecting(num_pairs):
+                if run_type == "collect" and finished_collecting(saved_segments, num_pairs):
                     print(f"Stopping after {generation} generations.")
                     pygame.display.quit()
                     pygame.quit()
@@ -1003,7 +1032,7 @@ def run_population(
         print(
             f"Total execution time for {generation} generations: {elapsed_time:.2f} seconds"
         )
-        numTrajPairs = generate_database(trajectory_path)
+        numTrajPairs = generate_database(trajectory_path, saved_segments, datatype)
 
         return numTrajPairs
     except KeyboardInterrupt:
@@ -1013,7 +1042,7 @@ def run_population(
         )
         user_input = input().strip().lower()
         if user_input == "y":
-            generate_database()
+            generate_database(trajectory_path, saved_trajectories, datatype)
         else:
             print("Exiting without saving the database.")
         sys.exit()

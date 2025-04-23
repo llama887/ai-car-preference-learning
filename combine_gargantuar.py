@@ -4,6 +4,7 @@ import os
 import pickle
 import random
 import rules
+from collections import defaultdict
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -50,7 +51,8 @@ if __name__ == "__main__":
     databases = []
     for database_file in database_files:
         with open(database_file, "rb") as f:
-            databases.append(pickle.load(f))
+            data = pickle.load(f)
+            databases.append(data)
 
     print(f"Number of database files processed: {len(databases)}")
 
@@ -61,10 +63,10 @@ if __name__ == "__main__":
             combined_database.extend(pairs)
     else:
          # Combine the databases
-        combined_database = [[] for _ in range(len(databases[0]))]
-        for rules_satisfied in range(len(databases[0])):
-            for database in databases:
-                combined_database[rules_satisfied].extend(database[rules_satisfied])
+        combined_database = defaultdict(list)
+        for database in databases:
+            for key in database:
+                combined_database[key].extend(database[key])
 
     output_file = args.output
     if args.output == "database_test":
