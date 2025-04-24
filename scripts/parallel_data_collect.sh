@@ -5,8 +5,6 @@ rules=""
 segment_length=""
 number_of_processes=""
 paired=false
-storage_dir="tmp"
-MAX_PARALLEL=36
 
 while getopts "t:s:n:p" flag; do
     case "${flag}" in
@@ -28,7 +26,9 @@ fi
 # Divide the trajectories by the number of processes
 trajectories_per_process=$((trajectories / number_of_processes))
 
-    job_counter=0
+mv tmp tmp_old
+# Create a temporary directory
+mkdir -p tmp
 
 # Run Python scripts in parallel
 for ((i=0; i<number_of_processes; i++)); do

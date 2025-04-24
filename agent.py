@@ -431,8 +431,6 @@ def sample_segments(saved_segments):
     return sampled_segments
 
 
-
-# STALE
 def generate_database_from_segments(segments, number_of_pairs):
     global trajectories_path
     trajectory_path = trajectories_path
@@ -488,8 +486,6 @@ def generate_database_from_segments(segments, number_of_pairs):
         os.remove(old_pairs_path)
 
     database_to_save = (
-        paired_database if
-        paired_database else 
         trajectory_path
         + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
     )

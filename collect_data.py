@@ -4,6 +4,28 @@ import sys
 import agent
 import rules
 from main import parse_to_float, start_simulation
+from itertools import combinations
+import random
+
+rule_range = [i for i in range(1, rules.TOTAL_RULES + 1)]
+buckets = [list(combinations(rule_range, r)) for r in range(1, len(rule_range) + 1)]  
+buckets = [list(sublist) for g in buckets for sublist in g]  
+
+uniform_weights = [1 / len(buckets) for _ in range(len(buckets))]
+
+sum_rules = sum([len(bucket) for bucket in buckets]) # scaled by number of rules
+adjusted_weights = [len(bucket) / sum_rules for bucket in buckets]
+
+
+def set_reward():
+    rules.RULES_INCLUDED = random.choices(buckets, weights=adjusted_weights, k=1)[0]
+    rules.NUMBER_OF_RULES = len(rules.RULES_INCLUDED)
+    rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/(2 * rules.NUMBER_OF_RULES) for _ in range(rules.NUMBER_OF_RULES)] + [1/2]
+
+    print("THIS PROCESS IS USING THE FOLLOWING RULES:")
+    print(rules.RULES_INCLUDED)
+    print("THIS PROCESS IS USING THE FOLLOWING SEGMENT DISTRIBUTION:")
+    print(rules.SEGMENT_DISTRIBUTION_BY_RULES)
 
 if __name__ == "__main__":
     parse = argparse.ArgumentParser(
@@ -51,9 +73,7 @@ if __name__ == "__main__":
         raise Exception("Can not have segments with length < 1")
     agent.train_trajectory_length = args.segment if args.segment else 1
 
-    rules.NUMBER_OF_RULES = 3
-    rules.RULES_INCLUDED = [1, 2, 3]
-    rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/6, 1/6, 1/6, 1/2]
+    set_reward()
     
     if args.database:
         if args.paired:

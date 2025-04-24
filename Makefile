@@ -90,7 +90,7 @@ run_on_subsampled_data:
 
 collect_data:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 1000000 -n 20
+	./scripts/parallel_data_collect.sh -t 10000 -n 20
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length.pkl 
 
 collect_testset:
