@@ -6,6 +6,7 @@ import pandas as pd
 import seaborn as sns
 import pickle
 from tqdm import tqdm
+import math
 
 import agent
 from agent import (
@@ -21,14 +22,18 @@ from reward import (
     TrajectoryRewardNet
 )
 
+TESTSET_SIZE = 100000
+TEST_DATA_PATH = f'testing_database_gargantuar_1_length.pkl'
+
 def check_dataset(test_file):
     with open(test_file, "rb") as f:
-        test_dataset = pickle.load(f)
+        test_data = pickle.load(f)
+        print(len(test_data))
     
 
     wrong_counter = 0
-    for i in range(len(test_dataset)):
-        traj1, traj2, true_pref, score1, score2 = test_dataset[i]
+    for i in range(len(test_data)):
+        traj1, traj2, true_pref, score1, score2 = test_data[i]
         if i < 5:
             print(f"Trajectory {i}:", traj1, "Score:", score1)
         rescore1 = rules.check_rules_one(traj1, rules.NUMBER_OF_RULES)[0]
@@ -37,10 +42,10 @@ def check_dataset(test_file):
             wrong_counter += 1
         if (rescore2 == rules.NUMBER_OF_RULES) != score2:
             wrong_counter += 1
-    print(f"Total mismatches before Dataset: {wrong_counter} / {len(test_dataset)}")
+    print(f"Total mismatches before Dataset: {wrong_counter} / {len(test_data)}")
 
     wrong_counter = 0
-    wrong_score = 0 
+    wrong_trajectories = []
     test_dataset = TrajectoryDataset(file_path=test_file, variance_pairs=None, preload=True)
     test_size = len(test_dataset)
     print("TEST SIZE:", test_size)
@@ -57,17 +62,34 @@ def check_dataset(test_file):
         rescore1 = rules.check_batch_rules(traj1, rules.NUMBER_OF_RULES, i < 5)[0]
         rescore2 = rules.check_batch_rules(traj2, rules.NUMBER_OF_RULES, False)[0]
         if (rescore1 == rules.NUMBER_OF_RULES) != score1:
+            wrong_trajectories.append((test_data[i][0], traj1))
             wrong_counter += 1
-        if test_dataset[i][3] != score1:
-            wrong_score += 1
         if (rescore2 == rules.NUMBER_OF_RULES) != score2:
+            wrong_trajectories.append((test_data[i][1], traj2))
             wrong_counter += 1
-        if test_dataset[i][4] != score2:
-            wrong_score += 1
     print(f"Total mismatches after Dataset: {wrong_counter} / {len(test_dataloader.dataset)}")
-    print(f"Wrong scores: {wrong_score} / {len(test_dataloader.dataset)}")
+    print("WRONG TRAJECTORIES:")
+    for i in range(min(5, len(wrong_trajectories))):
+        print(f"OLD {i}:", wrong_trajectories[i][0])
+        print("DISTANCE:", math.sqrt((wrong_trajectories[i][0][0].position[0] - wrong_trajectories[i][0][1].position[0]) ** 2 + (wrong_trajectories[i][0][0].position[1] - wrong_trajectories[i][0][1].position[1]) ** 2))
+        print(f"NEW {i}:", wrong_trajectories[i][1])
+        traj = wrong_trajectories[i][1][0]
+        print("DISTANCE:", math.sqrt((traj[6] - traj[14]) ** 2 + (traj[7] - traj[15]) ** 2))
+        print()
 
 
+def generate_testset(test_file, num_rules, rules_included, segment_distribution_by_rules):
+    agent.paired_database = test_file
+
+    print("TESTSET NEEDS THE FOLLOWING SEGMENTS:")
+    saved_segments = agent.load_from_garg(TEST_DATA_PATH)
+    agent.display_requested_segments(TESTSET_SIZE)
+    if not agent.finished_collecting(saved_segments, TESTSET_SIZE):
+        raise Exception("Not enough segments to generate test set.")
+
+    print(f"Test set sampling complete. Generating test set with {TESTSET_SIZE} trajectory pairs...")
+    agent.generate_database(agent.trajectories_path, saved_segments, "segments", segment_generation_mode="random")
+    
 
 def load_models(reward_paths, hidden_size):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -112,15 +134,17 @@ def load_models(reward_paths, hidden_size):
         )
         return ensemble
 
-def test_model(model_path, test_file, hidden_size, batch_size=256):
+def test_model(model_path, hidden_size, batch_size=256):
     if not model_path:
         raise Exception("Model not found...")
-    if not test_file:
-        raise Exception("Test file not found...")
     
     model = load_models(model_path, hidden_size)
 
+    test_file = f"database_test_{rules.NUMBER_OF_RULES}_rules.pkl"
+    generate_testset(test_file, rules.NUMBER_OF_RULES, rules.RULES_INCLUDED, rules.SEGMENT_DISTRIBUTION_BY_RULES)
+
     test_dataset = TrajectoryDataset(file_path=test_file, variance_pairs=None, preload=True)
+
     test_size = len(test_dataset)
     print("TEST SIZE:", test_size)
     test_dataloader = DataLoader(
@@ -145,9 +169,6 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
             segment_rewards[1].extend(test_rewards2.tolist())
             segment_true_scores[0].extend(test_score1.tolist())
             segment_true_scores[1].extend(test_score2.tolist())
-
-
-
 
     n_pairs = len(segment_rewards[0])
     for i in range(n_pairs):
@@ -246,7 +267,7 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
         print(f"{i} RULES vs. {rules.NUMBER_OF_RULES} RULES (SATISFACTION):[{acc_pairings[i][0]} / {acc_pairings[i][1]}] ({acc_pairings[i][0] / acc_pairings[i][1]})")
     return test_acc, adjusted_test_acc, acc_pairings
 
-rules.NUMBER_OF_RULES = 2
+# rules.NUMBER_OF_RULES = 2
 # check_dataset("database_test_2_rules.pkl")
 # test_model(
 #     model_path=["models/model_3000_epochs_100000_pairs_2_rules.pth"],

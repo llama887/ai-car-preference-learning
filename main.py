@@ -120,14 +120,14 @@ def process_args(args):
     else:
         rules.SEGMENT_DISTRIBUTION_BY_RULES = [0.5 / rules.NUMBER_OF_RULES] * rules.NUMBER_OF_RULES + [0.5] 
 
-    if args.order:
-        rules.RULE_ORDER = [int(o) for o in args.order]
-        if sorted(rules.RULE_ORDER) != list(range(1, rules.NUMBER_OF_RULES + 1)):
-            raise Exception(
-                "Order of rules must be a permutation of the numbers 1 to NUMBER_OF_RULES"
-            )
-        rules.RULE_ORDER = rules.RULE_ORDER + [float('inf')] * (rules.TOTAL_RULES - len(rules.RULE_ORDER))
-        print("RULE ORDER:", rules.RULE_ORDER)
+    if args.include:
+        rules.RULES_INCLUDED = [int(o) for o in args.include]
+        if len(rules.RULES_INCLUDED) != rules.NUMBER_OF_RULES:
+            rules.NUMBER_OF_RULES = len(rules.RULES_INCLUDED)
+            args.composition = rules.NUMBER_OF_RULES
+        print("RULES INCLUDED:", rules.RULES_INCLUDED)
+    else:
+        rules.RULES_INCLUDED = [i + 1 for i in range(rules.NUMBER_OF_RULES)]
 
 
 def parse_to_float(s):
@@ -220,11 +220,11 @@ if __name__ == "__main__":
         help="Distribution of segments collected",
     )
     parse.add_argument(
-        "-o",
-        "--order",
+        "-i",
+        "--include",
         type=int,
         action="append",
-        help="Order of rules",
+        help="Included rules",
     )
     parse.add_argument(
         "-md",
@@ -331,9 +331,9 @@ if __name__ == "__main__":
     load_models(model_weights, hidden_size)
 
     output_file = f"{agent.trajectories_path}/test_accuracy.pkl"
-    testset_file = f"database_test_{rules.NUMBER_OF_RULES}_rules.pkl"
+    
     test_acc, adjusted_test_acc, acc_pairings = test_model(
-        model_weights, testset_file, hidden_size, batch_size
+        model_weights, hidden_size, batch_size
     )
     with open(output_file, "wb") as f:
         pickle.dump({"test_acc" : test_acc, "adjusted_test_acc" : adjusted_test_acc, "acc_pairings" : acc_pairings}, f)

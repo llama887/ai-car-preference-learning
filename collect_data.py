@@ -26,13 +26,6 @@ if __name__ == "__main__":
         "--headless", action="store_true", help="Run simulation without GUI"
     )
     parse.add_argument(
-        "-d",
-        "--distribution",
-        type=str,
-        action="append",
-        help="Distribution of segments collected",
-    )
-    parse.add_argument(
         "-db",
         "--database",
         type=str,
@@ -58,24 +51,9 @@ if __name__ == "__main__":
         raise Exception("Can not have segments with length < 1")
     agent.train_trajectory_length = args.segment if args.segment else 1
 
-    if args.distribution:
-        try:
-            rules.SEGMENT_DISTRIBUTION_BY_RULES = [
-                parse_to_float(d) for d in args.distribution
-            ]
-        except Exception:
-            print(
-                "Distribution input too advanced for Alex and Franklin's caveman parser. (or maybe you input something weird sry)"
-            )
-            sys.exit()
-        sum_dist = sum(rules.SEGMENT_DISTRIBUTION_BY_RULES)
-        rules.SEGMENT_DISTRIBUTION_BY_RULES = [
-            d / sum_dist for d in rules.SEGMENT_DISTRIBUTION_BY_RULES
-        ]
-        rules.NUMBER_OF_RULES = len(rules.SEGMENT_DISTRIBUTION_BY_RULES) - 1
-        assert (
-            sum(rules.SEGMENT_DISTRIBUTION_BY_RULES) == 1
-        ), f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
+    rules.NUMBER_OF_RULES = 3
+    rules.RULES_INCLUDED = [1, 2, 3]
+    rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/6, 1/6, 1/6, 1/2]
     
     if args.database:
         if args.paired:

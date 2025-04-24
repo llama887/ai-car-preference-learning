@@ -76,29 +76,6 @@ run_generate_trueRF:
 run_generate_trueRF_parallel:
 	./scripts/run_trueRF.sh -p
 
-
-database_test_1_rules.pkl:
-	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 1000000 -r 1 -n 10 -p
-	python ./combine_gargantuar.py -d tmp -o database_test_1_rules.pkl -r 1 -p
-
-database_test_2_rules.pkl:
-	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 1000000 -r 2 -n 10 -p
-	python ./combine_gargantuar.py -d tmp -o database_test_2_rules.pkl -r 2 -p 
-
-database_test_3_rules.pkl:
-	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 1000000 -r 3 -n 10 -p
-	python ./combine_gargantuar.py -d tmp -o database_test_3_rules.pkl -r 3 -p
-
-
-get_testsets:
-	make database_test_3_rules.pkl
-	make database_test_2_rules.pkl
-	make database_test_1_rules.pkl
-
-
 run_with_partial_rewards: database_test_2_rules.pkl
 	./scripts/run_partial_rewards.sh -r 3 -p 6
 	python simplex.py
@@ -111,20 +88,16 @@ run_on_subsampled_data:
 	python performance_plots.py -c 3
 
 
-collect_data_3_rules:
+collect_data:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 10000000 -r 3 -n 2000 -d tmp_3
-	python ./combine_gargantuar.py -d tmp_3 -o database_gargantuar_1_length_3_rules.pkl
+	./scripts/parallel_data_collect.sh -t 1000000 -n 20
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length.pkl 
 
-collect_data_2_rules:
+collect_testset:
 	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 10000000 -r 2 -n 2000 -d tmp_2
-	python ./combine_gargantuar.py -d tmp_2 -o database_gargantuar_1_length_2_rules.pkl
+	./scripts/parallel_data_collect.sh -t 1000000 -n 20
+	python ./combine_gargantuar.py -d tmp -o testing_database_gargantuar_1_length.pkl
 
-collect_data_1_rules:
-	rm -rf tmp
-	./scripts/parallel_data_collect.sh -t 10000000 -r 1 -n 2000 -d tmp_1
-	python ./combine_gargantuar.py -d tmp_1 -o database_gargantuar_1_length_1_rules.pkl
 
 subsample_collect_data_all:
 	python subsample_state.py -s 2000000 -r 1
@@ -144,20 +117,8 @@ collect_data_longer_segments:
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_6_length_3_rules_tmp.pkl
 
 
-collect_data_only:
-	 if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
-	make collect_data_1_rules
-	make collect_data_2_rules
-	make collect_data_3_rules
-
-collect_data_only_parallel:
-	 if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
-	make collect_data_1_rules & make collect_data_2_rules & make collect_data_3_rules
-
 collect_data_all:
-	make collect_data_1_rules
-	make collect_data_2_rules
-	make collect_data_3_rules
+	make collect_data
 	make subsample_collect_data_all
 	make collect_data_longer_segments
 
