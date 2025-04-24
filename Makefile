@@ -75,13 +75,6 @@ run_generate_trueRF:
 run_generate_trueRF_parallel:
 	./scripts/run_trueRF.sh -p
 
-
-get_testsets:
-	make database_test_3_rules.pkl
-	make database_test_2_rules.pkl
-	make database_test_1_rules.pkl
-
-
 run_with_partial_rewards: database_test_2_rules.pkl
 	./scripts/run_partial_rewards.sh -r 3 -p 6
 	python simplex.py
