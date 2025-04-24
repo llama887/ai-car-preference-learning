@@ -21,6 +21,7 @@ from agent import (
     WIDTH,
     Car,
     StateActionPair,
+    segment_list_to_dict,
 )
 from rules import check_rules_one
 
@@ -261,7 +262,7 @@ def get_grid_points(samples=2000000, number_of_rules=1):
     position_set = set()
     for result in tmp_results:
         r, point, position = result
-        results.append(r)
+        results.extend(r)
         point_set.add(point)
         position_set.add(position)
 
@@ -298,24 +299,12 @@ if __name__ == "__main__":
         samples = 2000000
 
     results = get_grid_points(samples)
+    print(f"Found {len(results)} segments.")
+    print(results[0])
 
-    print("Splitting by rules...")
-    with multiprocessing.Pool() as pool:
-        split_results = list(
-            tqdm(pool.imap_unordered(split_by_rules, results), total=len(results))
-        )
-
-    gargantuar = [[], [], [], []]
-    for result in split_results:
-        for i in range(len(result)):
-            gargantuar[i].extend(result[i])
-
-    for i in range(len(gargantuar)):
-        print(f"{len(gargantuar[i])} segments of {i} rules followed")
-    total_segments = sum([len(gargantuar[i]) for i in range(len(gargantuar))])
-    print(f"{total_segments} total segments")
-    print(f"Saving to subsampled_gargantuar_1_length_{number_of_rules}_rules.pkl...")
-    with open(f"subsampled_gargantuar_1_length_{number_of_rules}_rules.pkl", "wb") as f:
-        pickle.dump(gargantuar, f)
+    
+    print(f"Saving to subsampled_gargantuar_1_length.pkl...")
+    with open(f"subsampled_gargantuar_1_length.pkl", "wb") as f:
+        pickle.dump(segment_list_to_dict(results), f)
     end = time.time()
     print(f"Finished in {end - start} seconds.")
