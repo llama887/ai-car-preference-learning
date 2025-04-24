@@ -912,7 +912,10 @@ def save_as_database(segments):
                     old_database[key] = database[key]
                 elif len(database[key]) > len(old_database[key]):
                     old_database[key] = database[key]
-    return old_database
+        return old_database
+    else:
+        return database
+
 
 
 def finished_collecting(saved_data, number_of_pairs):
