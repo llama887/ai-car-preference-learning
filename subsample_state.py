@@ -266,6 +266,7 @@ def get_grid_points(samples=2000000, number_of_rules=1):
         point_set.add(point)
         position_set.add(position)
 
+    results = segment_list_to_dict(results)
     return results
 
 
@@ -299,12 +300,9 @@ if __name__ == "__main__":
         samples = 2000000
 
     results = get_grid_points(samples)
-    print(f"Found {len(results)} segments.")
-    print(results[0])
 
-    
     print(f"Saving to subsampled_gargantuar_1_length.pkl...")
     with open(f"subsampled_gargantuar_1_length.pkl", "wb") as f:
-        pickle.dump(segment_list_to_dict(results), f)
+        pickle.dump(results, f)
     end = time.time()
     print(f"Finished in {end - start} seconds.")
