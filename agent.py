@@ -884,8 +884,8 @@ def load_from_garg(database):
         with open(database, "rb") as file:
             data = pickle.load(file)
             print(f"USING MASTER DB: {database}")
-            # if "subsampled" in master_database: # Franklin can fix ig?
-            #     saved_segments = data[: rules.NUMBER_OF_RULES + 1]
+            if "subsampled" in database: # Franklin can fix ig?
+                return data[: rules.NUMBER_OF_RULES + 1]
 
         show_database_segments(data)
 
@@ -898,6 +898,14 @@ def load_from_garg(database):
     except Exception:
         print(f"COULD NOT LOAD FROM MASTER DB: {master_database}")
         return [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
+
+
+def segment_list_to_dict(segment_list):
+    database = defaultdict(list)
+    for segment in segment_list:
+        _, _, rules_followed = rules.check_rules_one(segment, rules.NUMBER_OF_RULES)
+        database[tuple(rules_followed)].append(segment)
+    return database
 
 def save_as_database(segments):
     database = defaultdict(list)
