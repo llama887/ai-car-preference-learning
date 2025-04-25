@@ -702,16 +702,12 @@ def run_simulation(genomes, config):
     with open("grid_points.pkl", "rb") as f:
         grid_points = pickle.load(f)
     
-    grid_buckets = list(grid_points.keys())
-    total_grid_segments = sum(len(grid_points[bucket]) for bucket in grid_buckets)
-    grid_weighting = [len(grid_bucket) / total_grid_segments for grid_bucket in grid_buckets]
-    
     # For All Genomes Passed Create A New Neural Network
     for i, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
         g.fitness = 0
-        random_trajectory_segment = random.choice(grid_points[random.choices(grid_buckets, weights=grid_weighting, k=1)[0]])
+        random_trajectory_segment = random.choice(random.choice(grid_points))
         random_position = random_trajectory_segment[0].position
         cars.append(Car(position=random_position, angle=get_angle(random_position[0], random_position[1])) )
     for i, car in enumerate(cars):
