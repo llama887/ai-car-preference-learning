@@ -98,7 +98,7 @@ collect_testset:
 	rm -rf tmp
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	./scripts/parallel_data_collect.sh -t 20000000 -n 20
-	python ./combine_gargantuar.py -d tmp -o testing_database_gargantuar_1_length.pkl
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_testing_1_length.pkl
 
 
 subsample_collect_data_all:

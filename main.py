@@ -81,6 +81,18 @@ def process_args(args):
     if args.master_database:
         agent.master_database = args.master_database
 
+    # Set Trajectory Path
+    if args.trajectory:
+        agent.trajectories_path = args.trajectory
+        if agent.trajectories_path[-1] != "/":
+            agent.trajectories_path += "/"
+
+    # Set Figure Path
+    if args.figure:
+        reward.figure_path = args.figure
+        if reward.figure_path[-1] != "/":   
+            reward.figure_path += "/"
+
     # Set Distribution, (Default is half satisfaction, half split amongst non-satisfaction (as in rules.py))
     if args.distribution:
         # If statesampling, load the distribution from the master database
@@ -269,6 +281,7 @@ if __name__ == "__main__":
                 args.ensemble,
             )
 
+        print("Finished collecting data...")
         gc.collect()
         database_path = f"{agent.trajectories_path}database_{num_pairs}_pairs_{args.composition}_rules_{agent.train_trajectory_length}_length.pkl"
         print("Starting training on trajectories...")

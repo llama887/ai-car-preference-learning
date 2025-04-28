@@ -22,8 +22,8 @@ from reward import (
     TrajectoryRewardNet
 )
 
-TESTSET_SIZE = 100000
-TEST_DATA_PATH = f'testing_database_gargantuar_1_length.pkl'
+TESTSET_SIZE = 1000000
+TEST_DATA_PATH = f'database_gargantuar_testing_1_length.pkl'
 
 def check_dataset(test_file):
     with open(test_file, "rb") as f:
@@ -78,7 +78,7 @@ def check_dataset(test_file):
         print()
 
 
-def generate_testset(test_file, num_rules, rules_included, segment_distribution_by_rules):
+def generate_testset(test_file):
     agent.paired_database = test_file
 
     print("TESTSET NEEDS THE FOLLOWING SEGMENTS:")
@@ -135,13 +135,15 @@ def load_models(reward_paths, hidden_size):
         return ensemble
 
 def test_model(model_path, hidden_size, batch_size=256):
+    num_rules = rules.NUMBER_OF_RULES
+
     if not model_path:
         raise Exception("Model not found...")
     
     model = load_models(model_path, hidden_size)
 
-    test_file = f"database_test_{rules.NUMBER_OF_RULES}_rules.pkl"
-    generate_testset(test_file, rules.NUMBER_OF_RULES, rules.RULES_INCLUDED, rules.SEGMENT_DISTRIBUTION_BY_RULES)
+    test_file = f"database_test_{num_rules}_rules.pkl"
+    generate_testset(test_file)
 
     test_dataset = TrajectoryDataset(file_path=test_file, variance_pairs=None, preload=True)
 
@@ -163,8 +165,8 @@ def test_model(model_path, hidden_size, batch_size=256):
             test_rewards1 = model(test_traj1)
             test_rewards2 = model(test_traj2)
 
-            segment_rules_satisfied[0].extend(rules.check_batch_rules(test_traj1, rules.NUMBER_OF_RULES))
-            segment_rules_satisfied[1].extend(rules.check_batch_rules(test_traj2, rules.NUMBER_OF_RULES))
+            segment_rules_satisfied[0].extend(rules.check_batch_rules(test_traj1, num_rules))
+            segment_rules_satisfied[1].extend(rules.check_batch_rules(test_traj2, num_rules))
             segment_rewards[0].extend(test_rewards1.tolist())
             segment_rewards[1].extend(test_rewards2.tolist())
             segment_true_scores[0].extend(test_score1.tolist())
@@ -180,7 +182,7 @@ def test_model(model_path, hidden_size, batch_size=256):
     mismatches = 0
     for idx in range(n_pairs):
         for traj_idx in [0, 1]:
-            expected_score = 1 if segment_rules_satisfied[traj_idx][idx] == rules.NUMBER_OF_RULES else 0
+            expected_score = 1 if segment_rules_satisfied[traj_idx][idx] == num_rules else 0
             actual_score = segment_true_scores[traj_idx][idx]
             if expected_score != actual_score:
                 mismatches += 1
@@ -204,12 +206,12 @@ def test_model(model_path, hidden_size, batch_size=256):
     total_correct = 0
     total_diff = 0
     total_adjusted_correct = 0
-    acc_pairings = [[0, 0] * rules.NUMBER_OF_RULES for _ in range(rules.NUMBER_OF_RULES)]
+    acc_pairings = [[0, 0] * num_rules for _ in range(num_rules)]
     error = 0
 
     for i in range(n_pairs):
         different_reward = (segment_true_scores[0][i] != segment_true_scores[1][i])
-        if different_reward and segment_rules_satisfied[0][i] != rules.NUMBER_OF_RULES and segment_rules_satisfied[1][i] != rules.NUMBER_OF_RULES:
+        if different_reward and segment_rules_satisfied[0][i] != num_rules and segment_rules_satisfied[1][i] != num_rules:
             # print(segment_rules_satisfied[0][i], segment_rules_satisfied[1][i])
             error += 1
         prediction = segment_rewards[0][i] >= segment_rewards[1][i]
@@ -217,10 +219,10 @@ def test_model(model_path, hidden_size, batch_size=256):
         correct = prediction == true_pref
         adjusted_correct = different_reward * correct
 
-        if segment_rules_satisfied[0][i] == rules.NUMBER_OF_RULES and segment_rules_satisfied[1][i] != rules.NUMBER_OF_RULES:
+        if segment_rules_satisfied[0][i] == num_rules and segment_rules_satisfied[1][i] != num_rules:
             acc_pairings[segment_rules_satisfied[1][i]][0] += adjusted_correct
             acc_pairings[segment_rules_satisfied[1][i]][1] += 1
-        if segment_rules_satisfied[1][i] == rules.NUMBER_OF_RULES and segment_rules_satisfied[0][i] != rules.NUMBER_OF_RULES:
+        if segment_rules_satisfied[1][i] == num_rules and segment_rules_satisfied[0][i] != num_rules:
             acc_pairings[segment_rules_satisfied[0][i]][0] += adjusted_correct
             acc_pairings[segment_rules_satisfied[0][i]][1] += 1
         
@@ -264,14 +266,12 @@ def test_model(model_path, hidden_size, batch_size=256):
     print("TEST ACCURACY:", test_acc, "ADJUSTED TEST ACCURACY:", adjusted_test_acc)
     print("ACCURACY BREAKDOWN:")
     for i in range(len(acc_pairings)):
-        print(f"{i} RULES vs. {rules.NUMBER_OF_RULES} RULES (SATISFACTION):[{acc_pairings[i][0]} / {acc_pairings[i][1]}] ({acc_pairings[i][0] / acc_pairings[i][1]})")
+        print(f"{i} RULES vs. {num_rules} RULES (SATISFACTION):[{acc_pairings[i][0]} / {acc_pairings[i][1]}] ({acc_pairings[i][0] / acc_pairings[i][1]})")
     return test_acc, adjusted_test_acc, acc_pairings
 
-# rules.NUMBER_OF_RULES = 2
-# check_dataset("database_test_2_rules.pkl")
+rules.NUMBER_OF_RULES = 1
 # test_model(
-#     model_path=["models/model_3000_epochs_100000_pairs_2_rules.pth"],
-#     test_file="database_test_2_rules.pkl",
+#     model_path=["models/model_3000_epochs_1000000_pairs_2_rules.pth"],
 #     hidden_size=952,
 #     batch_size=6032)
 

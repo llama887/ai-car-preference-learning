@@ -16,6 +16,7 @@ import torch.nn.functional as F
 import torch.optim.lr_scheduler as lr_scheduler
 import yaml
 from torch.utils.data import DataLoader, Dataset, random_split
+import random
 
 import rules
 import wandb
@@ -635,7 +636,7 @@ def train_model(
     epochs=1000,
     optimizer=None,
     batch_size=256,
-    model_path="best.pth", # Base path for saving
+    base_model_path="best.pth", # Base path for saving
     return_stat=None,
     preload=True
     # patience parameter removed
@@ -848,7 +849,7 @@ def train_model(
             epoch += 1
     except Exception as e:
         # Save the *best* state found before exception, if available
-        save_path = model_path + f"_EXCEPTION_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
+        save_path = base_model_path + f"_EXCEPTION_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
         if best_model_state:
              print("Saving best model state found before exception.")
              torch.save(best_model_state, save_path)
@@ -865,12 +866,12 @@ def train_model(
         n_pairs_magnitude = 0
 
     if best_model_state:
-        final_save_path = model_path + f"_{n_pairs_magnitude}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
+        final_save_path = base_model_path + f"_{n_pairs_magnitude}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
         torch.save(best_model_state, final_save_path)
         print(f"Best model state saved to {final_save_path} with validation loss: {best_loss:.4f}")
     else:
         # If no validation improvement ever happened (e.g., epochs < validation_frequency), save the last state.
-        final_save_path = model_path + f"_{n_pairs_magnitude}_pairs_{rules.NUMBER_OF_RULES}_rules_LAST.pth"
+        final_save_path = base_model_path + f"_{n_pairs_magnitude}_pairs_{rules.NUMBER_OF_RULES}_rules_LAST.pth"
         torch.save(net.state_dict(), final_save_path)
         print(f"No validation improvement recorded. Saving last model state to {final_save_path}")
     # --- End Save Best Model ---
@@ -963,8 +964,14 @@ def train_reward_function(
 
     if figure_folder_name:
         global figure_path
-        figure_path = figure_folder_name + "/"
+        figure_path = figure_folder_name
+        if figure_path[-1] != "/":
+            figure_path += "/"
         os.makedirs(figure_path, exist_ok=True)
+    
+    model_id = ''.join(random.choices('0123456789abcdef', k=8))
+    print("MODEL ID:", model_id)
+
 
     # OPTUNA (No changes needed regarding patience)
     if not parameters_path:
@@ -1067,7 +1074,7 @@ def train_reward_function(
                     epochs=epochs,
                     optimizer=optimizer,
                     batch_size=batch_size,
-                    model_path=models_path + f"model_{epochs}_epochs", # Base path for saving
+                    base_model_path=models_path + f"model_{model_id}_{epochs}_epochs", # Base path for saving
                     return_stat=return_stat,
                     preload=True, # Assuming preload=True for non-Optuna runs
                     # No patience argument needed
