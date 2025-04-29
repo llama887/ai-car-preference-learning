@@ -114,7 +114,7 @@ def accuracy_per_xy(
     ]
 
     dataset = TensorDataset(torch.stack(tensor_pairs_0), torch.stack(tensor_pairs_1))
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=4)
 
     batch_accuracies = []
     for batch_0, batch_1 in tqdm(dataloader, desc="Processing batches"):

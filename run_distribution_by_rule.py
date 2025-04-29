@@ -74,6 +74,7 @@ def test_model(model_path, test_file, hidden_size, batch_size=256):
         batch_size = test_size if test_size < batch_size else batch_size,
         shuffle=False,
         pin_memory=False,
+        num_workers=4,
     )
 
     with torch.no_grad():

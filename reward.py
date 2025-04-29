@@ -273,6 +273,7 @@ def distribute_data(train_subset, batch_size, num_models, preload=False):
             batch_size=train_sizes[i] if train_sizes[i] < batch_size else batch_size,
             shuffle=True,
             pin_memory=pin_mem,
+            num_workers=4,
         )
         for i in range(num_models)
     ]
@@ -339,6 +340,7 @@ def train_ensemble(
         batch_size=val_size if val_size < batch_size else batch_size,
         shuffle=False,
         pin_memory=pin_mem,
+        num_workers=4,
     )
 
     # --- Early Stopping Initialization ---
@@ -669,12 +671,14 @@ def train_model(
         batch_size=train_size if train_size < batch_size else batch_size,
         shuffle=True,
         pin_memory=pin_mem,
+        num_workers=4,
     )
     validation_dataloader = DataLoader(
         val_dataset,
         batch_size=val_size if val_size < batch_size else batch_size,
         shuffle=False,
         pin_memory=pin_mem,
+        num_workers=4,
     )
 
     if batch_size > train_size:
