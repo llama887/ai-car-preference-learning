@@ -82,13 +82,13 @@ def generate_testset(test_file):
     agent.paired_database = test_file
 
     print("TESTSET NEEDS THE FOLLOWING SEGMENTS:")
-    saved_segments = agent.load_from_garg(TEST_DATA_PATH)
     agent.display_requested_segments(TESTSET_SIZE)
+    saved_segments = agent.load_from_garg(TEST_DATA_PATH)
     if not agent.finished_collecting(saved_segments, TESTSET_SIZE):
         raise Exception("Not enough segments to generate test set.")
 
     print(f"Test set sampling complete. Generating test set with {TESTSET_SIZE} trajectory pairs...")
-    agent.generate_database(agent.trajectories_path, saved_segments, "segments", segment_generation_mode="random")
+    agent.generate_database(agent.trajectories_path, TESTSET_SIZE, saved_segments, "segments", segment_generation_mode="random")
     
 
 def load_models(reward_paths, hidden_size):
@@ -269,9 +269,11 @@ def test_model(model_path, hidden_size, batch_size=256):
         print(f"{i} RULES vs. {num_rules} RULES (SATISFACTION):[{acc_pairings[i][0]} / {acc_pairings[i][1]}] ({acc_pairings[i][0] / acc_pairings[i][1]})")
     return test_acc, adjusted_test_acc, acc_pairings
 
-rules.NUMBER_OF_RULES = 1
+# rules.NUMBER_OF_RULES = 1
+# rules.RULES_INCLUDED = [2]
+# rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/2, 1/2]
 # test_model(
-#     model_path=["models/model_3000_epochs_1000000_pairs_2_rules.pth"],
+#     model_path=["models/model_3000_epochs_1000000_pairs_1_rules.pth"],
 #     hidden_size=952,
 #     batch_size=6032)
 

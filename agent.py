@@ -420,8 +420,7 @@ def calculate_new_point(point, distance, angle):
     return [x1, y1]
 
 
-def sample_segments(saved_segments):
-    global num_pairs
+def sample_segments(num_pairs, saved_segments):
     sampled_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
     for i in range(rules.NUMBER_OF_RULES + 1):
         segments_needed = math.ceil(
@@ -500,19 +499,18 @@ def generate_database_from_segments(segments, number_of_pairs):
     return len(trajectory_segments)
 
 
-def generate_database(trajectory_path, saved_data, datatype, segment_generation_mode='random'):
+def generate_database(trajectory_path, num_pairs, saved_data, datatype, segment_generation_mode='random'):
     trajectory_pairs = []
 
     global \
         run_type, \
-        num_pairs, \
         train_trajectory_length, \
         master_database
     
     if datatype == "segments":
         # Break trajectories into trajectory segments
         trajectory_segments = []
-        sampled_segments = sample_segments(saved_data)
+        sampled_segments = sample_segments(num_pairs, saved_data)
         print(
             "SEGMENT POOL FOR DATA COLLECTION:",
             list((f"{i}: {len(seg)}" for i, seg in enumerate(sampled_segments))),
@@ -887,9 +885,20 @@ def load_from_garg(database):
         show_database_segments(data)
 
         loaded_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
+
+        buckets = list(data.keys())
+        rule_set = set(rules.RULES_INCLUDED)
+
         for i in range(rules.NUMBER_OF_RULES + 1):
-            for combination in combinations(rules.RULES_INCLUDED, i):
-                loaded_segments[i].extend(data[combination])
+            for rules_to_include in combinations(rules.RULES_INCLUDED, i):
+                print(rules_to_include)
+                rules_to_exclude = set(rule_set) - set(rules_to_include)
+                print(rules_to_exclude)
+                for bucket in buckets:
+                    if all(rule in bucket for rule in rules_to_include) and all(rule not in bucket for rule in rules_to_exclude):
+                        print(bucket)
+                        loaded_segments[i].extend(data[bucket])
+                print()
         return loaded_segments
                 
     except Exception:
@@ -1042,7 +1051,7 @@ def run_population(
         print(
             f"Total execution time for {generation} generations: {elapsed_time:.2f} seconds"
         )
-        numTrajPairs = generate_database(trajectory_path, saved_segments, datatype)
+        numTrajPairs = generate_database(trajectory_path, num_pairs, saved_segments, datatype)
 
         return numTrajPairs
     except KeyboardInterrupt:
@@ -1052,7 +1061,7 @@ def run_population(
         )
         user_input = input().strip().lower()
         if user_input == "y":
-            generate_database(trajectory_path, saved_trajectories, datatype)
+            generate_database(trajectory_path, num_pairs, saved_trajectories, datatype)
         else:
             print("Exiting without saving the database.")
         sys.exit()
