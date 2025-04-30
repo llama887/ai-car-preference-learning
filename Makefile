@@ -6,13 +6,29 @@ run_baseline:
 	./scripts/run_basic.sh -r 1 -h
 	python performance_plots.py -c 3
 
+run_baseline_hpc:
+	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi; \
+	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi; \
+	srun --nodes=1 --ntasks=1 --cpus-per-task=10 --gres=gpu:1 --exclusive ./scripts/run_basic.sh -r 3 -h & \
+	srun --nodes=1 --ntasks=1 --cpus-per-task=10 --gres=gpu:1 --exclusive ./scripts/run_basic.sh -r 2 -h & \
+	srun --nodes=1 --ntasks=1 --cpus-per-task=10 --gres=gpu:1 --exclusive ./scripts/run_basic.sh -r 1 -h & \
+	wait; \
+	python performance_plots.py -c 3
 
 run_baseline_parallel:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
-	./scripts/run_basic.sh -r 3 -p -h &
-	./scripts/run_basic.sh -r 2 -p -h &
-	./scripts/run_basic.sh -r 1 -p -h &
+	./scripts/run_basic.sh -r 3 -p -h 
+	./scripts/run_basic.sh -r 2 -p -h 
+	./scripts/run_basic.sh -r 1 -p -h 
+	python performance_plots.py -c 3
+
+run_baseline_parallel_hpc:
+	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
+	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
+	CUDA_VISIBLE_DEVICES=0 ./scripts/run_basic.sh -r 3 -p -h &
+	CUDA_VISIBLE_DEVICES=1 ./scripts/run_basic.sh -r 2 -p -h &
+	CUDA_VISIBLE_DEVICES=2 ./scripts/run_basic.sh -r 1 -p -h &
 	wait
 	python performance_plots.py -c 3
 
@@ -91,7 +107,7 @@ run_on_subsampled_data:
 collect_data:
 	rm -rf tmp
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
-	./scripts/parallel_data_collect.sh -t 20000000 -n 20
+	./scripts/parallel_data_collect.sh -t 20000000 -n 48
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length.pkl 
 
 collect_testset:
