@@ -973,7 +973,7 @@ def train_reward_function(
             figure_path += "/"
         os.makedirs(figure_path, exist_ok=True)
     
-    model_id = ''.join(random.choices('0123456789abcdef', k=8))
+    model_id = "".join([rule for rule in rules.RULES_INCLUDED])
     print("MODEL ID:", model_id)
 
 

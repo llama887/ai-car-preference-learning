@@ -306,10 +306,11 @@ if __name__ == "__main__":
         if args.ensemble:
             model_weights = ["QUICK", reward.ensemble_path]
         else:
+            model_id = "".join([rule for rule in rules.RULES_INCLUDED])
             model_weights = [
                 (
                     reward.models_path
-                    + f"model_{args.epochs[0]}_epochs_{args.trajectories[0]}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
+                    + f"model_{model_id}_{args.epochs[0]}_epochs_{args.trajectories[0]}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
                 )
             ]
     else:
