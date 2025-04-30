@@ -4,12 +4,12 @@
 #SBATCH --error=baseline_%j.err
 #SBATCH --mail-type=START,END,FAIL
 #SBATCH --mail-user=fyy2003@nyu.edu
-#SBATCH --time=48:00:00 
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=10
-#SBATCH --mem=128G 
-#SBATCH --gres=gpu:1
+#SBATCH --time=48:00:00
+#SBATCH --nodes=3                  # Request 3 nodes :contentReference[oaicite:0]{index=0}
+#SBATCH --ntasks-per-node=1        # One task on each node :contentReference[oaicite:1]{index=1}
+#SBATCH --cpus-per-task=10         # Keep your CPU allocation
+#SBATCH --mem=180G                 # Keep your memory allocation
+#SBATCH --gres=gpu:1               # One GPU per node :contentReference[oaicite:2]{index=2}
 #SBATCH --account=pr_100_tandon_priority
 
 LOG_DIR="/scratch/$USER/ai-car-preference-learning/output"
@@ -31,4 +31,4 @@ cd /scratch/$USER/ai-car-preference-learning
 source venv/bin/activate
 pip install -r .devcontainer/requirements.txt
 
-make run_baseline
+make run_baseline_hpc

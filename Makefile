@@ -6,6 +6,14 @@ run_baseline:
 	./scripts/run_basic.sh -r 1 -h
 	python performance_plots.py -c 3
 
+run_baseline_hpc:
+	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi; \
+	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi; \
+	srun --nodes=1 --ntasks=1 --cpus-per-task=10 --gres=gpu:1 --exclusive ./scripts/run_basic.sh -r 3 -h & \
+	srun --nodes=1 --ntasks=1 --cpus-per-task=10 --gres=gpu:1 --exclusive ./scripts/run_basic.sh -r 2 -h & \
+	srun --nodes=1 --ntasks=1 --cpus-per-task=10 --gres=gpu:1 --exclusive ./scripts/run_basic.sh -r 1 -h & \
+	wait; \
+	python performance_plots.py -c 3
 
 run_baseline_parallel:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi

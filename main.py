@@ -3,7 +3,8 @@ import gc
 import os
 import pickle
 import sys
-
+import torch.multiprocessing as mp
+mp.set_start_method("spawn", force=True)
 import yaml
 
 import agent
