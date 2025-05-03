@@ -54,7 +54,7 @@ def check_dataset(test_file):
         batch_size = 1,
         shuffle=False,
         pin_memory=False,
-        num_workers=10,
+        num_workers=0,
     )
     for i in range(len(test_dataloader.dataset)):
         traj1, traj2, true_pref, score1, score2 = test_dataloader.dataset[i]
@@ -155,7 +155,7 @@ def test_model(model_path, hidden_size, batch_size=256):
         batch_size = test_size if test_size < batch_size else batch_size,
         shuffle=False,
         pin_memory=False,
-        num_workers=10,
+        num_workers=0,
     )
 
     segment_rules_satisfied = [[],[]]
@@ -270,6 +270,7 @@ def test_model(model_path, hidden_size, batch_size=256):
     for i in range(len(acc_pairings)):
         print(f"{i} RULES vs. {num_rules} RULES (SATISFACTION):[{acc_pairings[i][0]} / {acc_pairings[i][1]}] ({acc_pairings[i][0] / acc_pairings[i][1]})")
     return test_acc, adjusted_test_acc, acc_pairings
+
 
 rules.NUMBER_OF_RULES = 1
 rules.RULES_INCLUDED = [2]
