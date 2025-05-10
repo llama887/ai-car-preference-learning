@@ -272,12 +272,4 @@ def test_model(model_path, hidden_size, batch_size=256):
     return test_acc, adjusted_test_acc, acc_pairings
 
 
-# rules.NUMBER_OF_RULES = 1
-# rules.RULES_INCLUDED = [3]
-# rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/2, 1/2]
-# test_model(
-#     model_path=["/home/alex/ai-car-preference-learning/models/model_3_3000_epochs_1000000_pairs_1_rules.pth"],
-#     hidden_size=952,
-#     batch_size=6032)
-
     
