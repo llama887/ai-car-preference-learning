@@ -632,6 +632,277 @@ def train_ensemble(
     return training_output
 
 
+def train_model_without_dataloader(
+    file_path,
+    net,
+    epochs=1000,
+    optimizer=None,
+    base_model_path="best_no_loader.pth",
+    return_stat=None,
+    preload=True
+):
+    print(f"Training without DataLoaders | file path: {file_path} | epochs: {epochs}")
+    wandb.init(project="Micro Preference No Dataloader")
+    wandb.watch(net, log="all")
+
+    # Create the dataset
+    full_dataset = TrajectoryDataset(file_path, None, preload)
+
+    global n_pairs
+    n_pairs = len(full_dataset)
+
+    # Define the split ratio
+    train_ratio = 0.8
+    dataset_size = len(full_dataset)
+    train_size = int(train_ratio * dataset_size)
+    val_size = dataset_size - train_size
+
+    # Split the dataset into training and validation sets
+    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+    
+    # Instead of using DataLoaders, directly get all data
+    # Extract all training data at once
+    all_train_traj1 = []
+    all_train_traj2 = []
+    all_train_pref = []
+    all_train_score1 = []
+    all_train_score2 = []
+    
+    for idx in train_dataset.indices:
+        traj1, traj2, pref, score1, score2 = full_dataset[idx]
+        all_train_traj1.append(traj1)
+        all_train_traj2.append(traj2)
+        all_train_pref.append(pref)
+        all_train_score1.append(score1)
+        all_train_score2.append(score2)
+    
+    # Convert to tensors and stack
+    all_train_traj1 = torch.stack(all_train_traj1)
+    all_train_traj2 = torch.stack(all_train_traj2)
+    all_train_pref = torch.stack(all_train_pref)
+    all_train_score1 = torch.stack(all_train_score1)
+    all_train_score2 = torch.stack(all_train_score2)
+    
+    # Extract all validation data at once
+    all_val_traj1 = []
+    all_val_traj2 = []
+    all_val_pref = []
+    all_val_score1 = []
+    all_val_score2 = []
+    
+    for idx in val_dataset.indices:
+        traj1, traj2, pref, score1, score2 = full_dataset[idx]
+        all_val_traj1.append(traj1)
+        all_val_traj2.append(traj2)
+        all_val_pref.append(pref)
+        all_val_score1.append(score1)
+        all_val_score2.append(score2)
+    
+    all_val_traj1 = torch.stack(all_val_traj1)
+    all_val_traj2 = torch.stack(all_val_traj2)
+    all_val_pref = torch.stack(all_val_pref)
+    all_val_score1 = torch.stack(all_val_score1)
+    all_val_score2 = torch.stack(all_val_score2)
+    
+    # Ensure everything is on the correct device
+    if not preload:
+        all_train_traj1, all_train_traj2, all_train_pref, all_train_score1, all_train_score2 = load_tensors([
+            all_train_traj1, all_train_traj2, all_train_pref, all_train_score1, all_train_score2
+        ])
+        all_val_traj1, all_val_traj2, all_val_pref, all_val_score1, all_val_score2 = load_tensors([
+            all_val_traj1, all_val_traj2, all_val_pref, all_val_score1, all_val_score2
+        ])
+
+    # --- Early Stopping Initialization ---
+    patience = 10 
+    validation_frequency = 50
+    best_loss = np.inf
+    epochs_no_improve = 0
+    best_model_state = None
+    # --- End Early Stopping Initialization ---
+
+    training_losses = []
+    validation_losses = []
+    training_accuracies = []
+    validation_accuracies = []
+    adjusted_training_accuracies = []
+    adjusted_validation_accuracies = []
+
+    scheduler = lr_scheduler.LinearLR(
+        optimizer, start_factor=1.0, end_factor=0.01, total_iters=epochs
+    )
+
+    epoch = 0
+    try:
+        while epoch < epochs:
+            # --- Training Phase ---
+            net.train()
+            
+            # Process all training data at once
+            optimizer.zero_grad()
+            
+            # Combine all trajectories
+            combined_train_batch = torch.cat([all_train_traj1, all_train_traj2], dim=0)
+            combined_train_rewards = net(combined_train_batch)
+            train_rewards1, train_rewards2 = torch.split(combined_train_rewards, [all_train_traj1.shape[0], all_train_traj2.shape[0]], dim=0)
+            
+            train_predicted_probabilities = bradley_terry_model(train_rewards1, train_rewards2)
+            train_loss = preference_loss(train_predicted_probabilities, all_train_pref)
+            train_accuracy = calculate_accuracy(train_predicted_probabilities, all_train_pref)
+            train_adjusted_accuracy = calculate_adjusted_accuracy(
+                train_predicted_probabilities, all_train_pref, all_train_score1, all_train_score2
+            )
+            
+            # Backpropagation
+            train_loss.backward()
+            torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
+            optimizer.step()
+            scheduler.step()
+            
+            # Store metrics
+            training_losses.append(train_loss.item())
+            training_accuracies.append(train_accuracy)
+            adjusted_training_accuracies.append(train_adjusted_accuracy)
+
+            # --- Validation Phase (every validation_frequency epochs) ---
+            if epoch % validation_frequency == 0:
+                net.eval()
+                with torch.no_grad():
+                    # Process all validation data at once
+                    combined_val_batch = torch.cat([all_val_traj1, all_val_traj2], dim=0)
+                    combined_val_rewards = net(combined_val_batch)
+                    val_rewards1, val_rewards2 = torch.split(combined_val_rewards, [all_val_traj1.shape[0], all_val_traj2.shape[0]], dim=0)
+                    
+                    val_predicted_probabilities = bradley_terry_model(val_rewards1, val_rewards2)
+                    val_loss = preference_loss(val_predicted_probabilities, all_val_pref)
+                    val_accuracy = calculate_accuracy(val_predicted_probabilities, all_val_pref)
+                    val_adjusted_accuracy = calculate_adjusted_accuracy(
+                        val_predicted_probabilities, all_val_pref, all_val_score1, all_val_score2
+                    )
+                
+                # Store validation metrics
+                validation_losses.append(val_loss.item())
+                validation_accuracies.append(val_accuracy)
+                adjusted_validation_accuracies.append(val_adjusted_accuracy)
+                
+                wandb.log(
+                    {
+                        "Train Loss": train_loss.item(),
+                        "Validation Loss": val_loss.item(),
+                        "Train Accuracy": train_accuracy,
+                        "Validation Accuracy": val_accuracy,
+                        "Adjusted Train Accuracy": train_adjusted_accuracy,
+                        "Adjusted Validation Accuracy": val_adjusted_accuracy,
+                    },
+                    step=epoch,
+                )
+
+                print(
+                    f"Epoch {epoch}/{epochs}, Train Loss: {train_loss.item():.4f}, Val Loss: {val_loss.item():.4f}, "
+                    f"Train Acc: {train_accuracy:.4f} (adjusted: {train_adjusted_accuracy:.4f}), "
+                    f"Val Acc: {val_accuracy:.4f} (adjusted: {val_adjusted_accuracy:.4f})"
+                )
+
+                # --- Early Stopping Check ---
+                if val_loss.item() < best_loss:
+                    best_loss = val_loss.item()
+                    epochs_no_improve = 0
+                    best_model_state = net.state_dict()
+                    print(f"Epoch {epoch}: Validation loss improved to {best_loss:.4f}. Best model state updated.")
+                else:
+                    epochs_no_improve += 1
+                    print(f"Epoch {epoch}: Validation loss ({val_loss.item():.4f}) did not improve from best ({best_loss:.4f}). "
+                          f"Checks without improvement: {epochs_no_improve}/{patience}")
+
+                if epochs_no_improve >= patience:
+                    print(f"Early stopping triggered after {epoch} epochs ({epochs_no_improve} checks without improvement).")
+                    break
+                # --- End Early Stopping Check ---
+
+            epoch += 1
+
+    except Exception as e:
+        # Save the best state found before exception, if available
+        save_path = base_model_path + f"_EXCEPTION_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
+        if best_model_state:
+            print("Saving best model state found before exception.")
+            torch.save(best_model_state, save_path)
+        else:
+            print("Saving current model state before exception (no best state recorded).")
+            torch.save(net.state_dict(), save_path)
+        print(f"EXCEPTION CAUGHT during model training at epoch {epoch}: {e}")
+        raise e
+
+    # --- Save the best model after training completes (or early stopping) ---
+    try:
+        n_pairs_magnitude = 10 ** round(math.log10(n_pairs)) if n_pairs > 0 else 0
+    except ValueError:
+        n_pairs_magnitude = 0
+
+    if best_model_state:
+        final_save_path = base_model_path + f"_{n_pairs_magnitude}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
+        torch.save(best_model_state, final_save_path)
+        print(f"Best model state saved to {final_save_path} with validation loss: {best_loss:.4f}")
+    else:
+        final_save_path = base_model_path + f"_{n_pairs_magnitude}_pairs_{rules.NUMBER_OF_RULES}_rules_LAST.pth"
+        torch.save(net.state_dict(), final_save_path)
+        print(f"No validation improvement recorded. Saving last model state to {final_save_path}")
+
+    # Plot training metrics
+    try:
+        global figure_path
+        # Create x-axis values for validation plots (sparse)
+        validation_epochs = list(range(0, epoch, validation_frequency))
+        if epoch % validation_frequency == 0 and epoch > 0:
+            pass
+        elif epoch > 0 and len(validation_losses) > len(validation_epochs):
+            validation_epochs.append(epoch-1)
+
+        plt.figure()
+        plt.plot(training_losses, label="Train Loss (per epoch)")
+        if validation_epochs and validation_losses:
+            plot_epoch_count = min(len(validation_epochs), len(validation_losses))
+            plt.plot(validation_epochs[:plot_epoch_count], validation_losses[:plot_epoch_count], 
+                    label="Validation Loss (per check)", marker='o', linestyle='--')
+        plt.xlabel("Epochs")
+        plt.ylabel("Loss")
+        plt.legend()
+        plt.savefig(f"{figure_path}loss_no_dataloader.png", dpi=600)
+        plt.close()
+
+        plt.figure()
+        plt.plot(training_accuracies, label="Train Accuracy (per epoch)")
+        plt.plot(adjusted_training_accuracies, label="Adjusted Training Accuracy (per epoch)")
+        if validation_epochs and validation_accuracies:
+            plot_epoch_count_acc = min(len(validation_epochs), len(validation_accuracies))
+            plt.plot(validation_epochs[:plot_epoch_count_acc], validation_accuracies[:plot_epoch_count_acc], 
+                    label="Validation Accuracy (per check)", marker='o', linestyle='--')
+            plot_epoch_count_adj_acc = min(len(validation_epochs), len(adjusted_validation_accuracies))
+            if adjusted_validation_accuracies and plot_epoch_count_adj_acc > 0:
+                plt.plot(validation_epochs[:plot_epoch_count_adj_acc], adjusted_validation_accuracies[:plot_epoch_count_adj_acc], 
+                        label="Adjusted Validation Accuracy (per check)", marker='x', linestyle=':')
+        plt.xlabel("Epochs")
+        plt.ylabel("Accuracy")
+        plt.legend()
+        plt.savefig(f"{figure_path}accuracy_no_dataloader.png", dpi=600)
+        plt.close()
+    except Exception as plot_err:
+        print(f"Issue when plotting training/validation metrics: {plot_err}")
+
+    # Return the best validation loss achieved
+    training_output = best_loss
+    if return_stat == "acc":
+        training_output = {
+            "final_training_acc": training_accuracies[-1] if training_accuracies else 0,
+            "final_validation_acc": validation_accuracies[-1] if validation_accuracies else 0,
+            "final_adjusted_training_acc": adjusted_training_accuracies[-1] if adjusted_training_accuracies else 0,
+            "final_adjusted_validation_acc": adjusted_validation_accuracies[-1] if adjusted_validation_accuracies else 0,
+            "best_validation_loss": best_loss
+        }
+    print("Training without DataLoaders over, returning:", training_output)
+    return training_output
+
+
 def train_model(
     file_path,
     net,
@@ -973,7 +1244,7 @@ def train_reward_function(
             figure_path += "/"
         os.makedirs(figure_path, exist_ok=True)
     
-    model_id = "".join([rule for rule in rules.RULES_INCLUDED])
+    model_id = "".join([str(rule) for rule in rules.RULES_INCLUDED])
     print("MODEL ID:", model_id)
 
 
@@ -1072,7 +1343,7 @@ def train_reward_function(
                     net.parameters(), lr=learning_rate, weight_decay=weight_decay
                 )
                 # Call train_model without patience argument
-                training_output_stat = train_model(
+                training_output_stat = train_model_without_dataloader(
                     file_path=trajectories_file_path,
                     net=net,
                     epochs=epochs,
@@ -1109,7 +1380,7 @@ def objective(trial):
 
     # train_model now handles early stopping and returns the best validation loss
     # It also saves the best model internally during the trial.
-    best_validation_loss = train_model(
+    best_validation_loss = train_model_without_dataloader(
         file_path=study.user_attrs["file_path"],
         net=net,
         epochs=study.user_attrs["epochs"],

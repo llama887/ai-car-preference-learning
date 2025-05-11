@@ -23,6 +23,7 @@ from reward import Ensemble, TrajectoryRewardNet, prepare_single_trajectory
 from segment import StateActionPair
 from itertools import combinations
 from collections import defaultdict
+import re, ast
 
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
@@ -618,26 +619,7 @@ def generate_database(trajectory_path, num_pairs, saved_data, datatype, segment_
             pickle.dump(trajectory_pairs, f)
 
         if master_database and not paired_database:
-            # Create a temporary file path
-            temp_database = f"{trajectory_path}_master_temp_{len(trajectory_pairs)}.pkl"
-
-            # Save new master database to a temporary file
-            with open(temp_database, "wb") as f:
-                new_database = save_as_database(saved_data)
-                pickle.dump(new_database, f)
-
-            if os.path.exists(temp_database):
-                try:
-                    print("Replacing old master database with the new one...")
-                    if os.path.exists(master_database):
-                        print(f"Removing old master database... {master_database}")
-                        os.remove(master_database)
-                    os.rename(temp_database, master_database)
-                    print("Master database updated successfully.")
-                except Exception as e:
-                    print(f"Error during database update: {e}")
-            else:
-                print("Failed to create the temporary database file.")
+            save_as_database(saved_data)
 
         return len(trajectory_pairs)
     
@@ -869,39 +851,86 @@ def run_simulation(genomes, config):
         clock.tick(60)  # 60 FPS
 
 
-def show_database_segments(database):
+def show_database_dict_segments(database):
     print("DATABASE SEGMENTS:")
     for key in sorted(database.keys(), key=lambda x: len(x)):
         print(f"Rules: {key}, # Segments: {len(database[key])}")
 
-def load_from_garg(database):
+def show_database_segments(database):
     try:
-        with open(database, "rb") as file:
-            data = pickle.load(file)
-            print(f"USING MASTER DB: {database}")
-            if "subsampled" in database: # Franklin can fix ig?
-                return data[: rules.NUMBER_OF_RULES + 1]
+        files = os.listdir(database)
+        print(f"Buckets in {database} [{len(files)}]:")
+        for file in sorted(files):
+            file_path = os.path.join(database, file)
+            with open(file_path, "rb") as f:
+                data = pickle.load(f)
+                bucket_size = len(data)
+                print(f"- {file_path} ({bucket_size} segments)")
+    except IsADirectoryError:
+        print(f"Found a directory inside '{database}'.")
+    except FileNotFoundError:
+        print(f"Directory '{database}' not found.")
+    except PermissionError:
+        print(f"Permission denied to access '{database}'.")
+    except Exception as e:
+        print(f"Error occurred: {e}")
+    print()
 
-        show_database_segments(data)
+
+def load_from_gargs(database):
+    def load_from_bucket(database, bucket):
+        bucket_file = os.path.join(database, "bucket_" + str(bucket) + ".pkl")
+        try:
+            with open(bucket_file, "rb") as file:
+                data = pickle.load(file)
+                print(f"BUCKET {bucket} LOADED. [{len(data)} segments]")
+                return data
+        except FileNotFoundError:
+            print(f"File '{bucket_file}' not found in '{database}'.")
+            return []
+        
+    def get_buckets(database):
+        files = os.listdir(database)
+        buckets = []
+        for filename in files:
+            match = re.search(r"\[.*?\]", filename)
+            if match:
+                extracted_list = ast.literal_eval(match.group())
+                buckets.append(extracted_list)
+        
+        return buckets
+
+    try:
+        print(f"Loading from {database}")
+        # with open(database, "rb") as file:
+        #     data = pickle.load(file)
+        #     print(f"USING MASTER DB: {database}")
+            # if "subsampled" in database: # Franklin can fix ig?
+            #     return data[: rules.NUMBER_OF_RULES + 1]
+
+        show_database_segments(database)
 
         loaded_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
 
-        buckets = list(data.keys())
+        buckets = get_buckets(database)
         rule_set = set(rules.RULES_INCLUDED)
 
         for i in range(rules.NUMBER_OF_RULES + 1):
+            print("SAMPLING SEGMENTS FOR", i, "RULES:")
             for rules_to_include in combinations(rules.RULES_INCLUDED, i):
-                print(rules_to_include)
+                print("BUCKETS MUST INCLUDE THE FOLLOWING RULES:", list(rules_to_include))
                 rules_to_exclude = set(rule_set) - set(rules_to_include)
-                print(rules_to_exclude)
+                print("BUCKETS MUST EXCLUDE THE FOLLOWING RULES:", list(rules_to_exclude))
                 for bucket in buckets:
                     if all(rule in bucket for rule in rules_to_include) and all(rule not in bucket for rule in rules_to_exclude):
-                        print(bucket)
-                        loaded_segments[i].extend(data[bucket])
+                        data_to_load = load_from_bucket(database, bucket)
+                        loaded_segments[i].extend(data_to_load)
                 print()
+
         return loaded_segments
                 
-    except Exception:
+    except Exception as e:
+        print(e)
         print(f"COULD NOT LOAD FROM MASTER DB: {master_database}")
         return [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
 
@@ -914,23 +943,30 @@ def segment_list_to_dict(segment_list):
     return database
 
 def save_as_database(segments):
+    global master_database
     database = defaultdict(list)
     for segment_i_rules in segments:
         for segment in segment_i_rules:
             _, _, rules_followed = rules.check_rules_one(segment, rules.NUMBER_OF_RULES)
             database[tuple(rules_followed)].append(segment)
+    
+    show_database_dict_segments(database)
 
-    if os.path.exists(master_database):
-        with open(master_database, "rb") as file:
-            old_database = pickle.load(file)
-            for key in database:
-                if key not in old_database:
-                    old_database[key] = database[key]
-                elif len(database[key]) > len(old_database[key]):
-                    old_database[key] = database[key]
-        return old_database
-    else:
-        return database
+    for bucket in database:
+        write_bucket = False 
+        bucket_file = f"{master_database}bucket_{bucket}"
+        if os.path.exists(bucket_file):
+            with open(bucket_file, "rb") as file:
+                old_data = pickle.load(file)
+                if len(database[bucket]) > 1.1 * len(old_data):
+                    write_bucket = True
+        else:
+            write_bucket = True
+        
+        if write_bucket:
+            with open(bucket_file, "wb") as file:
+                pickle.dump(database[bucket], file)
+                print(f"BUCKET {bucket} WRITTEN. [{len(database[bucket])} segments]")
 
 
 
@@ -1003,13 +1039,17 @@ def run_population(
         population.add_reporter(stats)
 
         if not master_database:
-            master_database = f"database_gargantuar_{train_trajectory_length}_length.pkl"
+            master_database = f"databases/database_gargantuar_{train_trajectory_length}_length/"
+        if master_database[-1] != "/":
+            master_database += "/"
+        
+        os.makedirs(master_database, exist_ok=True)
 
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
         missing_segments = "subsampled" not in master_database
         if run_type == "collect":
             if subsample:
-                saved_segments = load_from_garg(master_database)
+                saved_segments = load_from_gargs(master_database)
             else:
                 saved_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
 

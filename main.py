@@ -31,7 +31,6 @@ os.environ["WANDB_SILENT"] = "true"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
-
 def start_simulation(
     config_path,
     max_generations,
@@ -306,7 +305,7 @@ if __name__ == "__main__":
         if args.ensemble:
             model_weights = ["QUICK", reward.ensemble_path]
         else:
-            model_id = "".join([rule for rule in rules.RULES_INCLUDED])
+            model_id = "".join([str(rule) for rule in rules.RULES_INCLUDED])
             model_weights = [
                 (
                     reward.models_path
