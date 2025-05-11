@@ -877,6 +877,18 @@ def show_database_segments(database):
     print()
 
 
+
+def get_buckets(database):
+    files = os.listdir(database)
+    buckets = []
+    for filename in files:
+        match = re.search(r"\[.*?\]", filename)
+        if match:
+            extracted_list = ast.literal_eval(match.group())
+            buckets.append(extracted_list)
+    
+    return buckets
+
 def load_from_gargs(database):
     def load_from_bucket(database, bucket):
         bucket_file = os.path.join(database, "bucket_" + str(bucket) + ".pkl")
@@ -889,17 +901,6 @@ def load_from_gargs(database):
             print(f"File '{bucket_file}' not found in '{database}'.")
             return []
         
-    def get_buckets(database):
-        files = os.listdir(database)
-        buckets = []
-        for filename in files:
-            match = re.search(r"\[.*?\]", filename)
-            if match:
-                extracted_list = ast.literal_eval(match.group())
-                buckets.append(extracted_list)
-        
-        return buckets
-
     try:
         print(f"Loading from {database}")
         # with open(database, "rb") as file:

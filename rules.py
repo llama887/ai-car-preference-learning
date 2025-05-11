@@ -25,7 +25,7 @@ def check_rules_flattened_one(segment, total_rules):
 
     def evaluate(rule_number, rule_lambda):
         increment = 1 if rule_lambda() else 0
-        if rule_lambda() and rule_number in RULES_INCLUDED:
+        if rule_lambda():
             rules_followed.append(rule_number)
         return increment if rule_number in RULES_INCLUDED else 0
 

@@ -3,7 +3,7 @@ import os
 
 from agent import show_database_dict_segments
 
-DATABASE = 'databases/database_gargantuar_1_length.pkl'
+DATABASE = './databases/database_gargantuar_1_length.pkl'
 DATABASE_DIR = DATABASE.replace(".pkl", "/")
 print(f"Database directory: {DATABASE_DIR}")
 os.makedirs(DATABASE_DIR, exist_ok=True)
