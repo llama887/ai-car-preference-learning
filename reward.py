@@ -1343,12 +1343,23 @@ def train_reward_function(
                     net.parameters(), lr=learning_rate, weight_decay=weight_decay
                 )
                 # Call train_model without patience argument
+                # training_output_stat = train_model(
+                #     file_path=trajectories_file_path,
+                #     net=net,
+                #     epochs=epochs,
+                #     optimizer=optimizer,
+                #     batch_size=batch_size,
+                #     base_model_path=models_path + f"model_{model_id}_{epochs}_epochs", # Base path for saving
+                #     return_stat=return_stat,
+                #     preload=True, # Assuming preload=True for non-Optuna runs
+                #     # No patience argument needed
+                # )
+
                 training_output_stat = train_model_without_dataloader(
                     file_path=trajectories_file_path,
                     net=net,
                     epochs=epochs,
                     optimizer=optimizer,
-                    batch_size=batch_size,
                     base_model_path=models_path + f"model_{model_id}_{epochs}_epochs", # Base path for saving
                     return_stat=return_stat,
                     preload=True, # Assuming preload=True for non-Optuna runs
@@ -1380,7 +1391,7 @@ def objective(trial):
 
     # train_model now handles early stopping and returns the best validation loss
     # It also saves the best model internally during the trial.
-    best_validation_loss = train_model_without_dataloader(
+    best_validation_loss = train_model(
         file_path=study.user_attrs["file_path"],
         net=net,
         epochs=study.user_attrs["epochs"],

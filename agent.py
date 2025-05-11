@@ -955,7 +955,7 @@ def save_as_database(segments):
 
     for bucket in database:
         write_bucket = False 
-        bucket_file = f"{master_database}bucket_{bucket}"
+        bucket_file = f"{master_database}bucket_{list(bucket)}.pkl"
         if os.path.exists(bucket_file):
             with open(bucket_file, "rb") as file:
                 old_data = pickle.load(file)
