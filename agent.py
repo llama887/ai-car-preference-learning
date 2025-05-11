@@ -516,13 +516,14 @@ def generate_database(trajectory_path, num_pairs, saved_data, datatype, segment_
             "SEGMENT POOL FOR DATA COLLECTION:",
             list((f"{i}: {len(seg)}" for i, seg in enumerate(sampled_segments))),
         )
-        for segments in sampled_segments:
-            trajectory_segments.extend(segments)
-
-        if len(trajectory_segments) % 2 != 0:
-            trajectory_segments.pop()
-
+        
         if segment_generation_mode == "random":
+            for segments in sampled_segments:
+                trajectory_segments.extend(segments)
+
+            if len(trajectory_segments) % 2 != 0:
+                trajectory_segments.pop()
+
             random.shuffle(trajectory_segments)
             same_reward = 0
             for i in range(0, num_pairs * 2, 2):
@@ -551,15 +552,16 @@ def generate_database(trajectory_path, num_pairs, saved_data, datatype, segment_
                 f"pairs with different rewards ({(n - same_reward) / n}%)",
             )
 
-            if n > num_pairs:
-                print("too many pairs!")
-                for i in range(n - num_pairs):
-                    trajectory_pairs.pop()
-
         elif segment_generation_mode == "different":
+            for segments in sampled_segments:
+                trajectory_segments.extend(segments)
+
+            if len(trajectory_segments) % 2 != 0:
+                trajectory_segments.pop()
+
             random.shuffle(trajectory_segments)
-            same_reward = []
-            for i in range(0, len(trajectory_segments), 2):
+            same_reward = 0
+            for i in range(0, num_pairs * 2, 2):
                 _, reward_1, _ = rules.check_rules_long_segment(
                     trajectory_segments[i], rules.NUMBER_OF_RULES
                 )
@@ -567,35 +569,23 @@ def generate_database(trajectory_path, num_pairs, saved_data, datatype, segment_
                     trajectory_segments[i + 1], rules.NUMBER_OF_RULES
                 )
                 if reward_1 == reward_2:
-                    same_reward.append(
-                        (
-                            list(trajectory_segments[i]),
-                            list(trajectory_segments[i + 1]),
-                            0 if reward_1 < reward_2 else 1,
-                            reward_1,
-                            reward_2,
-                        )
+                    same_reward += 1
+                trajectory_pairs.append(
+                    (
+                        list(trajectory_segments[i]),
+                        list(trajectory_segments[i + 1]),
+                        0 if reward_1 < reward_2 else 1,
+                        reward_1,
+                        reward_2,
                     )
-                else:
-                    trajectory_pairs.append(
-                        (
-                            list(trajectory_segments[i]),
-                            list(trajectory_segments[i + 1]),
-                            0 if reward_1 < reward_2 else 1,
-                            reward_1,
-                            reward_2,
-                        )
-                    )
-            random.shuffle(same_reward)
+                )
 
             n = len(trajectory_pairs)
-            print("Generated", n, "pairs with different reward.")
-            for i in range(n - num_pairs):
-                trajectory_pairs.pop()
-            fill = min(num_pairs - n, len(same_reward))
-            print("Remaining", fill, "pairs are between segments with same reward.")
-            for i in range(fill):
-                trajectory_pairs.append(same_reward[i])
+            print(
+                "Generated",
+                n - same_reward,
+                f"pairs with different rewards ({(n - same_reward) / n}%)",
+            )
 
         print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 

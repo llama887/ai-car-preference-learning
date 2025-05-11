@@ -6,7 +6,7 @@ import rules
 from itertools import combinations
 from agent import show_database_segments, get_buckets
 
-DATABASE_DIR = './databases/database_gargantuar_1_length/'
+DATABASE_DIR = './databases/database_gargantuar_testing_1_length/'
 print(f"Database directory: {DATABASE_DIR}")
 
 
