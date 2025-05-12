@@ -23,7 +23,7 @@ from reward import (
 )
 
 TESTSET_SIZE = 1000000
-TEST_DATA_PATH = f'database_gargantuar_testing_1_length.pkl'
+TEST_DATA_PATH = f'./databases/database_gargantuar_testing_1_length/'
 
 def check_dataset(test_file):
     with open(test_file, "rb") as f:
@@ -84,7 +84,7 @@ def generate_testset(test_file):
 
     print("TESTSET NEEDS THE FOLLOWING SEGMENTS:")
     agent.display_requested_segments(TESTSET_SIZE)
-    saved_segments = agent.load_from_garg(TEST_DATA_PATH)
+    saved_segments = agent.load_from_gargs(TEST_DATA_PATH)
     if not agent.finished_collecting(saved_segments, TESTSET_SIZE):
         raise Exception("Not enough segments to generate test set.")
 
@@ -272,12 +272,12 @@ def test_model(model_path, hidden_size, batch_size=256):
     return test_acc, adjusted_test_acc, acc_pairings
 
 
-# rules.NUMBER_OF_RULES = 1
-# rules.RULES_INCLUDED = [2]
-# rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/2, 1/2]
-# test_model(
-#     model_path=["/home/alex/ai-car-preference-learning/models/model_b31379da_3000_epochs_1000000_pairs_1_rules.pth"],
-#     hidden_size=952,
-#     batch_size=6032)
+rules.NUMBER_OF_RULES = 1
+rules.RULES_INCLUDED = [3]
+rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/2, 1/2]
+test_model(
+    model_path=["/home/alex/ai-car-preference-learning/models/model_b31379da_3000_epochs_1000000_pairs_1_rules.pth"],
+    hidden_size=952,
+    batch_size=6032)
 
     
