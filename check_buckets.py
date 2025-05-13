@@ -57,7 +57,13 @@ if __name__ == "__main__":
     parse = argparse.ArgumentParser(
         description="Training a Reward From Synthetic Preferences"
     )
-
+    parse.add_argument(
+        "-d",
+        "--database",
+        type=str,
+        default=DATABASE_DIR,
+        help="Path to the database directory",  
+    )
     parse.add_argument(
         "-t",
         "--test",
@@ -67,10 +73,16 @@ if __name__ == "__main__":
     )
 
     args = parse.parse_args()
+    if args.database:
+        DATABASE_DIR = args.database
+        print(f"Database directory set to: {DATABASE_DIR}")
+        
     if args.test and args.test[0] == 1:
         print("Running test 1...")
         test1()
     elif args.test and args.test[0] == 2:
         print("Running test 2...")
         test2()
+
+    
     print(f"Database ({DATABASE_DIR}) checked.")
