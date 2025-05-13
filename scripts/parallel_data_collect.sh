@@ -32,7 +32,7 @@ mkdir -p tmp
 
 # Run Python scripts in parallel
 for ((i=0; i<number_of_processes; i++)); do
-    cmd="stdbuf -oL python -u collect_data.py -t $trajectories_per_process  -db tmp/master_database_${i}.pkl --trajectory tmp/trajectory_${i}/ --headless"
+    cmd="stdbuf -oL python -u collect_data.py -t $trajectories_per_process  -db tmp/master_database_${i}/ --trajectory tmp/trajectory_${i}/ --headless"
     if [[ -n $segment_length ]]; then
         cmd="$cmd -s $segment_length"
     fi

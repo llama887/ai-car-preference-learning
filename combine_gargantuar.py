@@ -5,6 +5,7 @@ import pickle
 import random
 import rules
 from collections import defaultdict
+from agent import get_buckets
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -13,7 +14,7 @@ if __name__ == "__main__":
         "--directory",
         type=str,
         required=True,
-        help="Folder containing database files.",
+        help="Folder containing database folders.",
     )
     parser.add_argument(
         "-o",
@@ -22,57 +23,44 @@ if __name__ == "__main__":
         required=True,
         help="Output file for combined database.",
     )
-    parser.add_argument(
-        "-r",
-        "--rules",
-        type=int,
-        help="Number of rules",
-    )
-    parser.add_argument(
-        "-p",
-        "--pair",
-        action="store_true",
-        help="Database is paired",
-    )
     args = parser.parse_args()
 
-    if args.pair and not args.rules:
-        raise Exception("Need to provide number of rules if pairing!")
-
     # Find all files in the directory with "database" in the name and ".pkl" extension
-    file_pattern = os.path.join(args.directory, "*master_database*.pkl")
-    database_files = glob.glob(file_pattern)
+    folder_pattern = os.path.join(args.directory, "*master_database*")
+    database_folders = [d for d in glob.glob(folder_pattern) if os.path.isdir(d)]
 
-    if not database_files:
+    if not database_folders:
         raise ValueError(
-            f"No files found in {args.directory} matching pattern '*master_database*.pkl'"
+            f"No folders found in {args.directory} matching pattern '*master_database*.pkl'"
         )
 
-    databases = []
-    for database_file in database_files:
-        with open(database_file, "rb") as f:
-            data = pickle.load(f)
-            databases.append(data)
+    buckets = []
+    for database_folder in database_folders:
+        database_buckets = get_buckets(database_folder)
+        for bucket in database_buckets:
+            if bucket not in buckets:
+                buckets.append(bucket)
 
-    print(f"Number of database files processed: {len(databases)}")
 
-    if args.pair:
-        rules.NUMBER_OF_RULES = args.rules
-        combined_database = []
-        for pairs in databases:
-            combined_database.extend(pairs)
-    else:
-         # Combine the databases
-        combined_database = defaultdict(list)
-        for database in databases:
-            for key in database:
-                combined_database[key].extend(database[key])
+    output_folder = args.output
+    os.makedirs(output_folder, exist_ok=True)
+    for bucket in buckets:
+        bucket_path = os.path.join(output_folder, f"bucket_{bucket}.pkl")
+        if os.path.exists(bucket_path):
+            with open(bucket_path, "rb") as f:
+                existing_data = pickle.load(f)
+        else:
+            existing_data = []
 
-    output_file = args.output
-    if args.output == "database_test":
-        output_file += f"_{args.rules}_rules.pkl"
-    # Save the combined database
-    with open(output_file, "wb") as f:
-        pickle.dump(combined_database, f)
+        for database_folder in database_folders:
+            database_bucket_file = os.path.join(database_folder, f"bucket_{bucket}.pkl")
+            if os.path.exists(database_bucket_file):
+                with open(database_bucket_file, "rb") as f:
+                    data = pickle.load(f)
+                    existing_data.extend(data)
 
-    print(f"Combined database written to {output_file}")
+        with open(bucket_path, "wb") as f:
+            pickle.dump(existing_data, f)
+
+
+    print(f"Combined database written to {output_folder}")

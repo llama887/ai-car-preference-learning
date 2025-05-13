@@ -107,14 +107,14 @@ run_on_subsampled_data:
 collect_data:
 	rm -rf tmp
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
-	./scripts/parallel_data_collect.sh -t 20000000 -n 48
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length.pkl 
+	./scripts/parallel_data_collect.sh -t 100000 -n 20
+	python ./combine_gargantuar.py -d tmp -o databases/database_gargantuar_1_length_testing
 
 collect_testset:
 	rm -rf tmp
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	./scripts/parallel_data_collect.sh -t 20000000 -n 20
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_testing_1_length.pkl
+	python ./combine_gargantuar.py -d tmp -o databases/database_gargantuar_testing_1_length
 
 
 subsample_collect_data_all:
@@ -123,15 +123,15 @@ subsample_collect_data_all:
 	python subsample_state.py -s 2000000 -r 3
 
 collect_data_longer_segments:
-	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 2
+	./scripts/parallel_data_collect.sh -t 20000000 -n 10 -s 2
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_2_length_3_rules_tmp.pkl
-	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 3
+	./scripts/parallel_data_collect.sh -t 20000000 -n 10 -s 3
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_3_length_3_rules_tmp.pkl
-	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 4
+	./scripts/parallel_data_collect.sh -t 20000000 -n 10 -s 4
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_4_length_3_rules_tmp.pkl
-	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 5
+	./scripts/parallel_data_collect.sh -t 20000000 -n 10 -s 5
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_5_length_3_rules_tmp.pkl
-	./scripts/parallel_data_collect.sh -t 20000000 -r 3 -n 10 -s 6
+	./scripts/parallel_data_collect.sh -t 20000000 -n 10 -s 6
 	python ./combine_gargantuar.py -d tmp -o database_gargantuar_6_length_3_rules_tmp.pkl
 
 
