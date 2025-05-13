@@ -21,11 +21,9 @@ def load_from_bucket(database, bucket):
         print(f"File '{bucket_file}' not found in '{database}'.")
         return []
 
-# show_database_segments(DATABASE_DIR)
-
-buckets = get_buckets(DATABASE_DIR)
-
 def test1():
+    # show_database_segments(DATABASE_DIR)
+    buckets = get_buckets(DATABASE_DIR)
     rules.RULES_INCLUDED = [1, 2, 3]
     rules.NUMBER_OF_RULES = len(rules.RULES_INCLUDED)
     for bucket in buckets:
@@ -40,6 +38,8 @@ def test1():
 
 
 def test2():
+    # show_database_segments(DATABASE_DIR)
+    buckets = get_buckets(DATABASE_DIR)
     for bucket in buckets:
         print("BUCKET:", bucket)
         rules.RULES_INCLUDED = bucket
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     if args.database:
         DATABASE_DIR = args.database
         print(f"Database directory set to: {DATABASE_DIR}")
-        
+
     if args.test and args.test[0] == 1:
         print("Running test 1...")
         test1()
