@@ -784,7 +784,7 @@ def run_simulation(genomes, config):
                 screen.blit(text, text_rect)
 
             pygame.display.flip()
-        clock.tick(60)  # 60 FPS
+        clock.tick()
 
 
 def show_database_dict_segments(database):
@@ -869,6 +869,7 @@ def load_from_gargs(database):
                     ):
                         data_to_load = load_from_bucket(database, bucket)
                         loaded_segments[i].extend(data_to_load)
+
                 print()
 
         return loaded_segments
@@ -998,6 +999,7 @@ def run_population(
         if run_type == "collect":
             if subsample:
                 saved_segments = load_from_gargs(master_database)
+
             else:
                 saved_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
 

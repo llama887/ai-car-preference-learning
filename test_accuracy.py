@@ -80,11 +80,21 @@ def check_dataset(test_file):
 
 
 def generate_testset(test_file):
+    import gc
+    gc.collect()
+    import utils
+    utils.print_system_stats()
+
     agent.paired_database = test_file
 
     print("TESTSET NEEDS THE FOLLOWING SEGMENTS:")
     agent.display_requested_segments(TESTSET_SIZE)
     saved_segments = agent.load_from_gargs(TEST_DATA_PATH)
+
+
+    import utils
+    utils.print_system_stats()
+    
     if not agent.finished_collecting(saved_segments, TESTSET_SIZE):
         raise Exception("Not enough segments to generate test set.")
 
