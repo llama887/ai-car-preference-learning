@@ -39,18 +39,18 @@ run_baseline_with_subsampling:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
 	if [ ! -f "subsampled_gargantuar_1_length.pkl" ]; then python subsample_state.py; fi
-	stdbuf -oL python -u main.py -e 3000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 1 -d "1/2" -d "1/2" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r1 --figure subsampled_figures_r1 2>&1 | tee logs/log_1_r_subsample.log
-	stdbuf -oL python -u main.py -e 3000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 2 -d "3/12" -d "3/12" -d "6/12" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r2 --figure subsampled_figures_r2 2>&1 | tee logs/log_2_r_subsample.log
-	stdbuf -oL python -u main.py -e 3000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 3 -d "1/6" -d "1/6" -d "1/6" -d "3/6" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r3 --figure subsampled_figures_r3 2>&1 | tee logs/log_3_r_subsample.log
+	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 1 -d "1/2" -d "1/2" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r1 --figure subsampled_figures_r1 --skip-test-accuracy 2>&1 | tee logs/log_1_r_subsample.log
+	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 2 -d "3/12" -d "3/12" -d "6/12" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r2 --figure subsampled_figures_r2 2>&1 --skip-test-accuracy | tee logs/log_2_r_subsample.log
+	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 3 -d "1/6" -d "1/6" -d "1/6" -d "3/6" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r3 --figure subsampled_figures_r3 2>&1 --skip-test-accuracy | tee logs/log_3_r_subsample.log
 
 run_baseline_with_subsampling_parallel:
 	mkdir -p logs
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
 	if [ ! -f "subsampled_gargantuar_1_length.pkl" ]; then python subsample_state.py; fi
-	stdbuf -oL python -u main.py -e 3000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 1 -d "1/2" -d "1/2" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r1 --figure subsampled_figures_r1 2>&1 | tee logs/log_1_r_subsample.log &
-	stdbuf -oL python -u main.py -e 3000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 2 -d "3/12" -d "3/12" -d "6/12" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r2 --figure subsampled_figures_r2 2>&1 | tee logs/log_2_r_subsample.log &
-	stdbuf -oL python -u main.py -e 3000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 3 -d "1/6" -d "1/6" -d "1/6" -d "3/6" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r3 --figure subsampled_figures_r3 2>&1 | tee logs/log_3_r_subsample.log &
+	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 1 -d "1/2" -d "1/2" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r1 --figure subsampled_figures_r1 2>&1 --skip-test-accuracy | tee logs/log_1_r_subsample.log &
+	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 2 -d "3/12" -d "3/12" -d "6/12" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r2 --figure subsampled_figures_r2 2>&1 --skip-test-accuracy | tee logs/log_2_r_subsample.log &
+	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 3 -d "1/6" -d "1/6" -d "1/6" -d "3/6" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r3 --figure subsampled_figures_r3 2>&1 --skip-test-accuracy | tee logs/log_3_r_subsample.log &
 	wait
 
 run_baseline_and_ensembling:
