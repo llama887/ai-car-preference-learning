@@ -1,14 +1,14 @@
 #!/bin/bash
-#SBATCH --job-name=baseline
-#SBATCH --output=baseline_%j.out
-#SBATCH --error=baseline_%j.err
+#SBATCH --job-name=baseline_r2
+#SBATCH --output=baseline_r2_%j.out
+#SBATCH --error=baseline_r2_%j.err
 #SBATCH --mail-type=START,END,FAIL
 #SBATCH --mail-user=fyy2003@nyu.edu
 #SBATCH --time=24:00:00
 #SBATCH --nodes=1                  # Request 3 nodes :contentReference[oaicite:0]{index=0}
 #SBATCH --ntasks-per-node=1        # One task on each node :contentReference[oaicite:1]{index=1}
-#SBATCH --cpus-per-task=2        # Keep your CPU allocation
-#SBATCH --mem=128G                 # Keep your memory allocation
+#SBATCH --cpus-per-task=2         # Keep your CPU allocation
+#SBATCH --mem=100G                 # Keep your memory allocation
 #SBATCH --gres=gpu:1               # One GPU per node :contentReference[oaicite:2]{index=2}
 #SBATCH --account=pr_100_tandon_priority
 
@@ -31,4 +31,6 @@ cd /scratch/$USER/ai-car-preference-learning
 source venv/bin/activate
 pip install -r .devcontainer/requirements.txt
 
-make run_baseline_parallel
+if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
+if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
+./scripts/run_basic.sh -r 2 -p -h 

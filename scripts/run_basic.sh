@@ -131,13 +131,13 @@ run_instance() {
 
     # Zip results
     if [ -d "$FIGURE_DIR" ]; then
-        zip -r "${ZIP_DIR}/${FIGURE_DIR}_r${rules}${ZIP_SUFFIX}.zip" $FIGURE_DIR
+        eval "python zip.py -r ${ZIP_DIR}/${FIGURE_DIR}_r${rules}${ZIP_SUFFIX}.zip $FIGURE_DIR"
     else
         echo "Warning: $FIGURE_DIR not found for ${TRAJ} trajectories."
     fi
 
     if [ -d "$TRAJECTORY_DIR" ]; then
-        zip -r "${ZIP_DIR}/${TRAJECTORY_DIR}_r${rules}${ZIP_SUFFIX}.zip" $TRAJECTORY_DIR
+        eval "python zip.py -r ${ZIP_DIR}/${TRAJECTORY_DIR}_r${rules}${ZIP_SUFFIX}.zip $TRAJECTORY_DIR"
     else
         echo "Warning: $TRAJECTORY_DIR not found for ${TRAJ} trajectories."
     fi
