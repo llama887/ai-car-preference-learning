@@ -6,15 +6,6 @@ run_baseline:
 	./scripts/run_basic.sh -r 1 -h
 	python performance_plots.py -c 3
 
-run_baseline_hpc:
-	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi; \
-	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi; \
-	srun --nodes=1 --ntasks=1 --cpus-per-task=10 --gres=gpu:1 --exclusive ./scripts/run_basic.sh -r 3 -h & \
-	srun --nodes=1 --ntasks=1 --cpus-per-task=10 --gres=gpu:1 --exclusive ./scripts/run_basic.sh -r 2 -h & \
-	srun --nodes=1 --ntasks=1 --cpus-per-task=10 --gres=gpu:1 --exclusive ./scripts/run_basic.sh -r 1 -h & \
-	wait; \
-	python performance_plots.py -c 3
-
 run_baseline_parallel:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
@@ -33,15 +24,13 @@ run_baseline_parallel_hpc:
 	python performance_plots.py -c 3
 
 
-
 run_baseline_with_subsampling:
 	mkdir -p logs
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
 	if [ ! -f "subsampled_gargantuar_1_length.pkl" ]; then python subsample_state.py; fi
 	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 1 -d "1/2" -d "1/2" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r1 --figure subsampled_figures_r1 --skip-test-accuracy 2>&1 | tee logs/log_1_r_subsample.log
-	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 2 -d "3/12" -d "3/12" -d "6/12" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r2 --figure subsampled_figures_r2 2>&1 --skip-test-accuracy | tee logs/log_2_r_subsample.log
-	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 3 -d "1/6" -d "1/6" -d "1/6" -d "3/6" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r3 --figure subsampled_figures_r3 2>&1 --skip-test-accuracy | tee logs/log_3_r_subsample.log
+	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 2 -d "3/12" -d "3/12" -d "6/12" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r2 --figure subsampled_figures_r2 --skip-test-accuracy 2>&1 | tee logs/log_2_r_subsample.log
 
 run_baseline_with_subsampling_parallel:
 	mkdir -p logs
@@ -50,7 +39,6 @@ run_baseline_with_subsampling_parallel:
 	if [ ! -f "subsampled_gargantuar_1_length.pkl" ]; then python subsample_state.py; fi
 	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 1 -d "1/2" -d "1/2" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r1 --figure subsampled_figures_r1 2>&1 --skip-test-accuracy | tee logs/log_1_r_subsample.log &
 	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 2 -d "3/12" -d "3/12" -d "6/12" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r2 --figure subsampled_figures_r2 2>&1 --skip-test-accuracy | tee logs/log_2_r_subsample.log &
-	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 3 -d "1/6" -d "1/6" -d "1/6" -d "3/6" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r3 --figure subsampled_figures_r3 2>&1 --skip-test-accuracy | tee logs/log_3_r_subsample.log &
 	wait
 
 run_baseline_and_ensembling:
@@ -98,13 +86,6 @@ run_with_partial_rewards: database_test_2_rules.pkl
 	./scripts/run_partial_rewards.sh -r 3 -p 6
 	python simplex.py
 
-run_on_subsampled_data:
-	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
-	./scripts/run_basic.sh -r 3 -h
-	./scripts/run_basic.sh -r 2 -h
-	./scripts/run_basic.sh -r 1 -h
-	python performance_plots.py -c 3
-
 
 collect_data:
 	rm -rf tmp
@@ -117,24 +98,6 @@ collect_testset:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	./scripts/parallel_data_collect.sh -t 20000000 -n 20
 	python ./combine_gargantuar.py -d tmp -o databases/database_gargantuar_testing_1_length
-
-
-subsample_collect_data_all:
-	python subsample_state.py -s 2000000 -r 1
-	python subsample_state.py -s 2000000 -r 2
-	python subsample_state.py -s 2000000 -r 3
-
-collect_data_longer_segments:
-	./scripts/parallel_data_collect.sh -t 20000000 -n 10 -s 2
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_2_length_3_rules_tmp.pkl
-	./scripts/parallel_data_collect.sh -t 20000000 -n 10 -s 3
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_3_length_3_rules_tmp.pkl
-	./scripts/parallel_data_collect.sh -t 20000000 -n 10 -s 4
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_4_length_3_rules_tmp.pkl
-	./scripts/parallel_data_collect.sh -t 20000000 -n 10 -s 5
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_5_length_3_rules_tmp.pkl
-	./scripts/parallel_data_collect.sh -t 20000000 -n 10 -s 6
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_6_length_3_rules_tmp.pkl
 
 
 collect_data_all:
