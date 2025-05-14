@@ -503,7 +503,12 @@ def generate_database_from_segments(segments, number_of_pairs):
 
 
 def generate_database(
-    trajectory_path, num_pairs, saved_data, datatype, segment_generation_mode="random"
+    trajectory_path,
+    num_pairs,
+    saved_data,
+    datatype,
+    segment_generation_mode="random",
+    follow_distribution=True,
 ):
     trajectory_pairs = []
 
@@ -512,7 +517,11 @@ def generate_database(
     if datatype == "segments":
         # Break trajectories into trajectory segments
         trajectory_segments = []
-        sampled_segments = sample_segments(num_pairs, saved_data)
+        sampled_segments = (
+            sample_segments(num_pairs, saved_data)
+            if follow_distribution
+            else saved_data
+        )
         print(
             "SEGMENT POOL FOR DATA COLLECTION:",
             list((f"{i}: {len(seg)}" for i, seg in enumerate(sampled_segments))),
