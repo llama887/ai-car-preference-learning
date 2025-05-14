@@ -530,7 +530,7 @@ def generate_database(
 
         print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
-        subsample_prefix = "subsampled_" if not follow_distribution else ""
+        subsample_prefix = "subsample_" if not follow_distribution else ""
         database_to_save = (
             paired_database
             if paired_database
