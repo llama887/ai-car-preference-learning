@@ -530,11 +530,12 @@ def generate_database(
 
         print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
+        subsample_prefix = "subsampled_" if not follow_distribution else ""
         database_to_save = (
             paired_database
             if paired_database
             else trajectory_path
-            + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
+            + f"{subsample_prefix}database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
         )
 
         # Delete old database if it is redundant (same size)
