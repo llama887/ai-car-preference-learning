@@ -691,7 +691,7 @@ def train_model_without_dataloader(
 
             optimizer.zero_grad() # Zero gradients at the start of the epoch
 
-            for idx in range(train_size // batch_size):
+            for idx in range(math.ceil(train_size / batch_size)):
                 start_idx = idx * batch_size
                 end_idx = min(start_idx + batch_size, train_size)
                 
@@ -746,7 +746,7 @@ def train_model_without_dataloader(
                 total_validation_accuracy = 0.0
                 total_adjusted_validation_accuracy = 0.0
                 with torch.no_grad():
-                    for idx in range(val_size // batch_size):
+                    for idx in range(math.ceil(val_size / batch_size)):
                         start_idx = idx * batch_size
                         end_idx = min(start_idx + batch_size, val_size)
 

@@ -252,6 +252,7 @@ def get_trained_generation_averages_and_best_generation(
     )
 
 
+# both acc and performance (don't really use...)
 def handle_plotting_sana(
     true_satisfaction_segments,
     aggregate_trained_satisfaction_segments,
@@ -295,6 +296,7 @@ def handle_plotting_sana(
         graph_acc_gap(aggregate_baseline_accs, aggregate_ensembling_accs)
 
 
+# Just acc
 def handle_plotting_dissatisfaction(
     aggregate_baseline_accs,
     aggregate_ensembling_accs=None,
@@ -542,12 +544,6 @@ if __name__ == "__main__":
         help="number of rules",
     )
     parse.add_argument(
-        "-p",
-        "--performance",
-        action="store_true",
-        help="make agent performance plot as well"
-    )
-    parse.add_argument(
         "-s",
         "--state_sampling",
         action="store_true",
@@ -559,54 +555,29 @@ if __name__ == "__main__":
 
     num_rules = args.composition
 
-    if args.performance:
-        (
-            true_satisfaction_segments,
-            aggregate_trained_satisfaction_segments,
-            aggregate_ensembling_trained_satisfaction_segments,
-            aggregate_baseline_accs,
-            aggregate_ensembling_accs,
-        ) = unzipper_chungus_deluxe(num_rules, args.ensembling)
 
-        if args.ensembling:
-            handle_plotting_sana(
-                true_satisfaction_segments,
-                aggregate_trained_satisfaction_segments,
-                aggregate_baseline_accs,
-                aggregate_ensembling_trained_satisfaction_segments,
-                aggregate_ensembling_accs,
-            )
-        else:
-            handle_plotting_sana(
-                true_satisfaction_segments,
-                aggregate_trained_satisfaction_segments,
-                aggregate_baseline_accs,
-                aggregate_ensembling_accs,
-            )
+    aggregate_baseline_accs, aggregate_ensembling_accs = unzipper_chungus(num_rules, args.ensembling)
+    handle_plotting_dissatisfaction(
+        aggregate_baseline_accs,
+        aggregate_ensembling_accs,
+    )
 
-    else:
-        aggregate_baseline_accs, aggregate_ensembling_accs = unzipper_chungus(num_rules, args.ensembling)
-        handle_plotting_dissatisfaction(
-            aggregate_baseline_accs,
-            aggregate_ensembling_accs,
-        )
+    if args.state_sampling:
+        aggregate_statesampling_accs = {
+            1: "",
+            2: "",
+            3: "",
+        }
 
-        if args.state_sampling:
-            aggregate_statesampling_accs = {
-                1: "",
-                2: "",
-                3: "",
-            }
-
-            for rule in aggregate_statesampling_accs:
-                file = aggregate_statesampling_accs[rule]
-                with open(file, "rb") as f:
-                    data = pickle.load(f)
-                    test_acc = data['test_acc']
-                    adjusted_test_acc = data['adjusted_test_acc']
-                aggregate_statesampling_accs[rule] = {1000000 : adjusted_test_acc}
-            
-            handle_plotting_dissatisfaction(aggregate_baseline_accs, aggregate_statesampling_accs)
+        for rule in aggregate_statesampling_accs:
+            file = aggregate_statesampling_accs[rule]
+            with open(file, "rb") as f:
+                data = pickle.load(f)
+                test_acc = data['test_acc']
+                adjusted_test_acc = data['adjusted_test_acc']
+            aggregate_statesampling_accs[rule] = {1000000 : adjusted_test_acc}
+        
+        handle_plotting_dissatisfaction(aggregate_baseline_accs, aggregate_statesampling_accs)
 
     
     print("Done Plotting.")
