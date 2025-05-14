@@ -260,6 +260,9 @@ if __name__ == "__main__":
     parse.add_argument(
         "--save-at-end", action="store_true", help="Save models when training is over"
     )
+    parse.add_argument(
+        "--skip-test-accuracy", action="store_true", help="Skip test accuracy calculation"
+    )
     args = parse.parse_args()
 
     process_args(args)
@@ -365,7 +368,7 @@ if __name__ == "__main__":
         f"trueRF_trajectories/trueRF_{args.generations[0] * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl"
     ):
         truePairs = args.generations[0] * AGENTS_PER_GENERATION
-    else:
+    elif not args.skip_plots:
         print(
             f'"trueRF_trajectories/trueRF_{args.generations[0] * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl" not found'
         )
@@ -389,20 +392,31 @@ if __name__ == "__main__":
 
     load_models(model_weights, hidden_size)
 
-    output_file = f"{agent.trajectories_path}/test_accuracy.pkl"
+    import utils
+    print("BEFORE DELETE")
+    utils.print_system_stats()
+    # delete varaibles to free up memory
+    del data
 
-    test_acc, adjusted_test_acc, acc_pairings = test_model(
-        model_weights, hidden_size, batch_size
-    )
-    with open(output_file, "wb") as f:
-        pickle.dump(
-            {
-                "test_acc": test_acc,
-                "adjusted_test_acc": adjusted_test_acc,
-                "acc_pairings": acc_pairings,
-            },
-            f,
+    gc.collect()
+    print("AFTER DELETE")
+    utils.print_system_stats()
+
+    if not args.skip_test_accuracy:
+        output_file = f"{agent.trajectories_path}/test_accuracy.pkl"
+
+        test_acc, adjusted_test_acc, acc_pairings = test_model(
+            model_weights, hidden_size, batch_size
         )
+        with open(output_file, "wb") as f:
+            pickle.dump(
+                {
+                    "test_acc": test_acc,
+                    "adjusted_test_acc": adjusted_test_acc,
+                    "acc_pairings": acc_pairings,
+                },
+                f,
+            )
 
     if not args.skip_retrain:
         print("Simulating on trained reward function...")
