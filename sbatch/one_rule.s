@@ -31,17 +31,17 @@ cd /scratch/$USER/ai-car-preference-learning
 source venv/bin/activate
 pip install -r .devcontainer/requirements.txt
 
-stdbuf -oL python -u main.py -e 3000 -t 100000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule1 --trajectory trajectories_rule1 -d "1/2" -d "1/2" -i 1 --headless --skip-retrain 2>&1 | tee logs/log_rule1_100000.log &
-stdbuf -oL python -u main.py -e 3000 -t 100000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule2 --trajectory trajectories_rule2 -d "1/2" -d "1/2" -i 2 --headless --skip-retrain 2>&1 | tee logs/log_rule2_100000.log &
-stdbuf -oL python -u main.py -e 3000 -t 100000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule3 --trajectory trajectories_rule3 -d "1/2" -d "1/2" -i 3 --headless --skip-retrain 2>&1 | tee logs/log_rule3_100000.log &
+stdbuf -oL python -u main.py -e 3000 -t 100000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule1_100000 --trajectory trajectories_rule1_100000 -d "1/2" -d "1/2" -i 1 --headless --skip-retrain 2>&1 | tee logs/log_rule1_100000.log &
+stdbuf -oL python -u main.py -e 3000 -t 100000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule2_100000 --trajectory trajectories_rule2_100000 -d "1/2" -d "1/2" -i 2 --headless --skip-retrain 2>&1 | tee logs/log_rule2_100000.log &
+stdbuf -oL python -u main.py -e 3000 -t 100000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule3_100000 --trajectory trajectories_rule3_100000 -d "1/2" -d "1/2" -i 3 --headless --skip-retrain 2>&1 | tee logs/log_rule3_100000.log &
 wait
 
-stdbuf -oL python -u main.py -e 3000 -t 10000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule1 --trajectory trajectories_rule1 -d "1/2" -d "1/2" -i 1 --headless --skip-retrain 2>&1 | tee logs/log_rule1_10000.log &
-stdbuf -oL python -u main.py -e 3000 -t 10000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule2 --trajectory trajectories_rule2 -d "1/2" -d "1/2" -i 2 --headless --skip-retrain 2>&1 | tee logs/log_rule2_10000.log &
-stdbuf -oL python -u main.py -e 3000 -t 10000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule3 --trajectory trajectories_rule3 -d "1/2" -d "1/2" -i 3 --headless --skip-retrain 2>&1 | tee logs/log_rule3_10000.log &
+stdbuf -oL python -u main.py -e 3000 -t 10000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule1_10000 --trajectory trajectories_rule1_10000 -d "1/2" -d "1/2" -i 1 --headless --skip-retrain 2>&1 | tee logs/log_rule1_10000.log &
+stdbuf -oL python -u main.py -e 3000 -t 10000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule2_10000 --trajectory trajectories_rule2_10000 -d "1/2" -d "1/2" -i 2 --headless --skip-retrain 2>&1 | tee logs/log_rule2_10000.log &
+stdbuf -oL python -u main.py -e 3000 -t 10000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule3_10000 --trajectory trajectories_rule3_10000 -d "1/2" -d "1/2" -i 3 --headless --skip-retrain 2>&1 | tee logs/log_rule3_10000.log &
 wait
 
-stdbuf -oL python -u main.py -e 3000 -t 1000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule1 --trajectory trajectories_rule1 -d "1/2" -d "1/2" -i 1 --headless --skip-retrain 2>&1 | tee logs/log_rule1_1000.log &
-stdbuf -oL python -u main.py -e 3000 -t 1000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule2 --trajectory trajectories_rule2 -d "1/2" -d "1/2" -i 2 --headless --skip-retrain 2>&1 | tee logs/log_rule2_1000.log &
-stdbuf -oL python -u main.py -e 3000 -t 1000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule3 --trajectory trajectories_rule3 -d "1/2" -d "1/2" -i 3 --headless --skip-retrain 2>&1 | tee logs/log_rule3_1000.log &
+stdbuf -oL python -u main.py -e 3000 -t 1000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule1_1000 --trajectory trajectories_rule1_1000 -d "1/2" -d "1/2" -i 1 --headless --skip-retrain 2>&1 | tee logs/log_rule1_1000.log &
+stdbuf -oL python -u main.py -e 3000 -t 1000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule2_1000 --trajectory trajectories_rule2_1000 -d "1/2" -d "1/2" -i 2 --headless --skip-retrain 2>&1 | tee logs/log_rule2_1000.log &
+stdbuf -oL python -u main.py -e 3000 -t 1000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule3_1000 --trajectory trajectories_rule3_1000 -d "1/2" -d "1/2" -i 3 --headless --skip-retrain 2>&1 | tee logs/log_rule3_1000.log &
 wait
