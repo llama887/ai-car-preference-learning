@@ -3,6 +3,7 @@ import gc
 import os
 import pickle
 import sys
+from itertools import combinations
 
 import yaml
 
@@ -12,7 +13,7 @@ import reward_heatmap_plot
 import rules
 from agent import (
     AGENTS_PER_GENERATION,
-    generate_database_from_segments,
+    generate_database,
     load_models,
     run_population,
 )
@@ -30,6 +31,7 @@ from test_accuracy import (
 os.environ["WANDB_SILENT"] = "true"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 
 def start_simulation(
     config_path,
@@ -54,6 +56,7 @@ def start_simulation(
         agent.rules_followed,
     )
 
+
 def process_args(args):
     # Display simulator or not
     if args.headless:
@@ -65,9 +68,11 @@ def process_args(args):
         or (args.generations is not None and args.generations[0] < 0)
         or (args.epochs is not None and args.epochs[0] < 0)
     ):
-        print("Invalid input. Trajectories, Generations, and Epochs must be positive integers.")
+        print(
+            "Invalid input. Trajectories, Generations, and Epochs must be positive integers."
+        )
         sys.exit(1)
-        
+
     # Set number of rules
     rules.NUMBER_OF_RULES = args.composition
 
@@ -89,7 +94,7 @@ def process_args(args):
     # Set Figure Path
     if args.figure:
         reward.figure_path = args.figure
-        if reward.figure_path[-1] != "/":   
+        if reward.figure_path[-1] != "/":
             reward.figure_path += "/"
 
     # Set Distribution, (Default is half satisfaction, half split amongst non-satisfaction (as in rules.py))
@@ -129,7 +134,9 @@ def process_args(args):
                 f"SEGMENT_DISTRIBUTION_BY_RULES: {rules.SEGMENT_DISTRIBUTION_BY_RULES} does not sum to 1 (even after scaling)"
             )
     else:
-        rules.SEGMENT_DISTRIBUTION_BY_RULES = [0.5 / rules.NUMBER_OF_RULES] * rules.NUMBER_OF_RULES + [0.5] 
+        rules.SEGMENT_DISTRIBUTION_BY_RULES = [
+            0.5 / rules.NUMBER_OF_RULES
+        ] * rules.NUMBER_OF_RULES + [0.5]
 
     if args.include:
         rules.RULES_INCLUDED = [int(o) for o in args.include]
@@ -257,18 +264,56 @@ if __name__ == "__main__":
 
     process_args(args)
     trajectory_path = agent.trajectories_path
-    num_pairs = agent.ENSEMBLE_MULTIPLIER * args.trajectories[0] if args.ensemble else args.trajectories[0]
+    num_pairs = (
+        agent.ENSEMBLE_MULTIPLIER * args.trajectories[0]
+        if args.ensemble
+        else args.trajectories[0]
+    )
 
     model_weights = ""
-
+    subsample_state_prefix = ""
     if args.reward is None:
         if args.master_database and "subsampled" in args.master_database:
             with open(args.master_database, "rb") as file:
+                os.makedirs(agent.trajectories_path, exist_ok=True)
+
+                loaded_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
                 data = pickle.load(file)
-                num_pairs=int(generate_database_from_segments(
-                    data[: rules.NUMBER_OF_RULES + 1], args.trajectories[0]
-                ) / 2)
-                del data
+
+                # turn data into the correct shape
+                buckets = list(data.keys())
+                rule_set = set(rules.RULES_INCLUDED)
+
+                number_of_trajectories = sum(len(data[bucket]) for bucket in buckets)
+                print(number_of_trajectories)
+                for i in range(rules.NUMBER_OF_RULES + 1):
+                    print("SAMPLING SEGMENTS FOR", i, "RULES:")
+                    for rules_to_include in combinations(rules.RULES_INCLUDED, i):
+                        print(
+                            "BUCKETS MUST INCLUDE THE FOLLOWING RULES:",
+                            list(rules_to_include),
+                        )
+                        rules_to_exclude = set(rule_set) - set(rules_to_include)
+                        print(
+                            "BUCKETS MUST EXCLUDE THE FOLLOWING RULES:",
+                            list(rules_to_exclude),
+                        )
+                        for bucket in buckets:
+                            if all(rule in bucket for rule in rules_to_include) and all(
+                                rule not in bucket for rule in rules_to_exclude
+                            ):
+                                data_to_load = data[bucket]
+                                loaded_segments[i].extend(data_to_load)
+
+                # generate trajectories database
+                num_pairs = generate_database(
+                    agent.trajectories_path,
+                    number_of_trajectories // 2,
+                    loaded_segments,
+                    "segments",
+                    follow_distribution=False,
+                )
+                subsample_state_prefix = "subsample_"
         else:
             # start the simulation in data collecting mode
             num_traj, collecting_rules_followed = start_simulation(
@@ -282,7 +327,7 @@ if __name__ == "__main__":
 
         print("Finished collecting data...")
         gc.collect()
-        database_path = f"{agent.trajectories_path}database_{num_pairs}_pairs_{args.composition}_rules_{agent.train_trajectory_length}_length.pkl"
+        database_path = f"{agent.trajectories_path}{subsample_state_prefix}database_{num_pairs}_pairs_{args.composition}_rules_{agent.train_trajectory_length}_length.pkl"
         print("Starting training on trajectories...")
         print(
             f"train_reward_function({database_path}, {args.epochs[0]}, {args.parameters}, {args.ensemble}, {args.figure}, )"
@@ -321,7 +366,9 @@ if __name__ == "__main__":
     ):
         truePairs = args.generations[0] * AGENTS_PER_GENERATION
     else:
-        print(f"\"trueRF_trajectories/trueRF_{args.generations[0] * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl\" not found")
+        print(
+            f'"trueRF_trajectories/trueRF_{args.generations[0] * AGENTS_PER_GENERATION}_trajectories_{rules.NUMBER_OF_RULES}_rules.pkl" not found'
+        )
         print("Simulating on true reward function...")
         truePairs, true_rules_followed = start_simulation(
             "./config/agent_config.txt",
@@ -340,16 +387,22 @@ if __name__ == "__main__":
         hidden_size = data["hidden_size"]
         batch_size = data["batch_size"]
 
-
     load_models(model_weights, hidden_size)
 
     output_file = f"{agent.trajectories_path}/test_accuracy.pkl"
-    
+
     test_acc, adjusted_test_acc, acc_pairings = test_model(
         model_weights, hidden_size, batch_size
     )
     with open(output_file, "wb") as f:
-        pickle.dump({"test_acc" : test_acc, "adjusted_test_acc" : adjusted_test_acc, "acc_pairings" : acc_pairings}, f)
+        pickle.dump(
+            {
+                "test_acc": test_acc,
+                "adjusted_test_acc": adjusted_test_acc,
+                "acc_pairings": acc_pairings,
+            },
+            f,
+        )
 
     if not args.skip_retrain:
         print("Simulating on trained reward function...")
@@ -412,7 +465,6 @@ if __name__ == "__main__":
             )
         else:
             print("Plotting skipped.")
-        
 
     # HEAT MAPS
     try:

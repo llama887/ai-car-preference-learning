@@ -3,27 +3,28 @@
 # Code Adapted for preference learning for Emerge Lab research by Franklin Yiu & Alex Tang
 
 import argparse
+import ast
 import glob
 import math
 import os
 import pickle
 import random
+import re
 import sys
 import time
-from collections import deque
+from collections import defaultdict, deque
+from itertools import combinations
 
 import neat
 import pygame
 import torch
 import yaml
-from orientation.get_orientation import get_angle
+
 import reward
 import rules
+from orientation.get_orientation import get_angle
 from reward import Ensemble, TrajectoryRewardNet, prepare_single_trajectory
 from segment import StateActionPair
-from itertools import combinations
-from collections import defaultdict
-import re, ast
 
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
@@ -95,6 +96,7 @@ class Trajectory:
             + str(self.total_reward)
             + "\n"
         )
+
 
 class Car:
     def __init__(self, position=[830, 920], angle=0, color="blue"):
@@ -489,7 +491,7 @@ def generate_database_from_segments(segments, number_of_pairs):
         trajectory_path
         + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
     )
-    
+
     # Save To Database
     with open(
         database_to_save,
@@ -500,14 +502,13 @@ def generate_database_from_segments(segments, number_of_pairs):
     return len(trajectory_segments)
 
 
-def generate_database(trajectory_path, num_pairs, saved_data, datatype, segment_generation_mode='random'):
+def generate_database(
+    trajectory_path, num_pairs, saved_data, datatype, segment_generation_mode="random"
+):
     trajectory_pairs = []
 
-    global \
-        run_type, \
-        train_trajectory_length, \
-        master_database
-    
+    global run_type, train_trajectory_length, master_database
+
     if datatype == "segments":
         # Break trajectories into trajectory segments
         trajectory_segments = []
@@ -516,7 +517,7 @@ def generate_database(trajectory_path, num_pairs, saved_data, datatype, segment_
             "SEGMENT POOL FOR DATA COLLECTION:",
             list((f"{i}: {len(seg)}" for i, seg in enumerate(sampled_segments))),
         )
-        
+
         if segment_generation_mode == "random":
             for segments in sampled_segments:
                 trajectory_segments.extend(segments)
@@ -590,9 +591,9 @@ def generate_database(trajectory_path, num_pairs, saved_data, datatype, segment_
         print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
 
         database_to_save = (
-            paired_database if
-            paired_database else 
-            trajectory_path
+            paired_database
+            if paired_database
+            else trajectory_path
             + f"database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
         )
 
@@ -600,7 +601,7 @@ def generate_database(trajectory_path, num_pairs, saved_data, datatype, segment_
         if os.path.exists(database_to_save):
             print("Removing old database with same pairs and rules...")
             os.remove(database_to_save)
-        
+
         # Save To Database
         with open(
             database_to_save,
@@ -612,7 +613,7 @@ def generate_database(trajectory_path, num_pairs, saved_data, datatype, segment_
             save_as_database(saved_data)
 
         return len(trajectory_pairs)
-    
+
     else:
         trajectories = []
         for i in range(len(saved_data)):
@@ -671,7 +672,7 @@ def run_simulation(genomes, config):
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
     with open("grid_points.pkl", "rb") as f:
         grid_points = pickle.load(f)
-    
+
     # For All Genomes Passed Create A New Neural Network
     for i, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g, config)
@@ -679,7 +680,12 @@ def run_simulation(genomes, config):
         g.fitness = 0
         random_trajectory_segment = random.choice(random.choice(grid_points))
         random_position = random_trajectory_segment[0].position
-        cars.append(Car(position=random_position, angle=get_angle(random_position[0], random_position[1])) )
+        cars.append(
+            Car(
+                position=random_position,
+                angle=get_angle(random_position[0], random_position[1]),
+            )
+        )
     for i, car in enumerate(cars):
         cars[i].id = i
     global run_type
@@ -846,6 +852,7 @@ def show_database_dict_segments(database):
     for key in sorted(database.keys(), key=lambda x: len(x)):
         print(f"Rules: {key}, # Segments: {len(database[key])}")
 
+
 def show_database_segments(database):
     try:
         files = os.listdir(database)
@@ -867,7 +874,6 @@ def show_database_segments(database):
     print()
 
 
-
 def get_buckets(database):
     files = os.listdir(database)
     buckets = []
@@ -876,8 +882,9 @@ def get_buckets(database):
         if match:
             extracted_list = ast.literal_eval(match.group())
             buckets.append(extracted_list)
-    
+
     return buckets
+
 
 def load_from_gargs(database):
     def load_from_bucket(database, bucket):
@@ -890,14 +897,14 @@ def load_from_gargs(database):
         except FileNotFoundError:
             print(f"File '{bucket_file}' not found in '{database}'.")
             return []
-        
+
     try:
         print(f"Loading from {database}")
         # with open(database, "rb") as file:
         #     data = pickle.load(file)
         #     print(f"USING MASTER DB: {database}")
-            # if "subsampled" in database: # Franklin can fix ig?
-            #     return data[: rules.NUMBER_OF_RULES + 1]
+        # if "subsampled" in database: # Franklin can fix ig?
+        #     return data[: rules.NUMBER_OF_RULES + 1]
 
         show_database_segments(database)
 
@@ -909,17 +916,23 @@ def load_from_gargs(database):
         for i in range(rules.NUMBER_OF_RULES + 1):
             print("SAMPLING SEGMENTS FOR", i, "RULES:")
             for rules_to_include in combinations(rules.RULES_INCLUDED, i):
-                print("BUCKETS MUST INCLUDE THE FOLLOWING RULES:", list(rules_to_include))
+                print(
+                    "BUCKETS MUST INCLUDE THE FOLLOWING RULES:", list(rules_to_include)
+                )
                 rules_to_exclude = set(rule_set) - set(rules_to_include)
-                print("BUCKETS MUST EXCLUDE THE FOLLOWING RULES:", list(rules_to_exclude))
+                print(
+                    "BUCKETS MUST EXCLUDE THE FOLLOWING RULES:", list(rules_to_exclude)
+                )
                 for bucket in buckets:
-                    if all(rule in bucket for rule in rules_to_include) and all(rule not in bucket for rule in rules_to_exclude):
+                    if all(rule in bucket for rule in rules_to_include) and all(
+                        rule not in bucket for rule in rules_to_exclude
+                    ):
                         data_to_load = load_from_bucket(database, bucket)
                         loaded_segments[i].extend(data_to_load)
                 print()
 
         return loaded_segments
-                
+
     except Exception as e:
         print(e)
         print(f"COULD NOT LOAD FROM MASTER DB: {master_database}")
@@ -933,6 +946,7 @@ def segment_list_to_dict(segment_list):
         database[tuple(rules_followed)].append(segment)
     return database
 
+
 def save_as_database(segments):
     global master_database
     database = defaultdict(list)
@@ -940,11 +954,11 @@ def save_as_database(segments):
         for segment in segment_i_rules:
             _, _, rules_followed = rules.check_rules_one(segment, rules.NUMBER_OF_RULES)
             database[tuple(rules_followed)].append(segment)
-    
+
     show_database_dict_segments(database)
 
     for bucket in database:
-        write_bucket = False 
+        write_bucket = False
         bucket_file = f"{master_database}bucket_{list(bucket)}.pkl"
         if os.path.exists(bucket_file):
             with open(bucket_file, "rb") as file:
@@ -953,16 +967,17 @@ def save_as_database(segments):
                     write_bucket = True
         else:
             write_bucket = True
-        
+
         if write_bucket:
             with open(bucket_file, "wb") as file:
                 pickle.dump(database[bucket], file)
                 print(f"BUCKET {bucket} WRITTEN. [{len(database[bucket])} segments]")
 
 
-
 def finished_collecting(saved_data, number_of_pairs):
-    return collection_status(saved_data, number_of_pairs) == [True] * (rules.NUMBER_OF_RULES + 1)
+    return collection_status(saved_data, number_of_pairs) == [True] * (
+        rules.NUMBER_OF_RULES + 1
+    )
 
 
 def collection_status(saved_data, number_of_pairs):
@@ -1030,10 +1045,12 @@ def run_population(
         population.add_reporter(stats)
 
         if not master_database:
-            master_database = f"databases/database_gargantuar_{train_trajectory_length}_length/"
+            master_database = (
+                f"databases/database_gargantuar_{train_trajectory_length}_length/"
+            )
         if master_database[-1] != "/":
             master_database += "/"
-        
+
         os.makedirs(master_database, exist_ok=True)
 
         reward.INPUT_SIZE = STATE_ACTION_SIZE * (train_trajectory_length + 1)
@@ -1061,7 +1078,9 @@ def run_population(
         if run_type != "collect" or missing_segments:
             while True:
                 population.run(run_simulation, 1)
-                if run_type == "collect" and finished_collecting(saved_segments, num_pairs):
+                if run_type == "collect" and finished_collecting(
+                    saved_segments, num_pairs
+                ):
                     print(f"Stopping after {generation} generations.")
                     pygame.display.quit()
                     pygame.quit()
@@ -1082,7 +1101,9 @@ def run_population(
         print(
             f"Total execution time for {generation} generations: {elapsed_time:.2f} seconds"
         )
-        numTrajPairs = generate_database(trajectory_path, num_pairs, saved_segments, datatype)
+        numTrajPairs = generate_database(
+            trajectory_path, num_pairs, saved_segments, datatype
+        )
 
         return numTrajPairs
     except KeyboardInterrupt:
