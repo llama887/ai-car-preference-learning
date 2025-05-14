@@ -97,6 +97,11 @@ def process_args(args):
         if reward.figure_path[-1] != "/":
             reward.figure_path += "/"
 
+    if args.model:
+        reward.models_path = args.model
+        if reward.models_path[-1] != "/":
+            reward.models_path += "/"
+
     # Set Distribution, (Default is half satisfaction, half split amongst non-satisfaction (as in rules.py))
     if args.distribution:
         # If statesampling, load the distribution from the master database
@@ -197,6 +202,11 @@ if __name__ == "__main__":
         help="Trajectory Folder Name",
     )
     parse.add_argument(
+        "--model",
+        type=str,
+        help="Model Folder Name",
+    )
+    parse.add_argument(
         "-g",
         "--generations",
         type=int,
@@ -261,7 +271,9 @@ if __name__ == "__main__":
         "--save-at-end", action="store_true", help="Save models when training is over"
     )
     parse.add_argument(
-        "--skip-test-accuracy", action="store_true", help="Skip test accuracy calculation"
+        "--skip-test-accuracy",
+        action="store_true",
+        help="Skip test accuracy calculation",
     )
     args = parse.parse_args()
 
@@ -393,6 +405,7 @@ if __name__ == "__main__":
     load_models(model_weights, hidden_size)
 
     import utils
+
     print("BEFORE DELETE")
     utils.print_system_stats()
     # delete varaibles to free up memory
