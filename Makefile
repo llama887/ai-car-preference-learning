@@ -94,6 +94,16 @@ run_distribution_by_rules:
 	python distribution_plot_from_data.py
 
 
+run_distribution_rule_1:
+	python run_distribution_by_rule.py -r 6 -c 1
+
+run_distribution_rule_2:
+	python run_distribution_by_rule.py -r 6 -c 2
+
+run_distribution_rule_3:
+	python run_distribution_by_rule.py -r 6 -c 3
+
+
 collect_data:
 	rm -rf tmp
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
