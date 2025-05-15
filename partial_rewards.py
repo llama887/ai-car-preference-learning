@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 
 import rules
 import agent
+from test_accuracy import test_model
 from agent import run_population, STATE_ACTION_SIZE
 from reward import (
     train_reward_function,
@@ -39,55 +40,7 @@ def start_simulation(config_path, max_generations, number_of_pairs, run_type, no
             use_ensemble=use_ensemble
         ),
         agent.rules_followed,
-    )
-
-
-def test_model(model_path, test_file, hidden_size, batch_size=256):
-    if not model_path:
-        raise Exception("Model not found...")
-    if not test_file:
-        raise Exception("Test file not found...")
-    
-    model = TrajectoryRewardNet(
-        STATE_ACTION_SIZE * (agent.train_trajectory_length + 1),
-        hidden_size=hidden_size,
-    ).to(device)
-    weights = torch.load(model_path, map_location=torch.device(f"{device}"))
-    model.load_state_dict(weights)
-
-    total_correct = 0
-    total_diff = 0
-    adjusted_correct = 0
-
-    test_dataset = TrajectoryDataset(test_file, None, True)
-    test_size = len(test_dataset)
-    print("TEST SIZE:", test_size)
-    test_dataloader = DataLoader(
-        test_dataset,
-        batch_size = test_size if test_size < batch_size else batch_size,
-        shuffle=False,
-        pin_memory=False,
-    )
-
-    with torch.no_grad():
-        for test_traj1, test_traj2, test_true_pref, test_score1, test_score2 in test_dataloader:
-            test_rewards1 = model(test_traj1)
-            test_rewards2 = model(test_traj2)
-            predictions = (test_rewards1 >= test_rewards2).squeeze()
-            correct_predictions = (predictions == test_true_pref).sum().item()
-            total_correct += correct_predictions
-
-            different_rewards = (test_score1 != test_score2)
-            num_diff_in_batch = different_rewards.sum().item()
-            total_diff += num_diff_in_batch
-
-            adjusted_correct += (different_rewards & (predictions == test_true_pref)).sum().item()
-            
-        test_acc = total_correct / test_size
-        adjusted_test_acc = adjusted_correct / total_diff if total_diff > 0 else 0
-    return test_acc, adjusted_test_acc
-                
-
+    )                
 
 
 def process_distribution(args):
@@ -112,7 +65,8 @@ def process_distribution(args):
             accs = train_reward_function(
                 database_path, epochs, parameters, False, None, "acc"
             )
-            test_acc, adjusted_test_acc = test_model(f"models/partial_{i}_model_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth", "database_test.pkl", hidden_size, batch_size)
+            model_id = "".join([str(rule) for rule in rules.RULES_INCLUDED])
+            test_acc, adjusted_test_acc, _ = test_model(f"models_partial_{i}/model_{model_id}_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth", hidden_size, batch_size)
             accs["final_test_acc"] = test_acc
             accs["final_adjusted_test_acc"] = adjusted_test_acc
             return (a, b, c, accs)
@@ -209,7 +163,7 @@ if __name__ == "__main__":
         batch_size = data["batch_size"]
 
     a, b, c, i = args.a, args.b, args.c, args.i 
-    reward.models_path = f"models/partial_{i}_"
+    reward.models_path = f"models_partial_{i}/"
     
     
     total_iterations = calculate_iterations(args.resolution)

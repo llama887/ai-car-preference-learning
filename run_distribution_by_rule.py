@@ -1,3 +1,4 @@
+print("1")
 import argparse
 import os
 import pickle
@@ -15,15 +16,17 @@ from agent import (
     run_population,
     STATE_ACTION_SIZE
 )
+from test_accuracy import test_model
 from reward import (
     train_reward_function,
     TrajectoryDataset,
     TrajectoryRewardNet
 )
 
+print("2")
 
-TRAJECTORIES=1000000
-EPOCHS=3000
+TRAJECTORIES=1000
+EPOCHS=200
 GENERATIONS=200
 RULES_LIST = [1,2,3]
 
@@ -48,52 +51,6 @@ def generate_distribution(resolution, rules):
         distribution.append(satisfaction)
         distributions[satisfaction] = distribution
     return distributions
-
-def test_model(model_path, test_file, hidden_size, batch_size=256):
-    if not model_path:
-        raise Exception("Model not found...")
-    if not test_file:
-        raise Exception("Test file not found...")
-    
-    model = TrajectoryRewardNet(
-        STATE_ACTION_SIZE * (agent.train_trajectory_length + 1),
-        hidden_size=hidden_size,
-    ).to(device)
-    weights = torch.load(model_path, map_location=torch.device(f"{device}"))
-    model.load_state_dict(weights)
-
-    total_correct = 0
-    total_diff = 0
-    adjusted_correct = 0
-
-    test_dataset = TrajectoryDataset(test_file, None, True)
-    test_size = len(test_dataset)
-    print("TEST SIZE:", test_size)
-    test_dataloader = DataLoader(
-        test_dataset,
-        batch_size = test_size if test_size < batch_size else batch_size,
-        shuffle=False,
-        pin_memory=False,
-        num_workers=0,
-    )
-
-    with torch.no_grad():
-        for test_traj1, test_traj2, test_true_pref, test_score1, test_score2 in test_dataloader:
-            test_rewards1 = model(test_traj1)
-            test_rewards2 = model(test_traj2)
-            predictions = (test_rewards1 >= test_rewards2).squeeze()
-            correct_predictions = (predictions == test_true_pref).sum().item()
-            total_correct += correct_predictions
-
-            different_rewards = (test_score1 != test_score2)
-            num_diff_in_batch = different_rewards.sum().item()
-            total_diff += num_diff_in_batch
-
-            adjusted_correct += (different_rewards & (predictions == test_true_pref)).sum().item()
-            
-        test_acc = total_correct / test_size
-        adjusted_test_acc = adjusted_correct / total_diff if total_diff > 0 else 0
-    return test_acc, adjusted_test_acc
 
 def plot_data(figure_folder, data_points):
     plt.figure()
@@ -148,6 +105,7 @@ if __name__ == "__main__":
 
     args = parse.parse_args()
 
+    print("3")
     reward.models_path = "models_dist_exp/"
     os.makedirs(reward.models_path, exist_ok=True)
 
@@ -160,11 +118,12 @@ if __name__ == "__main__":
             hidden_size = data["hidden_size"]
             batch_size = data["batch_size"]
 
+    print("4")
     data_points = ""
     num_rules = args.composition
     rules.NUMBER_OF_RULES = num_rules
     distributions = generate_distribution(args.resolution, num_rules)
-    total_distributions = len(distributions) * len(RULES_LIST)
+    total_distributions = len(distributions)
     data_x = sorted(distributions.keys())
     data_y = []
     for i, satis in enumerate(data_x):
@@ -194,9 +153,11 @@ if __name__ == "__main__":
         )
         print("Finished training model...")
 
-        model_path = (reward.models_path + f"model_{EPOCHS}_epochs_{TRAJECTORIES}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")
-        test_path = f"database_test_{rules.NUMBER_OF_RULES}_rules.pkl"
-        test_acc, adjusted_test_acc = test_model(model_path, test_path, hidden_size, batch_size)
+        model_id = "".join([str(rule) for rule in rules.RULES_INCLUDED])
+        model_path = [(reward.models_path + f"model_{model_id}_{EPOCHS}_epochs_{TRAJECTORIES}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")]
+        test_acc, adjusted_test_acc, acc_pairings = test_model(
+            model_path, hidden_size, batch_size
+        )
         data_y.append(adjusted_test_acc)
     data_points = (data_x.copy(), data_y.copy())
 
@@ -207,15 +168,7 @@ if __name__ == "__main__":
             "wb",
         ) as f:
             pickle.dump(data_points, f)
-        
-    # figure_folder = "distribution_experiment/"
-    # os.makedirs(figure_folder, exist_ok=True)
-    # with open(
-    #         figure_folder + "output.pkl",
-    #         "wb",
-    #     ) as f:
-    #         pickle.dump(data_points, f)
-
+    
     # plot_data(figure_folder, data_points)
 
 

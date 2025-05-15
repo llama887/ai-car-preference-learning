@@ -927,7 +927,7 @@ def collection_status(saved_data, number_of_pairs):
     for i in range(rules.NUMBER_OF_RULES + 1):
         if (
             len(saved_data[i])
-            >= number_of_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
+            >= math.floor(number_of_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i])
         ):
             rule_finished[i] = True
     return rule_finished

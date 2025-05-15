@@ -6,6 +6,7 @@ import pandas as pd
 import seaborn as sns
 import pickle
 from tqdm import tqdm
+import random
 import math
 
 import agent
@@ -80,20 +81,11 @@ def check_dataset(test_file):
 
 
 def generate_testset(test_file):
-    import gc
-    gc.collect()
-    import utils
-    utils.print_system_stats()
-
     agent.paired_database = test_file
 
     print("TESTSET NEEDS THE FOLLOWING SEGMENTS:")
     agent.display_requested_segments(TESTSET_SIZE)
     saved_segments = agent.load_from_gargs(TEST_DATA_PATH)
-
-
-    import utils
-    utils.print_system_stats()
     
     if not agent.finished_collecting(saved_segments, TESTSET_SIZE):
         raise Exception("Not enough segments to generate test set.")
@@ -153,7 +145,8 @@ def test_model(model_path, hidden_size, batch_size=256):
     
     model = load_models(model_path, hidden_size)
 
-    test_file = f"database_test_{num_rules}_rules.pkl"
+    test_id = ''.join(random.choices('0123456789abcdef', k=8))
+    test_file = f"./databases/database_test_{test_id}.pkl"
     generate_testset(test_file)
 
     test_dataset = TrajectoryDataset(file_path=test_file, variance_pairs=None, preload=True)
@@ -271,7 +264,9 @@ def test_model(model_path, hidden_size, batch_size=256):
     plt.savefig(f"{reward.figure_path}{title}.png", dpi=600)
     plt.close()
 
-    with open(f"{agent.trajectories_path}/violin_data.pkl", "wb") as f:
+    if agent.trajectories_path[-1] != "/":
+        agent.trajectories_path += "/"
+    with open(f"{agent.trajectories_path}violin_data.pkl", "wb") as f:
         pickle.dump(df, f)
 
 
@@ -282,4 +277,11 @@ def test_model(model_path, hidden_size, batch_size=256):
     return test_acc, adjusted_test_acc, acc_pairings
 
 
-    
+# rules.NUMBER_OF_RULES = 1
+# rules.RULES_INCLUDED = [2]
+# rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/2, 1/2]
+# test_model(
+#     model_path=["./models/model_2_3000_epochs_100000_pairs_1_rules.pth"],
+#     hidden_size=952,
+#     batch_size=6032,
+# )
