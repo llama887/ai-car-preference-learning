@@ -88,9 +88,9 @@ run_with_partial_rewards:
 
 
 run_distribution_by_rules:
-	stdbuf -oL python run_distribution_by_rule.py -r 6 -c 1 2>&1 | tee logs/log_1_r_distribution.log &
-	stdbuf -oL python run_distribution_by_rule.py -r 6 -c 2 2>&1 | tee logs/log_2_r_distribution.log &
-	stdbuf -oL python run_distribution_by_rule.py -r 6 -c 3 2>&1 | tee logs/log_3_r_distribution.log &
+	python run_distribution_by_rule.py -r 6 -c 1
+	python run_distribution_by_rule.py -r 6 -c 2
+	python run_distribution_by_rule.py -r 6 -c 3
 	python distribution_plot_from_data.py
 
 

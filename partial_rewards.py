@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 
 import rules
 import agent
-from test_accuracy import test_model
+from test_accuracy import test_model_light
 from agent import run_population, STATE_ACTION_SIZE
 from reward import (
     train_reward_function,
@@ -21,6 +21,7 @@ import reward
 
 rules.PARTIAL_REWARD = True
 rules.NUMBER_OF_RULES = 2
+rules.RULES_INCLUDED = [i for i in range(1, rules.NUMBER_OF_RULES + 1)]
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 os.environ["WANDB_SILENT"] = "true"
@@ -66,7 +67,7 @@ def process_distribution(args):
                 database_path, epochs, parameters, False, None, "acc"
             )
             model_id = "".join([str(rule) for rule in rules.RULES_INCLUDED])
-            test_acc, adjusted_test_acc, _ = test_model(f"models_partial_{i}/model_{model_id}_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth", hidden_size, batch_size)
+            test_acc, adjusted_test_acc = test_model_light(f"models_partial_{i}/model_{model_id}_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth", hidden_size, batch_size)
             accs["final_test_acc"] = test_acc
             accs["final_adjusted_test_acc"] = adjusted_test_acc
             return (a, b, c, accs)

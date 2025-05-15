@@ -139,6 +139,7 @@ def load_models(reward_paths, hidden_size):
 
 def test_model(model_path, hidden_size, batch_size=256):
     num_rules = rules.NUMBER_OF_RULES
+    rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/(2 * num_rules)] * num_rules + [1/2]
 
     if not model_path:
         raise Exception("Model not found...")
@@ -271,11 +272,97 @@ def test_model(model_path, hidden_size, batch_size=256):
 
 
     print("TEST ACCURACY:", test_acc, "ADJUSTED TEST ACCURACY:", adjusted_test_acc)
-    print("ACCURACY BREAKDOWN:")
-    for i in range(len(acc_pairings)):
-        print(f"{i} RULES vs. {num_rules} RULES (SATISFACTION):[{acc_pairings[i][0]} / {acc_pairings[i][1]}] ({acc_pairings[i][0] / acc_pairings[i][1]})")
+    if adjusted_test_acc > 0:
+        print("ACCURACY BREAKDOWN:")
+        for i in range(len(acc_pairings)):
+            print(f"{i} RULES vs. {num_rules} RULES (SATISFACTION):[{acc_pairings[i][0]} / {acc_pairings[i][1]}] ({acc_pairings[i][0] / acc_pairings[i][1]})")
     return test_acc, adjusted_test_acc, acc_pairings
 
+
+def test_model_light(model_path, hidden_size, batch_size=256):
+    num_rules = rules.NUMBER_OF_RULES
+    rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/(2 * num_rules)] * num_rules + [1/2]
+
+    if not model_path:
+        raise Exception("Model not found...")
+    
+    model = load_models(model_path, hidden_size)
+
+    test_id = ''.join(random.choices('0123456789abcdef', k=8))
+    test_file = f"./databases/database_test_{test_id}.pkl"
+    generate_testset(test_file)
+
+    test_dataset = TrajectoryDataset(file_path=test_file, variance_pairs=None, preload=True)
+
+    test_size = len(test_dataset)
+    print("TEST SIZE:", test_size)
+    test_dataloader = DataLoader(
+        test_dataset,
+        batch_size = test_size if test_size < batch_size else batch_size,
+        shuffle=False,
+        pin_memory=False,
+        num_workers=0,
+    )
+
+    total_correct = 0
+    total_diff = 0
+    adjusted_correct = 0
+
+    segment_rules_satisfied = []
+    segment_rewards = []
+
+    with torch.no_grad():
+        for test_traj1, test_traj2, test_true_pref, test_score1, test_score2 in tqdm(test_dataloader, desc="Testing Model"):
+            test_rewards1 = model(test_traj1)
+            test_rewards2 = model(test_traj2)
+
+            segment_rules_satisfied.extend(rules.check_batch_rules(test_traj1, num_rules))
+            segment_rules_satisfied.extend(rules.check_batch_rules(test_traj2, num_rules))
+            segment_rewards.extend(test_rewards1.tolist())
+            segment_rewards.extend(test_rewards2.tolist())
+
+            predictions = (test_rewards1 >= test_rewards2).squeeze()
+            correct_predictions = (predictions == test_true_pref).sum().item()
+            total_correct += correct_predictions
+
+            different_rewards = (test_score1 != test_score2)
+            num_diff_in_batch = different_rewards.sum().item()
+            total_diff += num_diff_in_batch
+
+            adjusted_correct += (different_rewards & (predictions == test_true_pref)).sum().item()
+
+        test_acc = total_correct / test_size
+        adjusted_test_acc = adjusted_correct / total_diff if total_diff > 0 else 0
+
+    for i in range(len(segment_rewards)):
+        segment_rewards[i] = segment_rewards[i][0][0]
+
+    df = pd.DataFrame(
+        {
+            "Rules Satisfied": segment_rules_satisfied,
+            "Reward of Trajectory Segment": segment_rewards,
+        }
+    )
+
+    sns.violinplot(
+        x="Rules Satisfied",
+        y="Reward of Trajectory Segment",
+        data=df,
+        inner="box",
+        palette="muted",
+        alpha=0.55,
+    )
+
+    title = "test_violin"
+    plt.legend()
+    plt.savefig(f"{reward.figure_path}{title}.png")
+    plt.close()
+
+    with open(f"{agent.trajectories_path}/violin_data.pkl", "wb") as f:
+        pickle.dump(df, f)
+
+    print("TEST ACCURACY:", test_acc, "ADJUSTED TEST ACCURACY:", adjusted_test_acc)
+    return test_acc, adjusted_test_acc
 
 # rules.NUMBER_OF_RULES = 1
 # rules.RULES_INCLUDED = [2]

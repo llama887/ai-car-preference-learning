@@ -16,7 +16,7 @@ from agent import (
     run_population,
     STATE_ACTION_SIZE
 )
-from test_accuracy import test_model
+from test_accuracy import test_model_light
 from reward import (
     train_reward_function,
     TrajectoryDataset,
@@ -25,8 +25,8 @@ from reward import (
 
 print("2")
 
-TRAJECTORIES=1000
-EPOCHS=200
+TRAJECTORIES=100000
+EPOCHS=10000
 GENERATIONS=200
 RULES_LIST = [1,2,3]
 
@@ -122,6 +122,7 @@ if __name__ == "__main__":
     data_points = ""
     num_rules = args.composition
     rules.NUMBER_OF_RULES = num_rules
+    rules.RULES_INCLUDED = [i for i in range(1, rules.NUMBER_OF_RULES + 1)]
     distributions = generate_distribution(args.resolution, num_rules)
     total_distributions = len(distributions)
     data_x = sorted(distributions.keys())
@@ -155,7 +156,7 @@ if __name__ == "__main__":
 
         model_id = "".join([str(rule) for rule in rules.RULES_INCLUDED])
         model_path = [(reward.models_path + f"model_{model_id}_{EPOCHS}_epochs_{TRAJECTORIES}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")]
-        test_acc, adjusted_test_acc, acc_pairings = test_model(
+        test_acc, adjusted_test_acc = test_model_light(
             model_path, hidden_size, batch_size
         )
         data_y.append(adjusted_test_acc)
