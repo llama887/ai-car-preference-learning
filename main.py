@@ -101,6 +101,7 @@ def process_args(args):
         reward.models_path = args.model
         if reward.models_path[-1] != "/":
             reward.models_path += "/"
+        os.makedirs(reward.models_path, exist_ok=True)    
 
     # Set Distribution, (Default is half satisfaction, half split amongst non-satisfaction (as in rules.py))
     if args.distribution:

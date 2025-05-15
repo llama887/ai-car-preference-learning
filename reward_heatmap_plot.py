@@ -26,111 +26,128 @@ number_of_rules = None
 
 
 def segment_to_tensor(segment):
-    flatten = []
-    for state_action_pair in segment:
-        flatten.extend([radar for radar in state_action_pair.radars])
-        flatten.append(state_action_pair.action)
-        flatten.extend(state_action_pair.position)
-    return torch.tensor(flatten, dtype=torch.float32).to(device)
+    """
+    Convert a single segment to a 1D torch.FloatTensor on CPU.
+    Pre-allocates the output and avoids per-segment GPU transfers.
+    """
+    # number of radar features per timestep
+    R = len(segment[0].radars)
+    L = len(segment)               # number of timesteps
+    step_size = R + 1 + 2          # radars + action + (x,y)
+    total_size = L * step_size
 
+    out = torch.empty(total_size, dtype=torch.float32)
+    idx = 0
+    for sap in segment:
+        # copy radar features
+        out[idx:idx+R] = torch.tensor(sap.radars, dtype=torch.float32)
+        idx += R
+
+        # copy action
+        out[idx] = float(sap.action)
+        idx += 1
+
+        # copy position (x, y)
+        out[idx:idx+2] = torch.tensor(sap.position, dtype=torch.float32)
+        idx += 2
+
+    return out  # stays on CPU
 
 def accuracy_per_xy(
-    trajectory_segments, number_of_rules, reward_model_directory=None, reward_model=None
+    trajectory_segments,
+    number_of_rules,
+    reward_model_directory=None,
+    reward_model=None
 ):
-    print("Splitting by x and y...")
-    count1 = 0
-    count2 = 0
-    count_diff = 0
-    diff_xys = []
-    xy_dict = {}
-    for segment in trajectory_segments:
-        _, reward, _ = check_rules_one(segment, number_of_rules)
-        assert reward in [0, 1]
-        x = segment[0].position[0]
-        y = segment[0].position[1]
-        if (x, y) not in xy_dict:
-            xy_dict[(x, y)] = [[], []]
-        xy_dict[(x, y)][reward].append(segment)
-        if (
-            len(xy_dict[(x, y)][reward]) == 1
-            and len(xy_dict[(x, y)][int(not bool(reward))]) != 0
-        ):
-            count_diff += 1
-            diff_xys.append((x, y))
-        if reward == 1:
-            count1 += 1
-        else:
-            count2 += 1
-    print(
-        f"Out of {len(xy_dict)} xy points, {count_diff} have segments that satisfy both rewards."
-    )
-    print(f"Found {count1} 1 and {count2} 0 examples.")
-    print("Making pairs...")
-    paired_dict = {}
-    for xy in xy_dict:
-        number_of_pairs = min(len(xy_dict[xy][0]), len(xy_dict[xy][1]))
-        xy_dict[xy][0] = xy_dict[xy][0][:number_of_pairs]
-        xy_dict[xy][1] = xy_dict[xy][1][:number_of_pairs]
-        paired_dict[xy] = [
-            (xy_dict[xy][0][i], xy_dict[xy][1][i]) for i in range(number_of_pairs)
-        ]
+    print("Splitting segments by reward and xy…")
+    segment_infos = []
+    reward_groups = {0: [], 1: []}
+    for seg in trajectory_segments:
+        _, reward, _ = check_rules_one(seg, number_of_rules)
+        assert reward in (0, 1)
+        x, y = seg[0].position
+        segment_infos.append({"segment": seg, "reward": reward, "xy": (x, y)})
+        reward_groups[reward].append(seg)
 
-    print("Removing xy with no pairs...")
-    start_count = len(xy_dict)
-    for xy in list(xy_dict.keys()):
-        random.shuffle(xy_dict[xy][0])
-        random.shuffle(xy_dict[xy][1])
-        if len(xy_dict[xy][0]) == 0 or len(xy_dict[xy][1]) == 0:
-            del xy_dict[xy]
-    end_count = len(xy_dict)
-    print(f"Reduced from {start_count} to {end_count} xy pairs.")
+    # Build random opposite-reward pairs (with replacement)
+    pairs_by_xy = {}
+    for info in segment_infos:
+        seg, reward, xy = info["segment"], info["reward"], info["xy"]
+        opp_list = reward_groups[1 - reward]
+        if not opp_list:
+            print(f"  ⚠️ No opposite-reward partner for xy={xy}, reward={reward}; skipping.")
+            continue
 
-    x = []
-    y = []
-    accuracy = []
+        partner = random.choice(opp_list)
+        seg0, seg1 = (seg, partner) if reward == 0 else (partner, seg)
+        pairs_by_xy.setdefault(xy, []).append((seg0, seg1))
 
-    print("Evaluating accuracy with batching...")
-    if not reward_model:
+    # Drop xy with no pairs
+    start = len(pairs_by_xy)
+    for xy in list(pairs_by_xy):
+        if not pairs_by_xy[xy]:
+            del pairs_by_xy[xy]
+    kept = len(pairs_by_xy)
+    print(f"Kept {kept} xy points (dropped {start - kept} with no valid pairs).")
+    if kept == 0:
+        return [], [], []
+
+    # Flatten pairs and collect xy list
+    xy_list = list(pairs_by_xy)
+    all_pairs = [pair for xy in xy_list for pair in pairs_by_xy[xy]]
+
+    # Load or receive model, move it to device
+    if reward_model is None:
         model, _ = load_models([reward_model_directory])
     else:
         model = reward_model
-    batch_size = 1024
+    model = model.to(device)
+    model.eval()
 
-    all_x, all_y, all_pairs = [], [], []
+    batch_size = 4096
 
-    for xy in paired_dict:
-        all_x.append(xy[0])
-        all_y.append(xy[1])
-        all_pairs.extend(paired_dict[xy])
-
-    tensor_pairs_0 = [
-        segment_to_tensor(pair[0])
-        for pair in tqdm(all_pairs, desc="Converting to tensors 1")
+    # Convert every segment to a CPU tensor (no .to(device) here)
+    tensor_0 = [
+        segment_to_tensor(p[0]) for p in tqdm(all_pairs, desc="Converting to tensors 0")
+    ]
+    tensor_1 = [
+        segment_to_tensor(p[1]) for p in tqdm(all_pairs, desc="Converting to tensors 1")
     ]
 
-    tensor_pairs_1 = [
-        segment_to_tensor(pair[1])
-        for pair in tqdm(all_pairs, desc="Converting to tensors 2")
-    ]
+    # Build DataLoader with parallel workers and pinned memory
+    dataset = TensorDataset(torch.stack(tensor_0), torch.stack(tensor_1))
+    loader  = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=4,
+        pin_memory=True
+    )
 
-    dataset = TensorDataset(torch.stack(tensor_pairs_0), torch.stack(tensor_pairs_1))
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+    # Score in batches: one GPU transfer per batch
+    batch_accs = []
+    for b0, b1 in tqdm(loader, desc="Scoring pairs"):
+        b0 = b0.to(device, non_blocking=True)
+        b1 = b1.to(device, non_blocking=True)
+        o0 = model(b0).detach().cpu().numpy()
+        o1 = model(b1).detach().cpu().numpy()
+        batch_accs.extend((o0 < o1).astype(int))
 
-    batch_accuracies = []
-    for batch_0, batch_1 in tqdm(dataloader, desc="Processing batches"):
-        outputs_0 = model(batch_0).detach().cpu().numpy()
-        outputs_1 = model(batch_1).detach().cpu().numpy()
-        batch_accuracies.extend((outputs_0 < outputs_1).astype(int))
+    # Group back by xy and compute per-xy accuracy
+    accuracies = []
+    idx = 0
+    for xy in xy_list:
+        n = len(pairs_by_xy[xy])
+        slice_ = batch_accs[idx : idx + n]
+        accuracies.append(sum(slice_) / n)
+        idx += n
 
-    accuracy = []
-    current_index = 0
-    for xy in paired_dict:
-        num_pairs = len(paired_dict[xy])
-        xy_accuracy = batch_accuracies[current_index : current_index + num_pairs]
-        accuracy.append(sum(xy_accuracy) / len(xy_accuracy))
-        current_index += num_pairs
-
-    return all_x, all_y, accuracy
+    all_x = [xy[0] for xy in xy_list]
+    all_y = [xy[1] for xy in xy_list]
+    import statistics
+    mean_accuracy = statistics.mean(accuracies)
+    print(f"Mean accuracy: {mean_accuracy:.3f}")
+    return all_x, all_y, accuracies
 
 
 def get_cluster_centers_and_angles(x, y, n_clusters=13):
