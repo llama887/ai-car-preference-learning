@@ -18,6 +18,7 @@ import debug_plots
 from debug_plots import load_models
 from rules import check_rules_one
 from subsample_state import get_grid_points
+import rules
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -38,17 +39,17 @@ def segment_to_tensor(segment):
 
     out = torch.empty(total_size, dtype=torch.float32)
     idx = 0
-    for sap in segment:
+    for state_action_pair in segment:
         # copy radar features
-        out[idx:idx+R] = torch.tensor(sap.radars, dtype=torch.float32)
+        out[idx:idx+R] = torch.tensor(state_action_pair.radars, dtype=torch.float32)
         idx += R
 
         # copy action
-        out[idx] = float(sap.action)
+        out[idx] = float(state_action_pair.action)
         idx += 1
 
         # copy position (x, y)
-        out[idx:idx+2] = torch.tensor(sap.position, dtype=torch.float32)
+        out[idx:idx+2] = torch.tensor(state_action_pair.position, dtype=torch.float32)
         idx += 2
 
     return out  # stays on CPU
@@ -59,96 +60,90 @@ def accuracy_per_xy(
     reward_model_directory=None,
     reward_model=None
 ):
-    print("Splitting segments by reward and xy…")
-    segment_infos = []
-    reward_groups = {0: [], 1: []}
-    for seg in trajectory_segments:
-        _, reward, _ = check_rules_one(seg, number_of_rules)
-        assert reward in (0, 1)
-        x, y = seg[0].position
-        segment_infos.append({"segment": seg, "reward": reward, "xy": (x, y)})
-        reward_groups[reward].append(seg)
+    print("Splitting segments by reward and xy...")
 
-    # Build random opposite-reward pairs (with replacement)
-    pairs_by_xy = {}
-    for info in segment_infos:
-        seg, reward, xy = info["segment"], info["reward"], info["xy"]
-        opp_list = reward_groups[1 - reward]
-        if not opp_list:
-            print(f"  ⚠️ No opposite-reward partner for xy={xy}, reward={reward}; skipping.")
-            continue
+    # 1) Group input segments by their ground-truth reward 0 or 1
+    segments_by_reward = {0: [], 1: []}
+    for segment in trajectory_segments:
+        _, reward_value, _ = check_rules_one(segment, number_of_rules)
+        segments_by_reward[reward_value].append(segment)
 
-        partner = random.choice(opp_list)
-        seg0, seg1 = (seg, partner) if reward == 0 else (partner, seg)
-        pairs_by_xy.setdefault(xy, []).append((seg0, seg1))
-
-    # Drop xy with no pairs
-    start = len(pairs_by_xy)
-    for xy in list(pairs_by_xy):
-        if not pairs_by_xy[xy]:
-            del pairs_by_xy[xy]
-    kept = len(pairs_by_xy)
-    print(f"Kept {kept} xy points (dropped {start - kept} with no valid pairs).")
-    if kept == 0:
-        return [], [], []
-
-    # Flatten pairs and collect xy list
-    xy_list = list(pairs_by_xy)
-    all_pairs = [pair for xy in xy_list for pair in pairs_by_xy[xy]]
-
-    # Load or receive model, move it to device
-    if reward_model is None:
-        model, _ = load_models([reward_model_directory])
-    else:
-        model = reward_model
-    model = model.to(device)
-    model.eval()
-
-    batch_size = 4096
-
-    # Convert every segment to a CPU tensor (no .to(device) here)
-    tensor_0 = [
-        segment_to_tensor(p[0]) for p in tqdm(all_pairs, desc="Converting to tensors 0")
-    ]
-    tensor_1 = [
-        segment_to_tensor(p[1]) for p in tqdm(all_pairs, desc="Converting to tensors 1")
-    ]
-
-    # Build DataLoader with parallel workers and pinned memory
-    dataset = TensorDataset(torch.stack(tensor_0), torch.stack(tensor_1))
-    loader  = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=4,
-        pin_memory=True
+    print(
+        f"Number of segments with reward 0: {len(segments_by_reward[0])}, "
+        f"reward 1: {len(segments_by_reward[1])}"
     )
 
-    # Score in batches: one GPU transfer per batch
-    batch_accs = []
-    for b0, b1 in tqdm(loader, desc="Scoring pairs"):
-        b0 = b0.to(device, non_blocking=True)
-        b1 = b1.to(device, non_blocking=True)
-        o0 = model(b0).detach().cpu().numpy()
-        o1 = model(b1).detach().cpu().numpy()
-        batch_accs.extend((o0 < o1).astype(int))
+    # 2) Build paired lists so that segment0 always has reward 0, segment1 reward 1,
+    #    and record the (x,y) coordinate from the original segment.
+    paired_segments_0 = []
+    paired_segments_1 = []
+    coordinate_list   = []
+    for reward_value, segment_list in segments_by_reward.items():
+        opposite_list = segments_by_reward[1 if reward_value == 0 else 0]
+        # make sure there is at least one opposite to sample
+        assert opposite_list, f"No segments with reward {1 if reward_value == 0 else 0}"
+        for original_segment in segment_list:
+            sampled_opposite = random.choice(opposite_list)
+            if reward_value == 0:
+                paired_segments_0.append(original_segment)
+                paired_segments_1.append(sampled_opposite)
+            else:
+                paired_segments_0.append(sampled_opposite)
+                paired_segments_1.append(original_segment)
+            # record the (x,y) of the segment that defined the pairing
+            x_coord, y_coord = original_segment[0].position
+            coordinate_list.append((x_coord, y_coord))
 
-    # Group back by xy and compute per-xy accuracy
-    accuracies = []
-    idx = 0
-    for xy in xy_list:
-        n = len(pairs_by_xy[xy])
-        slice_ = batch_accs[idx : idx + n]
-        accuracies.append(sum(slice_) / n)
-        idx += n
+    number_of_pairs = len(paired_segments_0)
+    assert number_of_pairs == len(paired_segments_1) == len(coordinate_list)
 
-    all_x = [xy[0] for xy in xy_list]
-    all_y = [xy[1] for xy in xy_list]
-    import statistics
-    mean_accuracy = statistics.mean(accuracies)
-    print(f"Mean accuracy: {mean_accuracy:.3f}")
+    # 3) Flatten all segments into tensors and stack into big [N, D] tensors
+    print("Converting segments to flat tensors...")
+    tensor_list_0 = torch.stack([
+        segment_to_tensor(seg) for seg in tqdm(paired_segments_0, desc="Converting to tensor0")
+    ])
+    tensor_list_1 = torch.stack([
+        segment_to_tensor(seg) for seg in tqdm(paired_segments_1, desc="Converting to tensor1")
+    ])
+
+    # 4) Run the model on all pairs in batches, record correctness
+    model = reward_model if reward_model is not None else load_models([reward_model_directory])[0]
+    model = model.to(device).eval()
+
+    batch_size = 8192
+    correctness_array = np.empty(number_of_pairs, dtype=np.int32)
+
+    with torch.no_grad():
+        for start_index in range(0, number_of_pairs, batch_size):
+            end_index = start_index + batch_size
+            batch_0 = tensor_list_0[start_index:end_index].to(device, non_blocking=True)
+            batch_1 = tensor_list_1[start_index:end_index].to(device, non_blocking=True)
+
+            rewards_0 = model(batch_0).cpu().numpy().ravel()
+            rewards_1 = model(batch_1).cpu().numpy().ravel()
+
+            # model is correct if it ranks the true-1 segment above the true-0 segment
+            correctness_array[start_index:end_index] = (rewards_1 > rewards_0).astype(np.int32)
+
+    # 5) Compute overall accuracy
+    overall_accuracy = correctness_array.mean()
+
+    # 6) Vectorized grouping by (x,y) using numpy.unique + bincount
+    coordinate_array = np.array(coordinate_list)                                   # shape [N,2]
+    unique_coords, inverse_indices = np.unique(coordinate_array, axis=0, return_inverse=True)
+    sums_per_coord   = np.bincount(inverse_indices, weights=correctness_array, minlength=unique_coords.shape[0])
+    counts_per_coord = np.bincount(inverse_indices, minlength=unique_coords.shape[0])
+    accuracy_per_coord = sums_per_coord / counts_per_coord                         # shape [num_unique_coords]
+
+    all_x = unique_coords[:,0].tolist()
+    all_y = unique_coords[:,1].tolist()
+    accuracies = accuracy_per_coord.tolist()
+
+    mean_xy_accuracy = float(np.mean(accuracies))
+    print(f"Mean per-XY accuracy: {mean_xy_accuracy}")
+    print(f"Overall accuracy:      {overall_accuracy}")
+
     return all_x, all_y, accuracies
-
 
 def get_cluster_centers_and_angles(x, y, n_clusters=13):
     from sklearn.cluster import KMeans
@@ -181,7 +176,6 @@ def plot_reward_heatmap(
     assert reward_model_directory or reward_model, (
         "Must provide either reward_model_directory or reward_model"
     )
-
     x, y, accuracy = accuracy_per_xy(
         samples, number_of_rules, reward_model_directory, reward_model
     )
@@ -284,7 +278,11 @@ if __name__ == "__main__":
         number_of_samples = args.samples[0]
     if args.rules:
         number_of_rules = args.rules[0]
-
+    rules.NUMBER_OF_RULES = number_of_rules
+    rules.RULES_INCLUDED = list(range(1, number_of_rules + 1))
+    print(
+        f"Using {rules.NUMBER_OF_RULES} samples and {rules.RULES_INCLUDED} rules."
+    )
     start = time.time()
     plot_reward_heatmap(
         get_samples(sample_pkl="grid_points.pkl"), args.model[0], args.rules[0]
