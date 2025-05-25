@@ -182,6 +182,7 @@ def process_trajectory_segment(params):
         position_thing = tuple(car.position)
 
         # Apply action
+        assert first_action in [0, 1, 2, 3], f"Invalid action: {first_action}"
         if first_action == 0:
             car.angle += 10  # Left
         elif first_action == 1:
