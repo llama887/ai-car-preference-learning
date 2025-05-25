@@ -458,7 +458,7 @@ def generate_database(
             list((f"{i}: {len(seg)}" for i, seg in enumerate(sampled_segments))),
         )
 
-        if segment_generation_mode == "random":
+        if segment_generation_mode == "random": 
             for segments in sampled_segments:
                 trajectory_segments.extend(segments)
 
@@ -528,8 +528,7 @@ def generate_database(
                 f"pairs with different rewards ({(n - same_reward) / n}%)",
             )
 
-        print(f"Generating Database with {len(trajectory_pairs)} trajectory pairs...")
-
+    
         subsample_prefix = "subsample_" if not follow_distribution else ""
         database_to_save = (
             paired_database
@@ -537,6 +536,8 @@ def generate_database(
             else trajectory_path
             + f"{subsample_prefix}database_{len(trajectory_pairs)}_pairs_{rules.NUMBER_OF_RULES}_rules_{train_trajectory_length}_length.pkl"
         )
+
+        print(f"Generating Database ({database_to_save}) with {len(trajectory_pairs)} trajectory pairs...")
 
         # Delete old database if it is redundant (same size)
         if os.path.exists(database_to_save):
@@ -985,6 +986,8 @@ def run_population(
         population.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
         population.add_reporter(stats)
+
+        saved_segments = []
 
         if not master_database:
             master_database = (

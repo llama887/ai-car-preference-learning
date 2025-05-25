@@ -93,6 +93,8 @@ def generate_testset(test_file):
     print(f"Test set sampling complete. Generating test set with {TESTSET_SIZE} trajectory pairs...")
     agent.generate_database(agent.trajectories_path, TESTSET_SIZE, saved_segments, "segments", segment_generation_mode="random")
     
+    agent.paired_database = None
+    
 
 def load_models(reward_paths, hidden_size):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -282,6 +284,7 @@ def test_model(model_path, hidden_size, batch_size=256):
 def test_model_light(model_path, hidden_size, batch_size=256):
     num_rules = rules.NUMBER_OF_RULES
     rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/(2 * num_rules)] * num_rules + [1/2]
+    print(rules.SEGMENT_DISTRIBUTION_BY_RULES)
 
     if not model_path:
         raise Exception("Model not found...")
@@ -363,12 +366,3 @@ def test_model_light(model_path, hidden_size, batch_size=256):
 
     print("TEST ACCURACY:", test_acc, "ADJUSTED TEST ACCURACY:", adjusted_test_acc)
     return test_acc, adjusted_test_acc
-
-# rules.NUMBER_OF_RULES = 1
-# rules.RULES_INCLUDED = [2]
-# rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/2, 1/2]
-# test_model(
-#     model_path=["./models/model_2_3000_epochs_100000_pairs_1_rules.pth"],
-#     hidden_size=952,
-#     batch_size=6032,
-# )
