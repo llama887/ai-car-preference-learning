@@ -368,7 +368,7 @@ def train_ensemble(
 
     # --- Early Stopping Initialization ---
     patience = 10  # Hardcoded patience
-    validation_frequency = 50  # Check validation every 50 epochs
+    validation_frequency = 100  # Check validation every 50 epochs
     best_avg_val_loss = float("inf")
     epochs_no_improve = 0  # Counts validation checks without improvement
     best_ensemble_states = None  # Store state dicts for all models in the best ensemble

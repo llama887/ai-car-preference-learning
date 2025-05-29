@@ -5,9 +5,8 @@ import matplotlib.pyplot as plt
 
 matplotlib.use("Agg")
 
-# s1s2lr1r2
 
-with open("trajectories/database_1000_pairs_1_rules_1_length.pkl", "rb") as f:
+with open("subsampled_trajectories_r2/subsample_database_999744_pairs_2_rules_1_length.pkl", "rb") as f:
     data = pickle.load(f)
 
 xy_counts = {}
