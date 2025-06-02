@@ -83,7 +83,7 @@ run_generate_trueRF_parallel:
 	./scripts/run_trueRF.sh -p
 
 run_with_partial_rewards:
-	./scripts/run_partial_rewards.sh -r 3 -p 6
+	./scripts/run_partial_rewards.sh -r 3 -p 3
 	python simplex.py
 
 

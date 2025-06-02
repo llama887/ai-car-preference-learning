@@ -16,6 +16,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 import wandb
 import yaml
 from torch.utils.data import DataLoader, Dataset, random_split
+import random
 
 import rules
 
@@ -1237,6 +1238,17 @@ def train_ensemble_without_dataloaders(
     return training_output
 
 
+def training_shuffle(train_dataset):
+    indices = list(range(len(train_dataset)))
+    random.shuffle(indices)
+    train_dataset.dataset.first_trajectories = [train_dataset.dataset.first_trajectories[i] for i in indices]
+    train_dataset.dataset.second_trajectories = [train_dataset.dataset.second_trajectories[i] for i in indices]
+    train_dataset.dataset.labels = [train_dataset.dataset.labels[i] for i in indices]
+    train_dataset.dataset.score1 = [train_dataset.dataset.score1[i] for i in indices] 
+    train_dataset.dataset.score2 = [train_dataset.dataset.score2[i] for i in indices]
+    return train_dataset
+
+
 def train_model_without_dataloader(
     file_path,
     net,
@@ -1296,6 +1308,8 @@ def train_model_without_dataloader(
             # total_probability = 0.0 # This wasn't used, removed
 
             optimizer.zero_grad()  # Zero gradients at the start of the epoch
+
+            train_dataset = training_shuffle(train_dataset)
 
             for idx in range(math.ceil(train_size / batch_size)):
                 start_idx = idx * batch_size
@@ -2079,6 +2093,7 @@ def train_reward_function(
     parameters_path=None,
     use_ensemble=False,
     figure_folder_name=None,
+    model_id=None,
     return_stat=None,
     save_at_end=True,  # This flag is no longer needed, saving handled internally
 ):
@@ -2094,7 +2109,8 @@ def train_reward_function(
             figure_path += "/"
         os.makedirs(figure_path, exist_ok=True)
 
-    model_id = "".join([str(rule) for rule in rules.RULES_INCLUDED])
+    if model_id is None:
+        model_id = "".join([str(rule) for rule in rules.RULES_INCLUDED])
     print("MODEL ID:", model_id)
 
     # OPTUNA (No changes needed regarding patience)

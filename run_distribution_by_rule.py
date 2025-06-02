@@ -150,6 +150,7 @@ if __name__ == "__main__":
             parameters_path=param_file,
             use_ensemble=use_ensemble,
             figure_folder_name=None,
+            model_id=str(satis),
             return_stat=None,
         )
         print("Finished training model...")
@@ -160,7 +161,7 @@ if __name__ == "__main__":
             model_path, hidden_size, batch_size
         )
         data_y.append(adjusted_test_acc)
-    data_points = (data_x.copy(), data_y.copy())
+    data_points = (data_x.copy(), data_y.copy())4
 
     figure_folder = "distribution_experiment/"
     os.makedirs(figure_folder, exist_ok=True)

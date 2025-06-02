@@ -64,10 +64,10 @@ def process_distribution(args):
 
         try:
             accs = train_reward_function(
-                database_path, epochs, parameters, False, None, "acc"
+                database_path, epochs, parameters, False, None, str(i+1), "acc"
             )
-            model_id = "".join([str(rule) for rule in rules.RULES_INCLUDED])
-            test_acc, adjusted_test_acc = test_model_light(f"models_partial_{i}/model_{model_id}_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth", hidden_size, batch_size)
+            model_id = i + 1
+            test_acc, adjusted_test_acc = test_model_light([f"models_partial/model_{model_id}_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"], hidden_size, batch_size)
             accs["final_test_acc"] = test_acc
             accs["final_adjusted_test_acc"] = adjusted_test_acc
             return (a, b, c, accs)
@@ -164,8 +164,10 @@ if __name__ == "__main__":
         batch_size = data["batch_size"]
 
     a, b, c, i = args.a, args.b, args.c, args.i 
-    reward.models_path = f"models_partial_{i}/"
     
+
+    reward.models_path = f"models_partial/"
+    os.makedirs(reward.models_path, exist_ok=True)
     
     total_iterations = calculate_iterations(args.resolution)
     task =  (a, b, c, i, num_pairs, "./config/data_collection_config.txt", args.epochs[0], args.parameters, args.headless, total_iterations, hidden_size, batch_size)
