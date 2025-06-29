@@ -61,8 +61,9 @@ def parallel_subsample_state(image_path,
                              epsilon=1e-4,
                              min_error=10,
                              grid_factor=10):
+    MAX_ATTEMPTS = 5
 
-    def binary_search(lb, ub, target):
+    def binary_search(lb, ub, target, recursion_depth=0):
         # 1) Prepare candidates
         n_candidates = multiprocessing.cpu_count() * grid_factor
         resolutions = np.linspace(lb, ub, n_candidates)
@@ -75,20 +76,37 @@ def parallel_subsample_state(image_path,
         # 3) Count points
         counts = np.array([len(s) for s in subsamples])
 
-        # 4) Tolerance
+        # === DIAGNOSTIC LOGGING ===
+        print(f"\n[Binary-search level {recursion_depth}]")
+        print("Resolutions:", np.round(resolutions, 2))
+        print("Point counts:", counts)
+
+        # 4) Check if all counts are below or above target
+        if np.max(counts) < target:
+            new_lb = lb * 0.7
+            print(f"⚠️ All counts BELOW target (max={np.max(counts)} < {target})")
+            print(f"  Suggestion: Decrease lb to {new_lb:.1f}")
+            raise ValueError("Target out of range (below)", new_lb, ub)
+        elif np.min(counts) > target:
+            new_ub = ub * 1.3
+            print(f"⚠️ All counts ABOVE target (min={np.min(counts)} > {target})")
+            print(f"  Suggestion: Increase ub to {new_ub:.1f}")
+            raise ValueError("Target out of range (above)", lb, new_ub)
+
+        # 5) Tolerance
         err = max(target * epsilon, min_error)
 
-        # 5) Exact match
+        # 6) Exact match
         for s, count in zip(subsamples, counts):
             if abs(count - target) <= err:
                 return s
 
-        # 6) Bracket target
+        # 7) Bracket target
         #    We assume counts decreases monotonically with resolution.
         #    Find i such that counts[i-1] > target > counts[i]
         idx = np.where(counts < target)[0]
         if idx.size == 0 or idx[0] == 0:
-            raise ValueError("Target out of range at current bounds.")
+            raise ValueError("Target out of range at current bounds.", lb, ub)
 
         i = idx[0]
         # resolutions sorted ascending,
@@ -98,21 +116,36 @@ def parallel_subsample_state(image_path,
         lo_count = counts[i-1]
         hi_count = counts[i]
 
-        # 7) Endpoint tolerance check
+        # 8) Endpoint tolerance check
         if abs(lo_count - target) <= err:
             return subsamples[i-1]
         if abs(hi_count - target) <= err:
             return subsamples[i]
 
-        # 8) Recurse with correct order: lo_res < hi_res
-        return binary_search(lo_res, hi_res, target)
-    try:
-        return binary_search(5, 20, number_of_points) # tuners 
-    except ValueError as e:
-        print(
-            f"Error: {e}. Re-attempting with different resolution range." 
-        )
-        return binary_search(5.5, 6.5, number_of_points)
+        # 9) Recurse with correct order: lo_res < hi_res
+        return binary_search(lo_res, hi_res, target, recursion_depth+1)
+
+    # Automatic calibration loop
+    lb, ub = 5.0, 20.0
+    for attempt in range(MAX_ATTEMPTS):
+        print(f"\n{'='*40}\nRange calibration attempt {attempt+1}:")
+        print(f"Searching in [{lb:.1f}, {ub:.1f}] for ~{number_of_points} points")
+        try:
+            return binary_search(lb, ub, number_of_points, 0)
+        except ValueError as e:
+            if "out of range" in str(e):
+                # Update bounds based on suggestion in exception
+                if "below" in str(e):
+                    lb, ub = e.args[1:]  # (new_lb, ub)
+                elif "above" in str(e):
+                    lb, ub = e.args[1:]  # (lb, new_ub)
+                else:
+                    lb, ub = e.args[1:3]  # Generic out-of-range
+                print(f"Adjusting search range to [{lb:.1f}, {ub:.1f}]")
+            else:
+                print(f"Error during binary search: {e}")
+                raise
+    raise RuntimeError(f"Failed to find solution after {MAX_ATTEMPTS} attempts")
 
 
 def subsample_state(image_path, grid_resolution, tolerance=1.0):
