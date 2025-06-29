@@ -107,7 +107,7 @@ def parallel_subsample_state(image_path,
         # 8) Recurse with correct order: lo_res < hi_res
         return binary_search(lo_res, hi_res, target)
     try:
-        return binary_search(6.5, 7.5, number_of_points) # tuners 
+        return binary_search(5, 20, number_of_points) # tuners 
     except ValueError as e:
         print(
             f"Error: {e}. Re-attempting with different resolution range." 
