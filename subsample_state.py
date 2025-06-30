@@ -5,6 +5,8 @@ import os
 import pickle
 import time
 
+from get_orientation import get_angle
+
 import numpy as np
 import pygame
 from imageio.v2 import imread
@@ -29,31 +31,6 @@ os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 number_of_rules = 3
 
-def fit_circle_from_image(image_path: str, level: float=0.5):
-    """Calculate circle center (cx, cy) from map contour"""
-    from skimage import measure
-
-    img = imread(image_path)
-    if img.shape[-1] == 4: 
-        img = rgba2rgb(img)
-    gray = rgb2gray(img)
-
-    # Get largest contour (assumed outer circle)
-    contours = measure.find_contours(gray, level)
-    if not contours:
-        raise RuntimeError("No contours detected!")
-    outer = sorted(contours, key=len)[-1]  # Largest contour
-
-    # Circle fitting via least-squares
-    ys, xs = outer[:,0], outer[:,1]
-    A = np.column_stack([2*xs, 2*ys, np.ones_like(xs)])
-    b = xs**2 + ys**2
-    a, b, _ = np.linalg.lstsq(A, b, rcond=None)[0]
-    return a, b  # cx, cy
-
-def compute_tangent_angle(x: float, y: float, cx: float, cy: float) -> float:
-    """Compute track-aligned angle (0° points upward)"""
-    return np.degrees(np.arctan2(y - cy, x - cx)) + 90.0
 
 
 def parallel_subsample_state(image_path,
@@ -203,9 +180,7 @@ def process_trajectory_segment(params):
         CAR_SIZE_Y,
         WIDTH,
         HEIGHT,
-        game_map_path,
-        cx,
-        cy
+        game_map_path
     ) = params
 
     trajectory_segments = []
@@ -222,7 +197,7 @@ def process_trajectory_segment(params):
         car_x = car.position[0]
         car_y = car.position[1]
 
-        angle = angle_deviation + compute_tangent_angle(car_x, car_y, cx, cy)
+        angle = angle_deviation + get_angle(car_x, car_y)
         car.speed = speed
         car.angle = angle
         car.radars.clear()
@@ -295,9 +270,6 @@ def get_grid_points(samples=2000000):
         raise ValueError(f"{gridpoints} is not enough points to subsample.")
 
     print(f"Searching for {gridpoints} grid points")
-    # === NEW: Get circle center from map.png ===
-    CIRCLE_CX, CIRCLE_CY = fit_circle_from_image("maps/map.png")
-    print(f"Circle center: ({CIRCLE_CX:.2f}, {CIRCLE_CY:.2f})")
     points = parallel_subsample_state("maps/circle.jpg", gridpoints)
     print(f"Found {len(points)} points.")
     _ = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
@@ -312,9 +284,7 @@ def get_grid_points(samples=2000000):
             CAR_SIZE_Y,
             WIDTH,
             HEIGHT,
-            "maps/map.png",
-            CIRCLE_CX,
-            CIRCLE_CY
+            "maps/map.png"
         )
         for point in points
         for angle_deviation in range(
