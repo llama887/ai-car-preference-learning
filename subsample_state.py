@@ -6,8 +6,6 @@ import pickle
 import time
 import torch
 
-from orientation.get_orientation import get_angle
-
 import numpy as np
 import pygame
 from imageio.v2 import imread
@@ -32,14 +30,18 @@ import cv2
 from shapely.geometry import Point
 from skimage.measure import find_contours, approximate_polygon
 
-# Add these constants at the top
-CIRCLE_CENTER_FILE = "circle_center.yaml"
-
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 number_of_rules = 3
 
-# Add this function at the top
+# Global variable for circle center in each worker
+PROCESS_CIRCLE_CENTER = None
+
+def init_worker(center):
+    """Initializer for each worker process - sets global center"""
+    global PROCESS_CIRCLE_CENTER
+    PROCESS_CIRCLE_CENTER = center
+
 def compute_circle_center(image_path):
     """Detects circle center from track image using contour analysis"""
     # Load image in grayscale
@@ -214,6 +216,11 @@ def process_trajectory_segment(params):
         game_map_path
     ) = params
 
+    def compute_point_angle(x, y):
+        """Fast angle calculation using global circle center"""
+        cx, cy = PROCESS_CIRCLE_CENTER
+        return np.degrees(np.arctan2(y - cy, x - cx)) + 90.0
+
     trajectory_segments = []
 
     # Initialize car object
@@ -228,7 +235,7 @@ def process_trajectory_segment(params):
         car_x = car.position[0]
         car_y = car.position[1]
 
-        angle = angle_deviation + get_angle(car_x, car_y)
+        angle = angle_deviation + compute_point_angle(car_x, car_y)
         car.speed = speed
         car.angle = angle
         car.radars.clear()
@@ -288,16 +295,9 @@ def split_by_rules(trajectory_segments):
 
 
 def get_grid_points(samples=2000000):
-    # Compute circle center once per process
-    if not os.path.exists(CIRCLE_CENTER_FILE):
-        cx, cy = compute_circle_center("maps/map.png")
-        with open(CIRCLE_CENTER_FILE, "w") as f:
-            f.write(f"cx: {cx}\ncy: {cy}")
-    else:
-        with open(CIRCLE_CENTER_FILE) as f:
-            cx = float(f.readline().split(": ")[1])
-            cy = float(f.readline().split(": ")[1])
-    
+    # Compute circle center ONCE at start
+    global_circle_center = compute_circle_center("maps/map.png")
+    cx, cy = global_circle_center
     print(f"Using circle center: ({cx:.2f}, {cy:.2f})")
 
     # Load subsampled grid points
@@ -341,7 +341,11 @@ def get_grid_points(samples=2000000):
     total_params = len(points) * len(angle_range) * len(speed_range)
 
     print(f"Starting segment subsampling for {total_params} params...")
-    with multiprocessing.Pool() as pool:
+    with multiprocessing.Pool(
+        initializer=init_worker,
+        initargs=(global_circle_center,),
+        processes=multiprocessing.cpu_count()
+    ) as pool:
         # DIRECTLY PROCESS OUTPUT WITHOUT HUGE INTERMEDIATE LISTS
         print("Processing results (no intermediate sets)...")
         list_of_segments = []
