@@ -273,10 +273,15 @@ def get_grid_points(samples=2000000):
     print(f"Searching for {gridpoints} grid points")
     points = parallel_subsample_state("maps/circle.jpg", gridpoints)
     print(f"Found {len(points)} points.")
-    _ = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
 
-    # Prepare parameters for multiprocessing
-    params = [
+    # PRECOMPUTE ANGLE/RANGE VALUES
+    angle_step = 10
+    angle_range = range(-10, 11, angle_step)
+    speed_range = range(10, 50, 10)
+
+    # OPTIMIZE PARAMETER GENERATION WITH GENERATORS
+    print("Preparing parameters (generator version)...")
+    param_gen = (
         (
             point,
             angle_deviation,
@@ -288,31 +293,33 @@ def get_grid_points(samples=2000000):
             "maps/map.png"
         )
         for point in points
-        for angle_deviation in range(
-            -MAX_ANGLE_DEVIATION, MAX_ANGLE_DEVIATION + 1, ANGLE_STEP
-        )
-        for speed in range(10, 50, SPEED_STEP)
-    ]
+        for angle_deviation in angle_range
+        for speed in speed_range
+    )
+    total_params = len(points) * len(angle_range) * len(speed_range)
 
-    print("Starting segment subsampling...")
-    # Use multiprocessing to process trajectory segments
+    print(f"Starting segment subsampling for {total_params} params...")
     with multiprocessing.Pool() as pool:
-        tmp_results = list(
-            tqdm(
-                pool.imap_unordered(process_trajectory_segment, params),
-                total=len(params),
-            )
-        )
-    results = []
-    point_set = set()
-    position_set = set()
-    for result in tmp_results:
-        r, point, position = result
-        results.append(r)
-        point_set.add(point)
-        position_set.add(position)
+        # DIRECTLY PROCESS OUTPUT WITHOUT HUGE INTERMEDIATE LISTS
+        print("Processing results (no intermediate sets)...")
+        list_of_segments = []
+        processed = 0
 
-    return results
+        # PROCESS RESULTS IN CHUNKS
+        for segment_data in tqdm(
+            pool.imap_unordered(process_trajectory_segment, param_gen, chunksize=100),
+            total=total_params
+        ):
+            segments, _, _ = segment_data
+            list_of_segments.append(segments)
+            processed += 1
+
+            # OCCASIONAL PROGRESS UPDATE
+            if processed % 50000 == 0:
+                segment_count = sum(len(s) for s in list_of_segments)
+                print(f"Processed {processed}/{total_params} | Segments: {segment_count}")
+
+    return list_of_segments
 
 
 if __name__ == "__main__":
