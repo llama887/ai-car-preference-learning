@@ -4,6 +4,7 @@ import multiprocessing
 import os
 import pickle
 import time
+import torch
 
 from orientation.get_orientation import get_angle
 
@@ -350,10 +351,23 @@ if __name__ == "__main__":
         list_of_segments.extend(segment)
     print(f"Found {len(list_of_segments)} segments.")
 
-    
+    # Convert segments to tensor-compatible format
+    tensor_segments = []
+    for segment in list_of_segments:
+        flat_segment = []
+        for sap in segment:
+            # Convert StateActionPair to flat list
+            flat_sap = []
+            flat_sap.extend(sap.radars)
+            flat_sap.append(sap.action)
+            flat_sap.extend(sap.position)
+            flat_sap.append(float(sap.alive))
+            flat_segment.append(flat_sap)
+        tensor_segments.append(flat_segment)
+
     print(f"Saving to subsampled_gargantuar_1_length.pkl...")
     with open(f"subsampled_gargantuar_1_length.pkl", "wb") as f:
-        pickle.dump(segment_list_to_dict(list_of_segments), f)
+        pickle.dump(tensor_segments, f)
     end = time.time()
     print(f"Finished in {end - start} seconds.")
 

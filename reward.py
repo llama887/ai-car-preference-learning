@@ -161,14 +161,9 @@ class TrajectoryDataset(Dataset):
                 self.trajectory_pairs = pickle.load(f)
 
             for trajectory_pair in self.trajectory_pairs:
-                trajectory1_flat = [
-                    [item for sublist in trajectory_pair[0] for item in sublist]
-                ]
-                trajectory2_flat = [
-                    [item for sublist in trajectory_pair[1] for item in sublist]
-                ]
-                self.first_trajectories.append(trajectory1_flat)
-                self.second_trajectories.append(trajectory2_flat)
+                # Save the raw trajectory pairs (already flattened)
+                self.first_trajectories.append(trajectory_pair[0])
+                self.second_trajectories.append(trajectory_pair[1])
                 self.labels.append(trajectory_pair[2])
                 self.score1.append(trajectory_pair[3])
                 self.score2.append(trajectory_pair[4])
