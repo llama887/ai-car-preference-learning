@@ -28,9 +28,39 @@ from agent import (
 )
 from rules import check_rules_one
 
+import cv2
+from shapely.geometry import Point
+from skimage.measure import find_contours, approximate_polygon
+
+# Add these constants at the top
+CIRCLE_CENTER_FILE = "circle_center.yaml"
+
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 number_of_rules = 3
+
+# Add this function at the top
+def compute_circle_center(image_path):
+    """Detects circle center from track image using contour analysis"""
+    # Load image in grayscale
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    
+    # Apply thresholding to isolate track shape
+    _, thresh = cv2.threshold(img, 200, 255, cv2.THRESH_BINARY_INV)
+    
+    # Find contours
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Process only the largest contour
+    if contours:
+        largest_contour = max(contours, key=cv2.contourArea)
+        
+        # Fit enclosing circle
+        (x, y), radius = cv2.minEnclosingCircle(largest_contour)
+        return float(x), float(y)  # Explicit type conversion
+    
+    # Fallback to hardcoded center if detection fails
+    return 1418.5, 1080.0
 
 
 
@@ -258,6 +288,18 @@ def split_by_rules(trajectory_segments):
 
 
 def get_grid_points(samples=2000000):
+    # Compute circle center once per process
+    if not os.path.exists(CIRCLE_CENTER_FILE):
+        cx, cy = compute_circle_center("maps/map.png")
+        with open(CIRCLE_CENTER_FILE, "w") as f:
+            f.write(f"cx: {cx}\ncy: {cy}")
+    else:
+        with open(CIRCLE_CENTER_FILE) as f:
+            cx = float(f.readline().split(": ")[1])
+            cy = float(f.readline().split(": ")[1])
+    
+    print(f"Using circle center: ({cx:.2f}, {cy:.2f})")
+
     # Load subsampled grid points
     ANGLE_STEP = 10
     MAX_ANGLE_DEVIATION = 10
