@@ -5,7 +5,7 @@ import os
 import pickle
 import time
 
-from get_orientation import get_angle
+from orientation.get_orientation import get_angle
 
 import numpy as np
 import pygame
