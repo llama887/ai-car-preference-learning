@@ -420,7 +420,7 @@ def train_ensemble(
             # --- Training Phase ---
             for i in range(n_models):
                 train_size_model = len(
-                    training_dataloaders[i].dataset
+                    train_dataloaders[i].dataset
                 )  # Use actual size for this model's subset
                 val_size_model = len(
                     validation_dataloader.dataset
@@ -440,7 +440,7 @@ def train_ensemble(
                     batch_true_pref,
                     batch_reward1,
                     batch_reward2,
-                ) in training_dataloaders[i]:
+                ) in train_dataloaders[i]:
                     if not preload:
                         (
                             batch_traj1,
@@ -809,6 +809,25 @@ def train_ensemble_without_dataloaders(
     train_size = int(train_ratio * dataset_size)
     val_size = dataset_size - train_size
     train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+
+    # Prepare dataloaders for training and validation
+    train_dataloaders = [
+        DataLoader(
+            train_dataset,
+            batch_size=train_size if train_size < batch_size else batch_size,
+            shuffle=True,
+            pin_memory=not preload,
+            num_workers=0,
+        )
+        for _ in range(n_models)
+    ]
+    validation_dataloader = DataLoader(
+        val_dataset,
+        batch_size=val_size if val_size < batch_size else batch_size,
+        shuffle=False,
+        pin_memory=not preload,
+        num_workers=0,
+    )
 
     # --- Early Stopping Initialization ---
     patience = 10  # Hardcoded patience
