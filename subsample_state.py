@@ -44,8 +44,8 @@ def init_worker(center):
 
 def compute_circle_center(image_path):
     """Detects circle center from track image using contour analysis"""
-    # Load image in grayscale
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    # Always use the actual track map for center detection
+    img = cv2.imread("maps/map.png", cv2.IMREAD_GRAYSCALE)
     
     # Apply thresholding to isolate track shape
     _, thresh = cv2.threshold(img, 200, 255, cv2.THRESH_BINARY_INV)
@@ -223,8 +223,8 @@ def process_trajectory_segment(params):
 
     trajectory_segments = []
 
-    # Initialize car object
-    car = Car()
+    # Initialize car object without sprite loading
+    car = Car(position=[0,0], load_sprite=False)
 
     # Load game map
     game_map = pygame.image.load(game_map_path).convert()
@@ -239,7 +239,7 @@ def process_trajectory_segment(params):
         car.speed = speed
         car.angle = angle
         car.radars.clear()
-        car.rotated_sprite = car.rotate_center(car.sprite, car.angle)
+        # car.rotated_sprite = car.rotate_center(car.sprite, car.angle)  # Sprite not loaded, skip
 
         # Precompute cos/sin for angles
         cos_angle = np.cos(np.radians(360 - car.angle))
@@ -313,7 +313,7 @@ def get_grid_points(samples=2000000):
         raise ValueError(f"{gridpoints} is not enough points to subsample.")
 
     print(f"Searching for {gridpoints} grid points")
-    points = parallel_subsample_state("maps/circle.jpg", gridpoints)
+    points = parallel_subsample_state("maps/map.png", gridpoints)
     print(f"Found {len(points)} points.")
 
     # PRECOMPUTE ANGLE/RANGE VALUES
