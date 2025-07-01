@@ -418,6 +418,9 @@ def train_ensemble(
             adjusted_acc_across_models = 0
 
             # --- Training Phase ---
+            train_dataloaders = distribute_data(
+                train_subset, batch_size, n_models, preload
+            )
             for i in range(n_models):
                 train_size_model = len(
                     train_dataloaders[i].dataset
@@ -880,6 +883,16 @@ def train_ensemble_without_dataloaders(
             adjusted_acc_across_models = 0
 
             # --- Training Phase ---
+            training_dataloaders = [
+                DataLoader(
+                    train_dataset,
+                    batch_size=train_size if train_size < batch_size else batch_size,
+                    shuffle=True,
+                    pin_memory=not preload,
+                    num_workers=0,
+                )
+                for _ in range(n_models)
+            ]
             for i in range(n_models):
                 train_size_model = len(
                     training_dataloaders[i].dataset
