@@ -1,10 +1,8 @@
-import numpy as np
 import argparse
 import multiprocessing
 import os
 import pickle
 import time
-import torch
 
 import numpy as np
 import pygame
@@ -26,12 +24,7 @@ from agent import (
 )
 from rules import check_rules_one
 
-import cv2
-from shapely.geometry import Point
-from skimage.measure import find_contours, approximate_polygon
-
 from orientation.get_orientation import get_angle
-from orientation.get_orientation import _CIRCLE_CENTER as CIRCLE_CENTER
 
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 
@@ -44,91 +37,54 @@ def parallel_subsample_state(image_path,
                              epsilon=1e-4,
                              min_error=10,
                              grid_factor=10):
-    MAX_ATTEMPTS = 5
 
-    def binary_search(lb, ub, target, recursion_depth=0):
-        # 1) Prepare candidates
+    def binary_search(lb, ub, target):
+        # Prepare candidate resolutions
         n_candidates = multiprocessing.cpu_count() * grid_factor
         resolutions = np.linspace(lb, ub, n_candidates)
-
-        # 2) Parallel subsample
         params = [(image_path, float(r)) for r in resolutions]
         with multiprocessing.Pool() as pool:
             subsamples = pool.starmap(subsample_state, params)
-
-        # 3) Count points
         counts = np.array([len(s) for s in subsamples])
 
-        # === DIAGNOSTIC LOGGING ===
-        print(f"\n[Binary-search level {recursion_depth}]")
-        print("Resolutions:", np.round(resolutions, 2))
-        print("Point counts:", counts)
-
-        # 4) Check if all counts are below or above target
+        # Check if all counts are below or above target
         if np.max(counts) < target:
-            new_lb = lb * 0.7
-            print(f"⚠️ All counts BELOW target (max={np.max(counts)} < {target})")
-            print(f"  Suggestion: Decrease lb to {new_lb:.1f}")
-            raise ValueError("Target out of range (below)", new_lb, ub)
+            raise ValueError("Target out of range (below)", lb * 0.7, ub)
         elif np.min(counts) > target:
-            new_ub = ub * 1.3
-            print(f"⚠️ All counts ABOVE target (min={np.min(counts)} > {target})")
-            print(f"  Suggestion: Increase ub to {new_ub:.1f}")
-            raise ValueError("Target out of range (above)", lb, new_ub)
+            raise ValueError("Target out of range (above)", lb, ub * 1.3)
 
-        # 5) Tolerance
+        # Tolerance
         err = max(target * epsilon, min_error)
 
-        # 6) Exact match
+        # Exact match
         for s, count in zip(subsamples, counts):
             if abs(count - target) <= err:
                 return s
 
-        # 7) Bracket target
-        #    We assume counts decreases monotonically with resolution.
-        #    Find i such that counts[i-1] > target > counts[i]
+        # Bracket target
         idx = np.where(counts < target)[0]
         if idx.size == 0 or idx[0] == 0:
             raise ValueError("Target out of range at current bounds.", lb, ub)
-
         i = idx[0]
-        # resolutions sorted ascending,
-        # counts[i-1] > target > counts[i]
         lo_res = resolutions[i-1]
         hi_res = resolutions[i]
         lo_count = counts[i-1]
         hi_count = counts[i]
 
-        # 8) Endpoint tolerance check
+        # Endpoint tolerance check
         if abs(lo_count - target) <= err:
             return subsamples[i-1]
         if abs(hi_count - target) <= err:
             return subsamples[i]
 
-        # 9) Recurse with correct order: lo_res < hi_res
-        return binary_search(lo_res, hi_res, target, recursion_depth+1)
+        # Recurse
+        return binary_search(lo_res, hi_res, target)
 
-    # Automatic calibration loop
-    lb, ub = 5.0, 20.0
-    for attempt in range(MAX_ATTEMPTS):
-        print(f"\n{'='*40}\nRange calibration attempt {attempt+1}:")
-        print(f"Searching in [{lb:.1f}, {ub:.1f}] for ~{number_of_points} points")
-        try:
-            return binary_search(lb, ub, number_of_points, 0)
-        except ValueError as e:
-            if "out of range" in str(e):
-                # Update bounds based on suggestion in exception
-                if "below" in str(e):
-                    lb, ub = e.args[1:]  # (new_lb, ub)
-                elif "above" in str(e):
-                    lb, ub = e.args[1:]  # (lb, new_ub)
-                else:
-                    lb, ub = e.args[1:3]  # Generic out-of-range
-                print(f"Adjusting search range to [{lb:.1f}, {ub:.1f}]")
-            else:
-                print(f"Error during binary search: {e}")
-                raise
-    raise RuntimeError(f"Failed to find solution after {MAX_ATTEMPTS} attempts")
+    try:
+        return binary_search(6.5, 7.5, number_of_points)
+    except ValueError as e:
+        print(f"Error: {e}. Re-attempting with different resolution range.")
+        return binary_search(5.5, 6.5, number_of_points)
 
 
 def subsample_state(image_path, grid_resolution, tolerance=1.0):
@@ -175,8 +131,6 @@ def subsample_state(image_path, grid_resolution, tolerance=1.0):
 
 
 def process_trajectory_segment(params):
-    point_thing = None
-    position_thing = None
     """Process a single trajectory segment for a given point, angle, and speed."""
     (
         point,
@@ -191,13 +145,10 @@ def process_trajectory_segment(params):
 
     trajectory_segments = []
 
-    # Initialize car object without sprite loading
-    car = Car(position=[0,0], load_sprite=False)
+    car = Car()
 
-    # Load game map
     game_map = pygame.image.load(game_map_path).convert()
 
-    # Generate trajectory segments
     for first_action in range(0, 4):
         car.position = [point[1] - CAR_SIZE_X / 2, point[0] - CAR_SIZE_Y / 2]
         car_x = car.position[0]
@@ -207,9 +158,8 @@ def process_trajectory_segment(params):
         car.speed = speed
         car.angle = angle
         car.radars.clear()
-        # car.rotated_sprite = car.rotate_center(car.sprite, car.angle)  # Sprite not loaded, skip
+        car.rotated_sprite = car.rotate_center(car.sprite, car.angle)
 
-        # Precompute cos/sin for angles
         cos_angle = np.cos(np.radians(360 - car.angle))
         sin_angle = np.sin(np.radians(360 - car.angle))
 
@@ -223,7 +173,6 @@ def process_trajectory_segment(params):
         point_thing = tuple(point.tolist())
         position_thing = tuple(car.position)
 
-        # Apply action
         assert first_action in [0, 1, 2, 3], f"Invalid action: {first_action}"
         if first_action == 0:
             car.angle += 10  # Left
@@ -263,16 +212,13 @@ def split_by_rules(trajectory_segments):
 
 
 def get_grid_points(samples=2000000):
-    print(f"Using circle center: ({CIRCLE_CENTER[0]:.2f}, {CIRCLE_CENTER[1]:.2f})")
-
-    # Load subsampled grid points
     ANGLE_STEP = 10
     MAX_ANGLE_DEVIATION = 10
-    ANGLES = len(range(-MAX_ANGLE_DEVIATION, MAX_ANGLE_DEVIATION + 1, ANGLE_STEP))
     SPEED_STEP = 10
-    SPEEDS = 40 // SPEED_STEP
     FIRST_ACTIONS = 4
     SECOND_ACTIONS = 4
+    ANGLES = len(range(-MAX_ANGLE_DEVIATION, MAX_ANGLE_DEVIATION + 1, ANGLE_STEP))
+    SPEEDS = 40 // SPEED_STEP
     gridpoints = samples // ANGLES // SPEEDS // FIRST_ACTIONS // SECOND_ACTIONS
     if gridpoints < 1000:
         raise ValueError(f"{gridpoints} is not enough points to subsample.")
@@ -281,14 +227,9 @@ def get_grid_points(samples=2000000):
     points = parallel_subsample_state("maps/map.png", gridpoints)
     print(f"Found {len(points)} points.")
 
-    # PRECOMPUTE ANGLE/RANGE VALUES
-    angle_step = 10
-    angle_range = range(-10, 11, angle_step)
-    speed_range = range(10, 50, 10)
+    _ = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
 
-    # OPTIMIZE PARAMETER GENERATION WITH GENERATORS
-    print("Preparing parameters (generator version)...")
-    param_gen = (
+    params = [
         (
             point,
             angle_deviation,
@@ -297,34 +238,25 @@ def get_grid_points(samples=2000000):
             CAR_SIZE_Y,
             WIDTH,
             HEIGHT,
-            "maps/map.png"
+            "maps/map.png",
         )
         for point in points
-        for angle_deviation in angle_range
-        for speed in speed_range
-    )
-    total_params = len(points) * len(angle_range) * len(speed_range)
+        for angle_deviation in range(-MAX_ANGLE_DEVIATION, MAX_ANGLE_DEVIATION + 1, ANGLE_STEP)
+        for speed in range(10, 50, SPEED_STEP)
+    ]
 
-    print(f"Starting segment subsampling for {total_params} params...")
+    print("Starting segment subsampling...")
     with multiprocessing.Pool() as pool:
-        # DIRECTLY PROCESS OUTPUT WITHOUT HUGE INTERMEDIATE LISTS
-        print("Processing results (no intermediate sets)...")
-        list_of_segments = []
-        processed = 0
+        tmp_results = list(
+            tqdm(
+                pool.imap_unordered(process_trajectory_segment, params),
+                total=len(params),
+            )
+        )
 
-        # PROCESS RESULTS IN CHUNKS
-        for segment_data in tqdm(
-            pool.imap_unordered(process_trajectory_segment, param_gen, chunksize=100),
-            total=total_params
-        ):
-            segments, _, _ = segment_data
-            list_of_segments.append(segments)
-            processed += 1
-
-            # OCCASIONAL PROGRESS UPDATE
-            if processed % 50000 == 0:
-                segment_count = sum(len(s) for s in list_of_segments)
-                print(f"Processed {processed}/{total_params} | Segments: {segment_count}")
+    list_of_segments = []
+    for segments, _, _ in tmp_results:
+        list_of_segments.append(segments)
 
     return list_of_segments
 
