@@ -1,1 +1,35 @@
-# (No longer needed; all logic is now in subsample_state.py and no file I/O is used.)
+import numpy as np
+import cv2
+
+# Precompute circle center on first import
+_CIRCLE_CENTER = None
+
+# Compute center only once
+def _compute_center():
+    """Internal function to compute circle center from map"""
+    try:
+        img = cv2.imread("maps/map.png", cv2.IMREAD_GRAYSCALE)
+        _, thresh = cv2.threshold(img, 200, 255, cv2.THRESH_BINARY_INV)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        if contours:
+            largest_contour = max(contours, key=cv2.contourArea)
+            (x, y), _ = cv2.minEnclosingCircle(largest_contour)
+            print(f"Computed circle center: ({x:.2f}, {y:.2f})")
+            return (float(x), float(y))
+    except Exception as e:
+        print(f"Circle center computation failed: {e}")
+    
+    # Fallback if computation fails
+    FALLBACK = (1418.5, 1080.0)
+    print(f"Using fallback circle center: {FALLBACK}")
+    return FALLBACK
+
+# Initialize center at import (only once)
+if _CIRCLE_CENTER is None:
+    _CIRCLE_CENTER = _compute_center()
+
+def get_angle(x, y):
+    """Compute tangent-aligned angle (0° = upward) using track geometry"""
+    cx, cy = _CIRCLE_CENTER
+    return np.degrees(np.arctan2(y - cy, x - cx)) + 90.0

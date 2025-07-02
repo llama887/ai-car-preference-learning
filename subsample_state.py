@@ -30,39 +30,12 @@ import cv2
 from shapely.geometry import Point
 from skimage.measure import find_contours, approximate_polygon
 
+from orientation.get_orientation import get_angle
+from orientation.get_orientation import _CIRCLE_CENTER as CIRCLE_CENTER
+
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 number_of_rules = 3
-
-# Global variable for circle center in each worker
-PROCESS_CIRCLE_CENTER = None
-
-def init_worker(center):
-    """Initializer for each worker process - sets global center"""
-    global PROCESS_CIRCLE_CENTER
-    PROCESS_CIRCLE_CENTER = center
-
-def compute_circle_center(image_path):
-    """Detects circle center from track image using contour analysis"""
-    # Always use the actual track map for center detection
-    img = cv2.imread("maps/map.png", cv2.IMREAD_GRAYSCALE)
-    
-    # Apply thresholding to isolate track shape
-    _, thresh = cv2.threshold(img, 200, 255, cv2.THRESH_BINARY_INV)
-    
-    # Find contours
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    # Process only the largest contour
-    if contours:
-        largest_contour = max(contours, key=cv2.contourArea)
-        
-        # Fit enclosing circle
-        (x, y), radius = cv2.minEnclosingCircle(largest_contour)
-        return float(x), float(y)  # Explicit type conversion
-    
-    # Fallback to hardcoded center if detection fails
-    return 1418.5, 1080.0
 
 
 
@@ -216,11 +189,6 @@ def process_trajectory_segment(params):
         game_map_path
     ) = params
 
-    def compute_point_angle(x, y):
-        """Fast angle calculation using global circle center"""
-        cx, cy = PROCESS_CIRCLE_CENTER
-        return np.degrees(np.arctan2(y - cy, x - cx)) + 90.0
-
     trajectory_segments = []
 
     # Initialize car object without sprite loading
@@ -235,7 +203,7 @@ def process_trajectory_segment(params):
         car_x = car.position[0]
         car_y = car.position[1]
 
-        angle = angle_deviation + compute_point_angle(car_x, car_y)
+        angle = angle_deviation + get_angle(car_x, car_y)
         car.speed = speed
         car.angle = angle
         car.radars.clear()
@@ -295,10 +263,7 @@ def split_by_rules(trajectory_segments):
 
 
 def get_grid_points(samples=2000000):
-    # Compute circle center ONCE at start
-    global_circle_center = compute_circle_center("maps/map.png")
-    cx, cy = global_circle_center
-    print(f"Using circle center: ({cx:.2f}, {cy:.2f})")
+    print(f"Using circle center: ({CIRCLE_CENTER[0]:.2f}, {CIRCLE_CENTER[1]:.2f})")
 
     # Load subsampled grid points
     ANGLE_STEP = 10
@@ -341,11 +306,7 @@ def get_grid_points(samples=2000000):
     total_params = len(points) * len(angle_range) * len(speed_range)
 
     print(f"Starting segment subsampling for {total_params} params...")
-    with multiprocessing.Pool(
-        initializer=init_worker,
-        initargs=(global_circle_center,),
-        processes=multiprocessing.cpu_count()
-    ) as pool:
+    with multiprocessing.Pool() as pool:
         # DIRECTLY PROCESS OUTPUT WITHOUT HUGE INTERMEDIATE LISTS
         print("Processing results (no intermediate sets)...")
         list_of_segments = []
