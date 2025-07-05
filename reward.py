@@ -460,7 +460,9 @@ def train_ensemble(
                                 batch_reward2,
                             ]
                         )
-
+                    
+                    batch_traj1 = batch_traj1.view(batch_traj1.size(0), -1)   
+                    batch_traj2 = batch_traj2.view(batch_traj2.size(0), -1)
                     combined_batch = torch.cat([batch_traj1, batch_traj2], dim=0)
                     combined_rewards = model(combined_batch)
                     rewards1, rewards2 = torch.split(
@@ -547,6 +549,7 @@ def train_ensemble(
                                         validation_reward2,
                                     ]
                                 )
+                                
                             combined_val_batch = torch.cat(
                                 [validation_traj1, validation_traj2], dim=0
                             )
@@ -1277,396 +1280,235 @@ def training_shuffle(train_dataset):
 
 
 def train_model_without_dataloader(
-    file_path,
-    net,
-    epochs=1000,
-    optimizer=None,
-    batch_size=256,
-    base_model_path="best_no_loader.pth",
-    return_stat=None,
-    preload=True,
-):
-    print(f"Training without DataLoaders | file path: {file_path} | epochs: {epochs}")
+    file_path: str,
+    net: nn.Module,
+    epochs: int = 1000,
+    optimizer: torch.optim.Optimizer = None,
+    batch_size: int = 256,
+    base_model_path: str = "best_no_loader.pth",
+    return_stat: str = None,
+    preload: bool = True,
+) -> dict | float:
+    """Train a reward model without using DataLoader. Manual batching from lists."""
+    print(f"Training without DataLoader | file: {file_path} | epochs: {epochs}")
     wandb.init(project="Micro Preference No Dataloader")
     wandb.watch(net, log="all")
 
-    # Create the dataset
+    # Helper: ensure tensor on correct device
+    def _ensure_tensor(x):
+        if torch.is_tensor(x):
+            return x
+        if isinstance(x, (list, tuple)) and len(x) and torch.is_tensor(x[0]):
+            return torch.stack(list(x), dim=0)
+        return torch.as_tensor(x, dtype=torch.float32, device=device)
+
+    # Dataset
     full_dataset = TrajectoryDataset(file_path, None, preload)
-
-    global n_pairs
     n_pairs = len(full_dataset)
-
-    # Define the split ratio
     train_ratio = 0.8
-    dataset_size = len(full_dataset)
-    train_size = int(train_ratio * dataset_size)
-    val_size = dataset_size - train_size
-
-    # Split the dataset into training and validation sets
+    train_size = int(train_ratio * n_pairs)
+    val_size = n_pairs - train_size
     train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
 
-    # --- Early Stopping Initialization ---
+    # Early stopping and tracking
     patience = 10
     validation_frequency = 50
     best_loss = np.inf
     epochs_no_improve = 0
     best_model_state = None
-    # --- End Early Stopping Initialization ---
 
-    training_losses = []
-    validation_losses = []
-    training_accuracies = []
-    validation_accuracies = []
-    adjusted_training_accuracies = []
-    adjusted_validation_accuracies = []
+    training_losses, validation_losses = [], []
+    training_accuracies, validation_accuracies = [], []
+    adjusted_training_accuracies, adjusted_validation_accuracies = [], []
 
-    scheduler = lr_scheduler.LinearLR(
-        optimizer, start_factor=1.0, end_factor=0.01, total_iters=epochs
-    )
+    scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.01, total_iters=epochs)
 
     epoch = 0
     try:
         while epoch < epochs:
-            # --- Training Phase ---
+            # Training Phase
             net.train()
-            total_loss = 0.0
-            total_accuracy = 0.0
-            total_adjusted_accuracy = 0.0
-            # total_probability = 0.0 # This wasn't used, removed
+            optimizer.zero_grad()
+            total_loss, total_acc, total_adj_acc = 0.0, 0.0, 0.0
 
-            optimizer.zero_grad()  # Zero gradients at the start of the epoch
+            # Shuffle indices
+            indices = list(range(train_size))
+            random.shuffle(indices)
+            # Manual batching
+            for idx in range(0, train_size, batch_size):
+                batch_idx = indices[idx:idx + batch_size]
+                bt1 = [train_dataset.dataset.first_trajectories[i] for i in batch_idx]
+                bt2 = [train_dataset.dataset.second_trajectories[i] for i in batch_idx]
+                btpref = [train_dataset.dataset.labels[i] for i in batch_idx]
+                bsc1 = [train_dataset.dataset.score1[i] for i in batch_idx]
+                bsc2 = [train_dataset.dataset.score2[i] for i in batch_idx]
 
-            train_dataset = training_shuffle(train_dataset)
+                # Tensorize and shape
+                bt1 = _ensure_tensor(bt1).to(device)
+                bt2 = _ensure_tensor(bt2).to(device)
+                bt1 = bt1.view(bt1.size(0), -1)
+                bt2 = bt2.view(bt2.size(0), -1)
+                btpref = torch.as_tensor(btpref, dtype=torch.float32, device=device)
+                bsc1 = torch.as_tensor(bsc1, dtype=torch.float32, device=device)
+                bsc2 = torch.as_tensor(bsc2, dtype=torch.float32, device=device)
 
-            for idx in range(math.ceil(train_size / batch_size)):
-                start_idx = idx * batch_size
-                end_idx = min(start_idx + batch_size, train_size)
+                # Forward and loss
+                combined = torch.cat([bt1, bt2], dim=0)
+                rewards = net(combined)
+                r1, r2 = torch.split(rewards, [bt1.shape[0], bt2.shape[0]], dim=0)
+                probs = bradley_terry_model(r1, r2)
+                loss = preference_loss(probs, btpref)
+                acc = calculate_accuracy(probs, btpref)
+                adj_acc = calculate_adjusted_accuracy(probs, btpref, bsc1, bsc2)
 
-                batch_traj1 = train_dataset.dataset.first_trajectories[
-                    start_idx:end_idx
-                ]
-                batch_traj2 = train_dataset.dataset.second_trajectories[
-                    start_idx:end_idx
-                ]
-                batch_true_pref = train_dataset.dataset.labels[start_idx:end_idx]
-                batch_score1 = train_dataset.dataset.score1[start_idx:end_idx]
-                batch_score2 = train_dataset.dataset.score2[start_idx:end_idx]
+                loss.backward()
+                total_loss += loss.item() * btpref.size(0)
+                total_acc += acc * btpref.size(0)
+                total_adj_acc += adj_acc * btpref.size(0)
 
-                if not preload:
-                    (
-                        batch_traj1,
-                        batch_traj2,
-                        batch_true_pref,
-                        batch_score1,
-                        batch_score2,
-                    ) = load_tensors(
-                        [
-                            batch_traj1,
-                            batch_traj2,
-                            batch_true_pref,
-                            batch_score1,
-                            batch_score2,
-                        ]
-                    )
+            # Step optimizer
+            torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
+            optimizer.step()
+            scheduler.step()
 
-                combined_batch = torch.cat([batch_traj1, batch_traj2], dim=0)
-                combined_rewards = net(combined_batch)
-                rewards1, rewards2 = torch.split(
-                    combined_rewards,
-                    [batch_traj1.shape[0], batch_traj2.shape[0]],
-                    dim=0,
-                )
+            # Metrics
+            avg_loss = total_loss / train_size
+            avg_acc = total_acc / train_size
+            avg_adj_acc = total_adj_acc / train_size
+            training_losses.append(avg_loss)
+            training_accuracies.append(avg_acc)
+            adjusted_training_accuracies.append(avg_adj_acc)
 
-                predicted_probabilities = bradley_terry_model(rewards1, rewards2)
-                # total_probability += predicted_probabilities.sum().item() # This wasn't used
-
-                loss = preference_loss(predicted_probabilities, batch_true_pref)
-                accuracy = calculate_accuracy(predicted_probabilities, batch_true_pref)
-                adjusted_accuracy = calculate_adjusted_accuracy(
-                    predicted_probabilities, batch_true_pref, batch_score1, batch_score2
-                )
-
-                total_loss += loss.item() * batch_true_pref.size(0)
-                total_accuracy += accuracy * batch_true_pref.size(0)
-                total_adjusted_accuracy += adjusted_accuracy * batch_true_pref.size(0)
-
-                loss.backward()  # Calculate gradients
-
-            # --- Training Step ---
-            torch.nn.utils.clip_grad_norm_(
-                net.parameters(), 1.0
-            )  # Clip gradients after accumulating for the epoch
-            optimizer.step()  # Update weights
-            scheduler.step()  # Update learning rate
-            # --- End Training Step ---
-
-            # Calculate and store average training metrics for the epoch
-            average_training_loss = total_loss / train_size
-            average_training_accuracy = total_accuracy / train_size
-            average_adjusted_training_accuracy = total_adjusted_accuracy / train_size
-            training_losses.append(average_training_loss)
-            training_accuracies.append(average_training_accuracy)
-            adjusted_training_accuracies.append(average_adjusted_training_accuracy)
-
-            # --- Validation Phase (every validation_frequency epochs) ---
+            # Validation
             if epoch % validation_frequency == 0:
                 net.eval()
-                total_validation_loss = 0.0
-                total_validation_accuracy = 0.0
-                total_adjusted_validation_accuracy = 0.0
+                val_loss, val_acc, val_adj_acc = 0.0, 0.0, 0.0
                 with torch.no_grad():
-                    for idx in range(math.ceil(val_size / batch_size)):
-                        start_idx = idx * batch_size
-                        end_idx = min(start_idx + batch_size, val_size)
+                    for idx in range(0, val_size, batch_size):
+                        bt1 = val_dataset.dataset.first_trajectories[idx:idx + batch_size]
+                        bt2 = val_dataset.dataset.second_trajectories[idx:idx + batch_size]
+                        btpref = val_dataset.dataset.labels[idx:idx + batch_size]
+                        bsc1 = val_dataset.dataset.score1[idx:idx + batch_size]
+                        bsc2 = val_dataset.dataset.score2[idx:idx + batch_size]
 
-                        validation_traj1 = val_dataset.dataset.first_trajectories[
-                            start_idx:end_idx
-                        ]
-                        validation_traj2 = val_dataset.dataset.second_trajectories[
-                            start_idx:end_idx
-                        ]
-                        validation_true_pref = val_dataset.dataset.labels[
-                            start_idx:end_idx
-                        ]
-                        validation_score1 = val_dataset.dataset.score1[
-                            start_idx:end_idx
-                        ]
-                        validation_score2 = val_dataset.dataset.score2[
-                            start_idx:end_idx
-                        ]
+                        bt1 = _ensure_tensor(bt1).to(device)
+                        bt2 = _ensure_tensor(bt2).to(device)
+                        bt1 = bt1.view(bt1.size(0), -1)
+                        bt2 = bt2.view(bt2.size(0), -1)
+                        btpref = torch.as_tensor(btpref, dtype=torch.float32, device=device)
+                        bsc1 = torch.as_tensor(bsc1, dtype=torch.float32, device=device)
+                        bsc2 = torch.as_tensor(bsc2, dtype=torch.float32, device=device)
 
-                        if not preload:
-                            (
-                                validation_traj1,
-                                validation_traj2,
-                                validation_true_pref,
-                                validation_score1,
-                                validation_score2,
-                            ) = load_tensors(
-                                [
-                                    validation_traj1,
-                                    validation_traj2,
-                                    validation_true_pref,
-                                    validation_score1,
-                                    validation_score2,
-                                ]
-                            )
+                        combined = torch.cat([bt1, bt2], dim=0)
+                        rewards = net(combined)
+                        r1, r2 = torch.split(rewards, [bt1.shape[0], bt2.shape[0]], dim=0)
+                        probs = bradley_terry_model(r1, r2)
+                        loss = preference_loss(probs, btpref)
+                        acc = calculate_accuracy(probs, btpref)
+                        adj_acc = calculate_adjusted_accuracy(probs, btpref, bsc1, bsc2)
 
-                        combined_val_batch = torch.cat(
-                            [validation_traj1, validation_traj2], dim=0
-                        )
-                        combined_val_rewards = net(combined_val_batch)
-                        validation_rewards1, validation_rewards2 = torch.split(
-                            combined_val_rewards,
-                            [validation_traj1.shape[0], validation_traj2.shape[0]],
-                            dim=0,
-                        )
+                        val_loss += loss.item() * btpref.size(0)
+                        val_acc += acc * btpref.size(0)
+                        val_adj_acc += adj_acc * btpref.size(0)
 
-                        validation_predicted_probabilities = bradley_terry_model(
-                            validation_rewards1, validation_rewards2
-                        )
+                avg_val_loss = val_loss / val_size
+                avg_val_acc = val_acc / val_size
+                avg_val_adj_acc = val_adj_acc / val_size
+                validation_losses.append(avg_val_loss)
+                validation_accuracies.append(avg_val_acc)
+                adjusted_validation_accuracies.append(avg_val_adj_acc)
 
-                        validation_loss = preference_loss(
-                            validation_predicted_probabilities, validation_true_pref
-                        )
-                        validation_accuracy = calculate_accuracy(
-                            validation_predicted_probabilities, validation_true_pref
-                        )
-                        adjusted_validation_accuracy = calculate_adjusted_accuracy(
-                            validation_predicted_probabilities,
-                            validation_true_pref,
-                            validation_score1,
-                            validation_score2,
-                        )
-
-                        total_validation_loss += (
-                            validation_loss.item() * validation_true_pref.size(0)
-                        )  # Use .item()
-                        total_validation_accuracy += (
-                            validation_accuracy * validation_true_pref.size(0)
-                        )
-                        total_adjusted_validation_accuracy += (
-                            adjusted_validation_accuracy * validation_true_pref.size(0)
-                        )
-
-                average_validation_loss = total_validation_loss / val_size
-                average_validation_accuracy = total_validation_accuracy / val_size
-                average_adjusted_validation_accuracy = (
-                    total_adjusted_validation_accuracy / val_size
-                )
-
-                # Append validation metrics only when calculated
-                validation_losses.append(average_validation_loss)
-                validation_accuracies.append(average_validation_accuracy)
-                adjusted_validation_accuracies.append(
-                    average_adjusted_validation_accuracy
-                )
-
-                wandb.log(
-                    {
-                        # Log training loss from the *current* epoch
-                        "Train Loss": average_training_loss,
-                        "Validation Loss": average_validation_loss,
-                        "Train Accuracy": average_training_accuracy,
-                        "Validation Accuracy": average_validation_accuracy,
-                        "Adjusted Train Accuracy": average_adjusted_training_accuracy,
-                        "Adjusted Validation Accuracy": average_adjusted_validation_accuracy,
-                    },
-                    step=epoch,
-                )
+                wandb.log({
+                    "Train Loss": avg_loss,
+                    "Validation Loss": avg_val_loss,
+                    "Train Accuracy": avg_acc,
+                    "Validation Accuracy": avg_val_acc,
+                    "Adjusted Train Accuracy": avg_adj_acc,
+                    "Adjusted Validation Accuracy": avg_val_adj_acc,
+                }, step=epoch)
 
                 print(
-                    f"Epoch {epoch}/{epochs}, Train Loss: {average_training_loss:.4f}, Val Loss: {average_validation_loss:.4f}, Train Acc: {average_training_accuracy:.4f} (adjusted: {average_adjusted_training_accuracy:.4f}), Val Acc: {average_validation_accuracy:.4f} (adjusted: {average_adjusted_validation_accuracy:.4f})"
+                    f"Epoch {epoch}/{epochs}, "
+                    f"Train Loss: {avg_loss:.4f}, Val Loss: {avg_val_loss:.4f}, "
+                    f"Train Acc: {avg_acc:.4f} (adj: {avg_adj_acc:.4f}), "
+                    f"Val Acc: {avg_val_acc:.4f} (adj: {avg_val_adj_acc:.4f})"
                 )
 
-                # --- Early Stopping Check ---
-                if average_validation_loss < best_loss:
-                    best_loss = average_validation_loss
-                    epochs_no_improve = 0  # Reset counter
-                    # Store the state dict of the best model found so far
+                # Early stopping check
+                if avg_val_loss < best_loss:
+                    best_loss = avg_val_loss
+                    epochs_no_improve = 0
                     best_model_state = net.state_dict()
-                    print(
-                        f"Epoch {epoch}: Validation loss improved to {best_loss:.4f}. Best model state updated."
-                    )
+                    print(f"Epoch {epoch}: Validation loss improved to {best_loss:.4f}.")
                 else:
-                    # Increment counter only when validation is checked and no improvement is found
                     epochs_no_improve += 1
                     print(
-                        f"Epoch {epoch}: Validation loss ({average_validation_loss:.4f}) did not improve from best ({best_loss:.4f}). Checks without improvement: {epochs_no_improve}/{patience}"
+                        f"Epoch {epoch}: Validation loss ({avg_val_loss:.4f}) did not improve. No improve count: {epochs_no_improve}/{patience}"
                     )
-
-                if epochs_no_improve >= patience:  # Check against hardcoded patience
-                    print(
-                        f"Early stopping triggered after {epoch} epochs ({epochs_no_improve} checks without improvement)."
-                    )
-                    break  # Exit the training loop
-                # --- End Early Stopping Check ---
-
-            # --- End Validation Block ---
-
+                if epochs_no_improve >= patience:
+                    print(f"Early stopping triggered at epoch {epoch}.")
+                    break
             epoch += 1
+
     except Exception as e:
-        # Save the best state found before exception, if available
-        save_path = (
-            base_model_path
-            + f"_EXCEPTION_{n_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
-        )
+        # Save best model on exception
+        save_path = f"{base_model_path}_EXCEPTION.pth"
         if best_model_state:
-            print("Saving best model state found before exception.")
+            print("Saving best model state before exception.")
             torch.save(best_model_state, save_path)
         else:
-            print(
-                "Saving current model state before exception (no best state recorded)."
-            )
+            print("Saving current model state before exception (no best recorded).")
             torch.save(net.state_dict(), save_path)
-        print(f"EXCEPTION CAUGHT during model training at epoch {epoch}: {e}")
+        print(f"EXCEPTION CAUGHT during training at epoch {epoch}: {e}")
         raise e
 
-    # --- Save the best model after training completes (or early stopping) ---
-    try:
-        n_pairs_magnitude = 10 ** round(math.log10(n_pairs)) if n_pairs > 0 else 0
-    except ValueError:
-        n_pairs_magnitude = 0
-
+    # Save the best model after training
     if best_model_state:
-        final_save_path = (
-            base_model_path
-            + f"_{n_pairs_magnitude}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
-        )
-        torch.save(best_model_state, final_save_path)
-        print(
-            f"Best model state saved to {final_save_path} with validation loss: {best_loss:.4f}"
-        )
+        torch.save(best_model_state, base_model_path)
+        print(f"Best model saved to {base_model_path} with validation loss: {best_loss:.4f}")
     else:
-        final_save_path = (
-            base_model_path
-            + f"_{n_pairs_magnitude}_pairs_{rules.NUMBER_OF_RULES}_rules_LAST.pth"
-        )
-        torch.save(net.state_dict(), final_save_path)
-        print(
-            f"No validation improvement recorded. Saving last model state to {final_save_path}"
-        )
+        torch.save(net.state_dict(), base_model_path + "_LAST.pth")
+        print(f"No validation improvement. Last model state saved to {base_model_path}_LAST.pth")
 
-    # Plot training metrics
+    # Plotting
     try:
-        global figure_path
-        # Create x-axis values for validation plots (sparse)
+        import matplotlib.pyplot as plt
         validation_epochs = list(range(0, epoch, validation_frequency))
-        if epoch % validation_frequency == 0 and epoch > 0:
-            pass
-        elif epoch > 0 and len(validation_losses) > len(validation_epochs):
-            validation_epochs.append(epoch - 1)
-
         plt.figure()
-        plt.plot(training_losses, label="Train Loss (per epoch)")
+        plt.plot(training_losses, label="Train Loss")
         if validation_epochs and validation_losses:
-            plot_epoch_count = min(len(validation_epochs), len(validation_losses))
-            plt.plot(
-                validation_epochs[:plot_epoch_count],
-                validation_losses[:plot_epoch_count],
-                label="Validation Loss (per check)",
-                marker="o",
-                linestyle="--",
-            )
+            plt.plot(validation_epochs[:len(validation_losses)], validation_losses, label="Validation Loss", marker="o", linestyle="--")
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
         plt.legend()
-        plt.savefig(f"{figure_path}loss_no_dataloader.png", dpi=600)
+        plt.savefig("loss_no_dataloader.png", dpi=600)
         plt.close()
 
         plt.figure()
-        plt.plot(training_accuracies, label="Train Accuracy (per epoch)")
-        plt.plot(
-            adjusted_training_accuracies, label="Adjusted Training Accuracy (per epoch)"
-        )
+        plt.plot(training_accuracies, label="Train Accuracy")
+        plt.plot(adjusted_training_accuracies, label="Adjusted Train Accuracy")
         if validation_epochs and validation_accuracies:
-            plot_epoch_count_acc = min(
-                len(validation_epochs), len(validation_accuracies)
-            )
-            plt.plot(
-                validation_epochs[:plot_epoch_count_acc],
-                validation_accuracies[:plot_epoch_count_acc],
-                label="Validation Accuracy (per check)",
-                marker="o",
-                linestyle="--",
-            )
-            plot_epoch_count_adj_acc = min(
-                len(validation_epochs), len(adjusted_validation_accuracies)
-            )
-            if adjusted_validation_accuracies and plot_epoch_count_adj_acc > 0:
-                plt.plot(
-                    validation_epochs[:plot_epoch_count_adj_acc],
-                    adjusted_validation_accuracies[:plot_epoch_count_adj_acc],
-                    label="Adjusted Validation Accuracy (per check)",
-                    marker="x",
-                    linestyle=":",
-                )
+            plt.plot(validation_epochs[:len(validation_accuracies)], validation_accuracies, label="Validation Accuracy", marker="o", linestyle="--")
+            plt.plot(validation_epochs[:len(adjusted_validation_accuracies)], adjusted_validation_accuracies, label="Adjusted Validation Accuracy", marker="x", linestyle=":")
         plt.xlabel("Epochs")
         plt.ylabel("Accuracy")
         plt.legend()
-        plt.savefig(f"{figure_path}accuracy_no_dataloader.png", dpi=600)
+        plt.savefig("accuracy_no_dataloader.png", dpi=600)
         plt.close()
     except Exception as plot_err:
-        print(f"Issue when plotting training/validation metrics: {plot_err}")
+        print(f"Issue when plotting: {plot_err}")
 
-    # Return the best validation loss achieved
-    training_output = best_loss
+    # Output dict or best loss
     if return_stat == "acc":
-        training_output = {
+        return {
             "final_training_acc": training_accuracies[-1] if training_accuracies else 0,
-            "final_validation_acc": validation_accuracies[-1]
-            if validation_accuracies
-            else 0,
-            "final_adjusted_training_acc": adjusted_training_accuracies[-1]
-            if adjusted_training_accuracies
-            else 0,
-            "final_adjusted_validation_acc": adjusted_validation_accuracies[-1]
-            if adjusted_validation_accuracies
-            else 0,
+            "final_validation_acc": validation_accuracies[-1] if validation_accuracies else 0,
+            "final_adjusted_training_acc": adjusted_training_accuracies[-1] if adjusted_training_accuracies else 0,
+            "final_adjusted_validation_acc": adjusted_validation_accuracies[-1] if adjusted_validation_accuracies else 0,
             "best_validation_loss": best_loss,
         }
-    print("Training without DataLoaders over, returning:", training_output)
-    return training_output
+    return best_loss
+
 
 
 def train_model(

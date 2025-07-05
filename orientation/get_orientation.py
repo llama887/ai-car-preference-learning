@@ -32,4 +32,5 @@ if _CIRCLE_CENTER is None:
 def get_angle(x, y):
     """Compute tangent-aligned angle (0° = upward) using track geometry"""
     cx, cy = _CIRCLE_CENTER
-    return np.degrees(np.arctan2(y - cy, x - cx)) + 90.0
+    return float(np.degrees(np.arctan2(y - cy, x - cx)) + 90.0)
+

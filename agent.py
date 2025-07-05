@@ -639,7 +639,7 @@ def run_simulation(genomes, config):
     generation_font = pygame.font.SysFont("Arial", 30)
     alive_font = pygame.font.SysFont("Arial", 20)
     global game_map
-    game_map = pygame.image.load("maps/map.png").convert()
+    game_map = pygame.image.load("maps/circle.jpg").convert()
 
     global current_generation, headless
     current_generation += 1
