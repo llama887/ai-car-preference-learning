@@ -37,4 +37,5 @@ simplex
 *.out
 *.err
 output
+distribution_experiment/*
 *garg*.pkl

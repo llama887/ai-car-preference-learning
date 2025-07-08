@@ -19,9 +19,10 @@ from reward import (
 )
 import reward
 
-rules.PARTIAL_REWARD = True
 rules.NUMBER_OF_RULES = 2
-rules.RULES_INCLUDED = [i for i in range(1, rules.NUMBER_OF_RULES + 1)]
+rules.RULES_INCLUDED = [1, 2]
+
+DISTRIBUTION_PRECISION = 8
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 os.environ["WANDB_SILENT"] = "true"
@@ -56,7 +57,7 @@ def process_distribution(args):
 
         agent.trajectories_path = f"trajectories_partial/trajectories_partial_{i + 1}/"
         database_path = f"{agent.trajectories_path}database_{num_pairs}_pairs_2_rules_{agent.train_trajectory_length}_length.pkl"
-
+        rules.PARTIAL_REWARD = True
         # Start the simulation
         start_simulation(
             config_path, num_pairs, num_pairs, "collect", headless, False
@@ -163,7 +164,7 @@ if __name__ == "__main__":
         hidden_size = data["hidden_size"]
         batch_size = data["batch_size"]
 
-    a, b, c, i = args.a, args.b, args.c, args.i 
+    a, b, c, i = round(args.a, DISTRIBUTION_PRECISION), round(args.b, DISTRIBUTION_PRECISION), round(args.c, DISTRIBUTION_PRECISION), args.i 
     
 
     reward.models_path = f"models_partial/"

@@ -1,4 +1,7 @@
 import pickle
+from agent import show_database_dict_segments
+
+import pickle
 import os
 import argparse
 
@@ -7,6 +10,7 @@ from itertools import combinations
 from agent import show_database_segments, get_buckets
 
 DATABASE_DIR = './databases/database_gargantuar_1_length_backup/'
+NEW_SIZE = 2000000
 print(f"Database directory: {DATABASE_DIR}")
 
 
@@ -21,26 +25,17 @@ def load_from_bucket(database, bucket):
         print(f"File '{bucket_file}' not found in '{database}'.")
         return []
 
-# show_database_segments(DATABASE_DIR)
-
+show_database_segments(DATABASE_DIR)
 buckets = get_buckets(DATABASE_DIR)
 
 for bucket in buckets:
     print("BUCKET:", bucket)
     violations = 0
     data = load_from_bucket(DATABASE_DIR, bucket)
-    new_data = []
-    for segment in data:
-        _, _, rules_followed = rules.check_rules_one(segment, rules.NUMBER_OF_RULES)
-        if rules_followed == bucket:
-            new_data.append(segment)
-        else:
-            violations += 1
-    
-    print(f"Total violations: {violations} out of {len(data)} segments")
-    print(f"Total valid segments: {len(new_data)} out of {len(data)} segments")
+    new_data = data[:NEW_SIZE]
     with open(os.path.join(DATABASE_DIR, f"bucket_{bucket}.pkl"), "wb") as file:
         pickle.dump(new_data, file, protocol=pickle.HIGHEST_PROTOCOL)
 
+show_database_segments(DATABASE_DIR)
 
-print(f"Database ({DATABASE_DIR}) checked.")
+print(f"Database ({DATABASE_DIR}) truncated.")

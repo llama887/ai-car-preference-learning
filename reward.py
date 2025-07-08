@@ -1239,13 +1239,12 @@ def train_ensemble_without_dataloaders(
 
 
 def training_shuffle(train_dataset):
-    indices = list(range(len(train_dataset)))
-    random.shuffle(indices)
-    train_dataset.dataset.first_trajectories = [train_dataset.dataset.first_trajectories[i] for i in indices]
-    train_dataset.dataset.second_trajectories = [train_dataset.dataset.second_trajectories[i] for i in indices]
-    train_dataset.dataset.labels = [train_dataset.dataset.labels[i] for i in indices]
-    train_dataset.dataset.score1 = [train_dataset.dataset.score1[i] for i in indices] 
-    train_dataset.dataset.score2 = [train_dataset.dataset.score2[i] for i in indices]
+    shuffled_indices = torch.randperm(len(train_dataset.dataset.labels))
+    train_dataset.dataset.first_trajectories = train_dataset.dataset.first_trajectories[shuffled_indices]
+    train_dataset.dataset.second_trajectories = train_dataset.dataset.second_trajectories[shuffled_indices]
+    train_dataset.dataset.labels = train_dataset.dataset.labels[shuffled_indices]
+    train_dataset.dataset.score1 = train_dataset.dataset.score1[shuffled_indices]
+    train_dataset.dataset.score2 = train_dataset.dataset.score2[shuffled_indices]
     return train_dataset
 
 

@@ -82,6 +82,7 @@ def check_dataset(test_file):
 
 def generate_testset(test_file):
     agent.paired_database = test_file
+    agent.number_of_pairs = TESTSET_SIZE
 
     print("TESTSET NEEDS THE FOLLOWING SEGMENTS:")
     agent.display_requested_segments(TESTSET_SIZE)
@@ -140,6 +141,7 @@ def load_models(reward_paths, hidden_size):
         return ensemble
 
 def test_model(model_path, hidden_size, batch_size=256):
+    rules.PARTIAL_REWARD = False
     num_rules = rules.NUMBER_OF_RULES
     rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/(2 * num_rules)] * num_rules + [1/2]
 
@@ -282,6 +284,7 @@ def test_model(model_path, hidden_size, batch_size=256):
 
 
 def test_model_light(model_path, hidden_size, batch_size=256):
+    rules.PARTIAL_REWARD = False
     num_rules = rules.NUMBER_OF_RULES
     rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/(2 * num_rules)] * num_rules + [1/2]
     print(rules.SEGMENT_DISTRIBUTION_BY_RULES)

@@ -146,9 +146,6 @@ def process_args(args):
 
     if args.include:
         rules.RULES_INCLUDED = [int(o) for o in args.include]
-        if len(rules.RULES_INCLUDED) != rules.NUMBER_OF_RULES:
-            rules.NUMBER_OF_RULES = len(rules.RULES_INCLUDED)
-            args.composition = rules.NUMBER_OF_RULES
         print("RULES INCLUDED:", rules.RULES_INCLUDED)
     else:
         rules.RULES_INCLUDED = [i + 1 for i in range(rules.NUMBER_OF_RULES)]

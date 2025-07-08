@@ -39,6 +39,7 @@ WIDTH = 1920
 HEIGHT = 1080
 
 AGENTS_PER_GENERATION = 20
+ROUNDING_THRESHOLD = 0.01
 
 CAR_SIZE_X = 60
 CAR_SIZE_Y = 60
@@ -269,11 +270,11 @@ class Car:
         )
         self.trajectory.append(next_state_action)
 
-        rules_satisfied, is_satisfaction, _ = rules.check_rules_one(
+        rules_satisfied, segment_reward, _ = rules.check_rules_one(
             self.trajectory[-2:], rules.NUMBER_OF_RULES
         )
         self.rules_per_step.append(rules_satisfied)
-        self.num_satisfaction_segments += is_satisfaction
+        self.num_satisfaction_segments += segment_reward
         return rules_followed
 
     def get_data(self):
@@ -347,7 +348,7 @@ def display_requested_segments(number_of_pairs):
         print(
             i,
             "RULE SEGMENTS:",
-            math.ceil(number_of_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]),
+            math.ceil(number_of_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]) if rules.SEGMENT_DISTRIBUTION_BY_RULES[i] > ROUNDING_THRESHOLD else 0,
         )
     print()
 
@@ -361,7 +362,8 @@ def break_into_segments(trajectory, rules_per_step, done):
     current_segment = trajectory[: train_trajectory_length + 1]
     current_rule_sum = sum(rules_per_step[:train_trajectory_length])
     current_rule_avg = int(round(current_rule_sum // train_trajectory_length))
-    trajectory_segments[current_rule_avg].append(current_segment)
+    if current_rule_avg < len(trajectory_segments):
+        trajectory_segments[current_rule_avg].append(current_segment)
     current_segment = deque(current_segment)
 
     for i in range(train_trajectory_length + 1, len(trajectory)):
@@ -373,7 +375,8 @@ def break_into_segments(trajectory, rules_per_step, done):
             rules_per_step[i - 1] - rules_per_step[i - 1 - train_trajectory_length]
         )
         current_rule_avg = int(round(current_rule_sum // train_trajectory_length))
-        trajectory_segments[current_rule_avg].append(list(current_segment))
+        if current_rule_avg < len(trajectory_segments):
+            trajectory_segments[current_rule_avg].append(list(current_segment))
 
     for i in range(rules.NUMBER_OF_RULES + 1):
         if done[i]:
@@ -427,7 +430,7 @@ def sample_segments(num_pairs, saved_segments):
     sampled_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
     for i in range(rules.NUMBER_OF_RULES + 1):
         segments_needed = math.ceil(
-            num_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]
+            math.ceil(number_of_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]) if rules.SEGMENT_DISTRIBUTION_BY_RULES[i] > ROUNDING_THRESHOLD else 0
         )
         sampled_segments[i] = random.sample(saved_segments[i], segments_needed)
     return sampled_segments
@@ -846,15 +849,15 @@ def load_from_gargs(database):
         #     data = pickle.load(file)
         #     print(f"USING MASTER DB: {database}")
         # if "subsampled" in database: # Franklin can fix ig?
-        #     return data[: rules.NUMBER_OF_RULES + 1]
+        #     return data[: rules.NUMBER_OF_RULES + 1]  
 
         show_database_segments(database)
 
         loaded_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
 
         buckets = get_buckets(database)
-        rule_set = set(rules.RULES_INCLUDED)
 
+        rule_set = set(rules.RULES_INCLUDED)
         for i in range(rules.NUMBER_OF_RULES + 1):
             print("SAMPLING SEGMENTS FOR", i, "RULES:")
             for rules_to_include in combinations(rules.RULES_INCLUDED, i):
@@ -926,10 +929,8 @@ def finished_collecting(saved_data, number_of_pairs):
 def collection_status(saved_data, number_of_pairs):
     rule_finished = [False] * (rules.NUMBER_OF_RULES + 1)
     for i in range(rules.NUMBER_OF_RULES + 1):
-        if (
-            len(saved_data[i])
-            >= math.floor(number_of_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i])
-        ):
+        threshold = math.ceil(number_of_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]) if rules.SEGMENT_DISTRIBUTION_BY_RULES[i] > ROUNDING_THRESHOLD else 0
+        if (len(saved_data[i]) >= threshold):
             rule_finished[i] = True
     return rule_finished
 

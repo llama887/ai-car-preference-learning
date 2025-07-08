@@ -1,4 +1,3 @@
-print("1")
 import argparse
 import os
 import pickle
@@ -23,9 +22,7 @@ from reward import (
     TrajectoryRewardNet
 )
 
-print("2")
-
-TRAJECTORIES=100000
+TRAJECTORY_PAIRS=100000
 EPOCHS=1000
 GENERATIONS=200
 RULES_LIST = [1,2,3]
@@ -105,7 +102,6 @@ if __name__ == "__main__":
 
     args = parse.parse_args()
 
-    print("3")
     reward.models_path = "models_dist_exp/"
     os.makedirs(reward.models_path, exist_ok=True)
 
@@ -118,7 +114,6 @@ if __name__ == "__main__":
             hidden_size = data["hidden_size"]
             batch_size = data["batch_size"]
 
-    print("4")
     data_points = ""
     num_rules = args.composition
     rules.NUMBER_OF_RULES = num_rules
@@ -130,19 +125,20 @@ if __name__ == "__main__":
     for i, satis in enumerate(data_x):
         rules.SEGMENT_DISTRIBUTION_BY_RULES = distributions[satis]
         print(f"CURRENT DISTRIBUTION ({i + 1} / {total_distributions}):", distributions[satis])
-        database_path = f"{agent.trajectories_path}database_{TRAJECTORIES}_pairs_{rules.NUMBER_OF_RULES}_rules_{agent.train_trajectory_length}_length.pkl"
+        database_path = f"{agent.trajectories_path}database_{TRAJECTORY_PAIRS}_pairs_{rules.NUMBER_OF_RULES}_rules_{agent.train_trajectory_length}_length.pkl"
         model_weights = ""
 
         # start the simulation in data collecting mode
         num_traj, collecting_rules_followed = start_simulation(
             "./config/data_collection_config.txt",
-            TRAJECTORIES,
-            TRAJECTORIES,
+            TRAJECTORY_PAIRS,
+            TRAJECTORY_PAIRS,
             "collect",
             headless,
             use_ensemble,
         )
 
+        model_id = str(satis)
         print("Starting training on trajectories...")
         train_reward_function(
             trajectories_file_path=database_path,
@@ -150,18 +146,17 @@ if __name__ == "__main__":
             parameters_path=param_file,
             use_ensemble=use_ensemble,
             figure_folder_name=None,
-            model_id=str(satis),
+            model_id=model_id,
             return_stat=None,
         )
         print("Finished training model...")
 
-        model_id = "".join([str(rule) for rule in rules.RULES_INCLUDED])
-        model_path = [(reward.models_path + f"model_{model_id}_{EPOCHS}_epochs_{TRAJECTORIES}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")]
+        model_path = [(reward.models_path + f"model_{model_id}_{EPOCHS}_epochs_{TRAJECTORY_PAIRS}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")]
         test_acc, adjusted_test_acc = test_model_light(
             model_path, hidden_size, batch_size
         )
         data_y.append(adjusted_test_acc)
-    data_points = (data_x.copy(), data_y.copy())4
+    data_points = (data_x.copy(), data_y.copy())
 
     figure_folder = "distribution_experiment/"
     os.makedirs(figure_folder, exist_ok=True)
