@@ -1,56 +1,36 @@
-import pandas as pd
 import numpy as np
+import cv2
 
-# Precompute the angle dictionary
-def precompute_angle_dict():
-    df = pd.read_csv("orientation_data.csv")
-    angle_dict = {}
+# Precompute circle center on first import
+_CIRCLE_CENTER = None
 
-    def _create_key(x_range, y_range):
-        return (x_range[0], x_range[1], y_range[0], y_range[1])
+# Compute center only once
+def _compute_center():
+    """Internal function to compute circle center from map"""
+    try:
+        img = cv2.imread("maps/map.png", cv2.IMREAD_GRAYSCALE)
+        _, thresh = cv2.threshold(img, 200, 255, cv2.THRESH_BINARY_INV)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        if contours:
+            largest_contour = max(contours, key=cv2.contourArea)
+            (x, y), _ = cv2.minEnclosingCircle(largest_contour)
+            print(f"Computed circle center: ({x:.2f}, {y:.2f})")
+            return (float(x), float(y))
+    except Exception as e:
+        print(f"Circle center computation failed: {e}")
     
-    filter_conditions = [
-        ((400, 600), (-np.inf, -600)),
-        ((600, 800), (-np.inf, -600)),
-        ((800, 1200), (-np.inf, -600)),
-        ((1200, 1400), (-np.inf, -600)),
-        ((1400, np.inf), (-np.inf, -600)),
-        ((1400, np.inf), (-800, -600)),
-        ((1400, np.inf), (-600, -400)),
-        ((1400, np.inf), (-400, np.inf)),
-        ((1200, 1400), (-400, np.inf)),
-        ((600, 1200), (-400, np.inf)),
-        ((0, 600), (-200, np.inf)),
-        ((0, 600), (-400, -200)),
-        ((0, 600), (-600, -400)),
-        ((0, 400), (-np.inf, -600)),
-        ((0, 600), (-np.inf, -600)),
-    ]
+    # Fallback if computation fails
+    FALLBACK = (1418.5, 1080.0)
+    print(f"Using fallback circle center: {FALLBACK}")
+    return FALLBACK
 
-    for x_range, y_range in filter_conditions:
-        mask = (df['X'] >= x_range[0]) & (df['X'] < x_range[1]) & \
-               (-df['Y'] > y_range[0]) & (-df['Y'] <= y_range[1])
-        filtered_df = df[mask]
-        if not filtered_df.empty:
-            key = _create_key(x_range, y_range)
-            angle_dict[key] = filtered_df["Angle"].mean()
-
-    # Hard coded values for the bottom where too many cars die
-    angle_dict[(600, 800, -np.inf, -600)] = 0
-    angle_dict[(800, 1200, -np.inf, -600)] = 0
-
-    return angle_dict
-
-# Global variable to store the precomputed angle dictionary
-ANGLE_DICT = precompute_angle_dict()
+# Initialize center at import (only once)
+if _CIRCLE_CENTER is None:
+    _CIRCLE_CENTER = _compute_center()
 
 def get_angle(x, y):
-    y = -y  # Invert y to match the original function's coordinate system
-
-    for (x_min, x_max, y_min, y_max), angle in ANGLE_DICT.items():
-        if x_min <= x < x_max and y_min < y <= y_max:
-            return angle
-    
-    print(f"No data available for this section {x}, {y}")
-    return None
+    """Compute tangent-aligned angle (0° = upward) using track geometry"""
+    cx, cy = _CIRCLE_CENTER
+    return float(np.degrees(np.arctan2(y - cy, x - cx)) + 90.0)
 
