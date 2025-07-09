@@ -1,6 +1,5 @@
 run_baseline:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
-	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
 	./scripts/run_basic.sh -r 3 -h
 	./scripts/run_basic.sh -r 2 -h
 	./scripts/run_basic.sh -r 1 -h
@@ -8,7 +7,6 @@ run_baseline:
 
 run_baseline_parallel:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
-	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
 	./scripts/run_basic.sh -r 3 -p -h 
 	./scripts/run_basic.sh -r 2 -p -h 
 	./scripts/run_basic.sh -r 1 -p -h 
@@ -16,7 +14,6 @@ run_baseline_parallel:
 
 run_baseline_parallel_hpc:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
-	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
 	CUDA_VISIBLE_DEVICES=0 ./scripts/run_basic.sh -r 3 -p -h &
 	CUDA_VISIBLE_DEVICES=1 ./scripts/run_basic.sh -r 2 -p -h &
 	CUDA_VISIBLE_DEVICES=2 ./scripts/run_basic.sh -r 1 -p -h &
@@ -27,7 +24,6 @@ run_baseline_parallel_hpc:
 run_baseline_with_subsampling:
 	mkdir -p logs
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
-	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
 	if [ ! -f "subsampled_gargantuar_1_length.pkl" ]; then python subsample_state.py; fi
 	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 1 -d "1/2" -d "1/2" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r1 --figure subsampled_figures_r1 --skip-test-accuracy --model models_subsampled 2>&1 | tee logs/log_1_r_subsample.log
 	stdbuf -oL python -u main.py -e 10000 -t 1000000 -s 1 -g 1 -p best_params.yaml --headless -c 2 -d "3/12" -d "3/12" -d "6/12" -md subsampled_gargantuar_1_length.pkl --heatmap --skip-retrain --trajectory subsampled_trajectories_r2 --figure subsampled_figures_r2 --skip-test-accuracy --model models_subsampled 2>&1 | tee logs/log_2_r_subsample.log
@@ -116,7 +112,6 @@ collect_data_all:
 
 run_hpc_baseline_task:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
-	if [ ! -f "orientation_data.csv" ]; then python orientation/orientation_data.py; fi
 
 	if [ "$(SLURM_ARRAY_TASK_ID)" = "1" ]; then ./scripts/run_basic.sh -r 1 -p -h; fi
 	if [ "$(SLURM_ARRAY_TASK_ID)" = "2" ]; then ./scripts/run_basic.sh -r 2 -p -h; fi

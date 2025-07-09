@@ -161,40 +161,26 @@ class TrajectoryDataset(Dataset):
                 self.trajectory_pairs = pickle.load(f)
 
             for trajectory_pair in self.trajectory_pairs:
-                # Save the raw trajectory pairs (already flattened)
-                self.first_trajectories.append(trajectory_pair[0])
-                self.second_trajectories.append(trajectory_pair[1])
+                # Flatten and cast to float32 for speed
+                self.first_trajectories.append(np.asarray(trajectory_pair[0], dtype=np.float32).ravel())
+                self.second_trajectories.append(np.asarray(trajectory_pair[1], dtype=np.float32).ravel())
                 self.labels.append(trajectory_pair[2])
                 self.score1.append(trajectory_pair[3])
                 self.score2.append(trajectory_pair[4])
 
-            self.first_trajectories = torch.tensor(
-                self.first_trajectories, dtype=torch.float32
-            )
-            self.second_trajectories = torch.tensor(
-                self.second_trajectories, dtype=torch.float32
-            )
-
+            self.first_trajectories = torch.from_numpy(np.stack(self.first_trajectories, axis=0))
+            self.second_trajectories = torch.from_numpy(np.stack(self.second_trajectories, axis=0))
             self.labels = torch.tensor(self.labels, dtype=torch.float32)
             self.score1 = torch.tensor(self.score1, dtype=torch.float32)
             self.score2 = torch.tensor(self.score2, dtype=torch.float32)
 
         if preload:
-            (
-                self.first_trajectories,
-                self.second_trajectories,
-                self.labels,
-                self.score1,
-                self.score2,
-            ) = load_tensors(
-                [
-                    self.first_trajectories,
-                    self.second_trajectories,
-                    self.labels,
-                    self.score1,
-                    self.score2,
-                ]
-            )
+            self.first_trajectories = self.first_trajectories.to(device, non_blocking=True)
+            self.second_trajectories = self.second_trajectories.to(device, non_blocking=True)
+            self.labels = self.labels.to(device, non_blocking=True)
+            self.score1 = self.score1.to(device, non_blocking=True)
+            self.score2 = self.score2.to(device, non_blocking=True)
+
 
     def __getitem__(self, idx):
         traj1 = self.first_trajectories[idx]
@@ -1288,18 +1274,10 @@ def train_model_without_dataloader(
     return_stat: str = None,
     preload: bool = True,
 ) -> dict | float:
-    """Train a reward model without using DataLoader. Manual batching from lists."""
+    """Train a reward model without using DataLoader. Manual batching from tensors."""
     print(f"Training without DataLoader | file: {file_path} | epochs: {epochs}")
     wandb.init(project="Micro Preference No Dataloader")
     wandb.watch(net, log="all")
-
-    # Helper: ensure tensor on correct device
-    def _ensure_tensor(x):
-        if torch.is_tensor(x):
-            return x
-        if isinstance(x, (list, tuple)) and len(x) and torch.is_tensor(x[0]):
-            return torch.stack(list(x), dim=0)
-        return torch.as_tensor(x, dtype=torch.float32, device=device)
 
     # Dataset
     full_dataset = TrajectoryDataset(file_path, None, preload)
@@ -1336,20 +1314,19 @@ def train_model_without_dataloader(
             # Manual batching
             for idx in range(0, train_size, batch_size):
                 batch_idx = indices[idx:idx + batch_size]
-                bt1 = [train_dataset.dataset.first_trajectories[i] for i in batch_idx]
-                bt2 = [train_dataset.dataset.second_trajectories[i] for i in batch_idx]
-                btpref = [train_dataset.dataset.labels[i] for i in batch_idx]
-                bsc1 = [train_dataset.dataset.score1[i] for i in batch_idx]
-                bsc2 = [train_dataset.dataset.score2[i] for i in batch_idx]
+                bt1 = train_dataset.dataset.first_trajectories[batch_idx]
+                bt2 = train_dataset.dataset.second_trajectories[batch_idx]
+                btpref = train_dataset.dataset.labels[batch_idx]
+                bsc1 = train_dataset.dataset.score1[batch_idx]
+                bsc2 = train_dataset.dataset.score2[batch_idx]
 
-                # Tensorize and shape
-                bt1 = _ensure_tensor(bt1).to(device)
-                bt2 = _ensure_tensor(bt2).to(device)
-                bt1 = bt1.view(bt1.size(0), -1)
-                bt2 = bt2.view(bt2.size(0), -1)
-                btpref = torch.as_tensor(btpref, dtype=torch.float32, device=device)
-                bsc1 = torch.as_tensor(bsc1, dtype=torch.float32, device=device)
-                bsc2 = torch.as_tensor(bsc2, dtype=torch.float32, device=device)
+                # If not preloaded, move to device here
+                if not preload:
+                    bt1 = bt1.to(device, non_blocking=True)
+                    bt2 = bt2.to(device, non_blocking=True)
+                    btpref = btpref.to(device, non_blocking=True)
+                    bsc1 = bsc1.to(device, non_blocking=True)
+                    bsc2 = bsc2.to(device, non_blocking=True)
 
                 # Forward and loss
                 combined = torch.cat([bt1, bt2], dim=0)
@@ -1390,13 +1367,13 @@ def train_model_without_dataloader(
                         bsc1 = val_dataset.dataset.score1[idx:idx + batch_size]
                         bsc2 = val_dataset.dataset.score2[idx:idx + batch_size]
 
-                        bt1 = _ensure_tensor(bt1).to(device)
-                        bt2 = _ensure_tensor(bt2).to(device)
-                        bt1 = bt1.view(bt1.size(0), -1)
-                        bt2 = bt2.view(bt2.size(0), -1)
-                        btpref = torch.as_tensor(btpref, dtype=torch.float32, device=device)
-                        bsc1 = torch.as_tensor(bsc1, dtype=torch.float32, device=device)
-                        bsc2 = torch.as_tensor(bsc2, dtype=torch.float32, device=device)
+                        # If not preloaded, move to device here
+                        if not preload:
+                            bt1 = bt1.to(device, non_blocking=True)
+                            bt2 = bt2.to(device, non_blocking=True)
+                            btpref = btpref.to(device, non_blocking=True)
+                            bsc1 = bsc1.to(device, non_blocking=True)
+                            bsc2 = bsc2.to(device, non_blocking=True)
 
                         combined = torch.cat([bt1, bt2], dim=0)
                         rewards = net(combined)
