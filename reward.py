@@ -1438,53 +1438,111 @@ def train_model_without_dataloader(
         print(f"EXCEPTION CAUGHT during training at epoch {epoch}: {e}")
         raise e
 
-    # Save the best model after training
-    if best_model_state:
-        torch.save(best_model_state, base_model_path)
-        print(f"Best model saved to {base_model_path} with validation loss: {best_loss:.4f}")
-    else:
-        torch.save(net.state_dict(), base_model_path + "_LAST.pth")
-        print(f"No validation improvement. Last model state saved to {base_model_path}_LAST.pth")
-
-    # Plotting
+     # --- Save the best model after training completes (or early stopping) ---
     try:
-        import matplotlib.pyplot as plt
+        n_pairs_magnitude = 10 ** round(math.log10(n_pairs)) if n_pairs > 0 else 0
+    except ValueError:
+        n_pairs_magnitude = 0
+
+    if best_model_state:
+        final_save_path = (
+            base_model_path
+            + f"_{n_pairs_magnitude}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"
+        )
+        torch.save(best_model_state, final_save_path)
+        print(
+            f"Best model state saved to {final_save_path} with validation loss: {best_loss:.4f}"
+        )
+    else:
+        final_save_path = (
+            base_model_path
+            + f"_{n_pairs_magnitude}_pairs_{rules.NUMBER_OF_RULES}_rules_LAST.pth"
+        )
+        torch.save(net.state_dict(), final_save_path)
+        print(
+            f"No validation improvement recorded. Saving last model state to {final_save_path}"
+        )
+
+    # Plot training metrics
+    try:
+        global figure_path
+        # Create x-axis values for validation plots (sparse)
         validation_epochs = list(range(0, epoch, validation_frequency))
+        if epoch % validation_frequency == 0 and epoch > 0:
+            pass
+        elif epoch > 0 and len(validation_losses) > len(validation_epochs):
+            validation_epochs.append(epoch - 1)
+
         plt.figure()
-        plt.plot(training_losses, label="Train Loss")
+        plt.plot(training_losses, label="Train Loss (per epoch)")
         if validation_epochs and validation_losses:
-            plt.plot(validation_epochs[:len(validation_losses)], validation_losses, label="Validation Loss", marker="o", linestyle="--")
+            plot_epoch_count = min(len(validation_epochs), len(validation_losses))
+            plt.plot(
+                validation_epochs[:plot_epoch_count],
+                validation_losses[:plot_epoch_count],
+                label="Validation Loss (per check)",
+                marker="o",
+                linestyle="--",
+            )
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
         plt.legend()
-        plt.savefig("loss_no_dataloader.png", dpi=600)
+        plt.savefig(f"{figure_path}loss_no_dataloader.png", dpi=600)
         plt.close()
 
         plt.figure()
-        plt.plot(training_accuracies, label="Train Accuracy")
-        plt.plot(adjusted_training_accuracies, label="Adjusted Train Accuracy")
+        plt.plot(training_accuracies, label="Train Accuracy (per epoch)")
+        plt.plot(
+            adjusted_training_accuracies, label="Adjusted Training Accuracy (per epoch)"
+        )
         if validation_epochs and validation_accuracies:
-            plt.plot(validation_epochs[:len(validation_accuracies)], validation_accuracies, label="Validation Accuracy", marker="o", linestyle="--")
-            plt.plot(validation_epochs[:len(adjusted_validation_accuracies)], adjusted_validation_accuracies, label="Adjusted Validation Accuracy", marker="x", linestyle=":")
+            plot_epoch_count_acc = min(
+                len(validation_epochs), len(validation_accuracies)
+            )
+            plt.plot(
+                validation_epochs[:plot_epoch_count_acc],
+                validation_accuracies[:plot_epoch_count_acc],
+                label="Validation Accuracy (per check)",
+                marker="o",
+                linestyle="--",
+            )
+            plot_epoch_count_adj_acc = min(
+                len(validation_epochs), len(adjusted_validation_accuracies)
+            )
+            if adjusted_validation_accuracies and plot_epoch_count_adj_acc > 0:
+                plt.plot(
+                    validation_epochs[:plot_epoch_count_adj_acc],
+                    adjusted_validation_accuracies[:plot_epoch_count_adj_acc],
+                    label="Adjusted Validation Accuracy (per check)",
+                    marker="x",
+                    linestyle=":",
+                )
         plt.xlabel("Epochs")
         plt.ylabel("Accuracy")
         plt.legend()
-        plt.savefig("accuracy_no_dataloader.png", dpi=600)
+        plt.savefig(f"{figure_path}accuracy_no_dataloader.png", dpi=600)
         plt.close()
     except Exception as plot_err:
-        print(f"Issue when plotting: {plot_err}")
+        print(f"Issue when plotting training/validation metrics: {plot_err}")
 
-    # Output dict or best loss
+    # Return the best validation loss achieved
+    training_output = best_loss
     if return_stat == "acc":
-        return {
+        training_output = {
             "final_training_acc": training_accuracies[-1] if training_accuracies else 0,
-            "final_validation_acc": validation_accuracies[-1] if validation_accuracies else 0,
-            "final_adjusted_training_acc": adjusted_training_accuracies[-1] if adjusted_training_accuracies else 0,
-            "final_adjusted_validation_acc": adjusted_validation_accuracies[-1] if adjusted_validation_accuracies else 0,
+            "final_validation_acc": validation_accuracies[-1]
+            if validation_accuracies
+            else 0,
+            "final_adjusted_training_acc": adjusted_training_accuracies[-1]
+            if adjusted_training_accuracies
+            else 0,
+            "final_adjusted_validation_acc": adjusted_validation_accuracies[-1]
+            if adjusted_validation_accuracies
+            else 0,
             "best_validation_loss": best_loss,
         }
-    return best_loss
-
+    print("Training without DataLoaders over, returning:", training_output)
+    return training_output
 
 
 def train_model(
