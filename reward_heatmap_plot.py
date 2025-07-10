@@ -145,7 +145,7 @@ def accuracy_per_xy(
 
     return all_x, all_y, accuracies
 
-def get_cluster_centers_and_angles(x, y, n_clusters=13):
+def get_cluster_centers_and_angles(x, y, n_clusters=8):
     from sklearn.cluster import KMeans
 
     points = np.column_stack((x, y))
