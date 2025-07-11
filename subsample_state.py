@@ -126,12 +126,17 @@ def subsample_state(image_path, grid_resolution, tolerance=1.0):
     # Read the image
     polypic = imread(image_path)
 
-    # Check if the image has an alpha channel and convert only if necessary
-    if polypic.shape[-1] == 4:  # RGBA
+    # If it’s RGBA, convert to RGB
+    if polypic.ndim == 3 and polypic.shape[-1] == 4:
         polypic = rgba2rgb(polypic)
 
-    # Convert to grayscale
-    gray = rgb2gray(polypic)
+    # Convert to grayscale only if we have a color image
+    if polypic.ndim == 3 and polypic.shape[-1] in (2, 3):
+        gray = rgb2gray(polypic)
+    elif polypic.ndim == 2:
+        gray = polypic
+    else:
+        raise ValueError(f"Unsupported image shape for grayscale conversion: {polypic.shape}")
 
     # Detect contours in the grayscale image at an appropriate level
     contours = measure.find_contours(gray, 0.5)
