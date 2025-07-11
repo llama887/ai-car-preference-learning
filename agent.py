@@ -154,10 +154,13 @@ class Car:
             # If Any Corner Touches Border Color -> Crash
             # Assumes Rectangle
             global i
-            if game_map.get_at((int(point[0]), int(point[1]))) == BORDER_COLOR:
-                self.alive = False
-                self.speed = 0
-                break
+            try:
+                if game_map.get_at((int(point[0]), int(point[1]))) == BORDER_COLOR:
+                    self.alive = False
+                    self.speed = 0
+                    break
+            except Exception as e:
+                print(f"Error at {point}: {e}")
 
     def check_radar(self, degree, game_map):
         length = 0
