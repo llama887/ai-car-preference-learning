@@ -311,11 +311,10 @@ def prepare_single_trajectory(trajectory, max_length=2):
     return trajectory_tensor
 
 def calculate_accuracy(predicted_probabilities, true_preferences):
-    """Returns the number of correct predictions in this batch."""
+    """Returns the fraction of correct predictions in this batch."""
     predicted_preferences = (predicted_probabilities > 0.5).float()
     correct_predictions = (predicted_preferences == true_preferences).sum().item()
-    return correct_predictions
-
+    return correct_predictions / true_preferences.size(0)
 
 def calculate_adjusted_accuracy(
     predicted_probabilities, true_preferences, first_rewards, second_rewards
