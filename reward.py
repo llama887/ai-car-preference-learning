@@ -1,3 +1,6 @@
+from xy_distribution import plot_xy_from_segments
+
+import orientation.get_orientation
 import argparse
 import math
 import os
@@ -17,7 +20,7 @@ import wandb
 import yaml
 from torch.utils.data import DataLoader, Dataset, random_split
 import random
-
+import copy
 import rules
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -159,14 +162,28 @@ class TrajectoryDataset(Dataset):
         else:
             with open(file_path, "rb") as f:
                 self.trajectory_pairs = pickle.load(f)
-
+            segments = []
             for trajectory_pair in self.trajectory_pairs:
+                tp = copy.deepcopy(trajectory_pair)
+                # subtract circle center to 0 center the data
+                tp[0][0].position[0]-= orientation.get_orientation._CIRCLE_CENTER[0]
+                tp[0][0].position[1]-= orientation.get_orientation._CIRCLE_CENTER[1]
+                tp[0][1].position[0]-= orientation.get_orientation._CIRCLE_CENTER[0]
+                tp[0][1].position[1]-= orientation.get_orientation._CIRCLE_CENTER[1]
+                tp[1][0].position[0]-= orientation.get_orientation._CIRCLE_CENTER[0]
+                tp[1][0].position[1]-= orientation.get_orientation._CIRCLE_CENTER[1]
+                tp[1][1].position[0]-= orientation.get_orientation._CIRCLE_CENTER[0]
+                tp[1][1].position[1]-= orientation.get_orientation._CIRCLE_CENTER[1]
+                segments.append(tp[0])
+
                 # Flatten and cast to float32 for speed
-                self.first_trajectories.append(np.asarray(trajectory_pair[0], dtype=np.float32).ravel())
-                self.second_trajectories.append(np.asarray(trajectory_pair[1], dtype=np.float32).ravel())
-                self.labels.append(trajectory_pair[2])
-                self.score1.append(trajectory_pair[3])
-                self.score2.append(trajectory_pair[4])
+                self.first_trajectories.append(np.asarray(tp[0], dtype=np.float32).ravel())
+                self.second_trajectories.append(np.asarray(tp[1], dtype=np.float32).ravel())
+                self.labels.append(tp[2])
+                self.score1.append(tp[3])
+                self.score2.append(tp[4])
+            
+            plot_xy_from_segments(segments, f"{file_path}xy_distribution.png")
 
             self.first_trajectories = torch.from_numpy(np.stack(self.first_trajectories, axis=0))
             self.second_trajectories = torch.from_numpy(np.stack(self.second_trajectories, axis=0))
@@ -293,12 +310,11 @@ def prepare_single_trajectory(trajectory, max_length=2):
 
     return trajectory_tensor
 
-
 def calculate_accuracy(predicted_probabilities, true_preferences):
+    """Returns the number of correct predictions in this batch."""
     predicted_preferences = (predicted_probabilities > 0.5).float()
-    correct_predictions = (predicted_preferences == true_preferences).float().sum()
-    accuracy = correct_predictions / true_preferences.size(0)
-    return accuracy.item()
+    correct_predictions = (predicted_preferences == true_preferences).sum().item()
+    return correct_predictions
 
 
 def calculate_adjusted_accuracy(
@@ -1307,6 +1323,7 @@ def train_model_without_dataloader(
             net.train()
             optimizer.zero_grad()
             total_loss, total_acc, total_adj_acc = 0.0, 0.0, 0.0
+            total_filtered = 0 # ← count of “first_rewards != second_rewards”
 
             # Shuffle indices
             indices = list(range(train_size))
@@ -1340,8 +1357,11 @@ def train_model_without_dataloader(
                 loss.backward()
                 total_loss += loss.item() * btpref.size(0)
                 total_acc += acc * btpref.size(0)
-                total_adj_acc += adj_acc * btpref.size(0)
-
+                mask = (bsc1 != bsc2)
+                num_filtered = int(mask.sum().item())
+                if num_filtered > 0:
+                    total_adj_acc += adj_acc * num_filtered
+                    total_filtered += num_filtered
             # Step optimizer
             torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
             optimizer.step()
@@ -1350,7 +1370,7 @@ def train_model_without_dataloader(
             # Metrics
             avg_loss = total_loss / train_size
             avg_acc = total_acc / train_size
-            avg_adj_acc = total_adj_acc / train_size
+            avg_adj_acc = (total_adj_acc / total_filtered) if total_filtered > 0 else 0.0
             training_losses.append(avg_loss)
             training_accuracies.append(avg_acc)
             adjusted_training_accuracies.append(avg_adj_acc)
@@ -1359,6 +1379,7 @@ def train_model_without_dataloader(
             if epoch % validation_frequency == 0:
                 net.eval()
                 val_loss, val_acc, val_adj_acc = 0.0, 0.0, 0.0
+                val_filtered = 0
                 with torch.no_grad():
                     for idx in range(0, val_size, batch_size):
                         bt1 = val_dataset.dataset.first_trajectories[idx:idx + batch_size]
@@ -1385,11 +1406,15 @@ def train_model_without_dataloader(
 
                         val_loss += loss.item() * btpref.size(0)
                         val_acc += acc * btpref.size(0)
-                        val_adj_acc += adj_acc * btpref.size(0)
+                        mask = (bsc1 != bsc2)
+                        num_filtered = int(mask.sum().item())
+                        if num_filtered > 0:
+                            val_adj_acc += adj_acc * num_filtered
+                            val_filtered += num_filtered
 
                 avg_val_loss = val_loss / val_size
                 avg_val_acc = val_acc / val_size
-                avg_val_adj_acc = val_adj_acc / val_size
+                avg_val_adj_acc = (val_adj_acc / val_filtered) if val_filtered > 0 else 0.0
                 validation_losses.append(avg_val_loss)
                 validation_accuracies.append(avg_val_acc)
                 adjusted_validation_accuracies.append(avg_val_adj_acc)

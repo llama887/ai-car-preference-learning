@@ -19,18 +19,26 @@ def _compute_center():
             return (float(x), float(y))
     except Exception as e:
         print(f"Circle center computation failed: {e}")
-    
-    # Fallback if computation fails
-    FALLBACK = (1418.5, 1080.0)
-    print(f"Using fallback circle center: {FALLBACK}")
-    return FALLBACK
+        
 
 # Initialize center at import (only once)
 if _CIRCLE_CENTER is None:
     _CIRCLE_CENTER = _compute_center()
+    assert _CIRCLE_CENTER is not None, "Failed to compute circle center from map image."
 
 def get_angle(x, y):
     """Compute tangent-aligned angle (0° = upward) using track geometry"""
     cx, cy = _CIRCLE_CENTER
     return float(np.degrees(np.arctan2(y - cy, x - cx)) + 90.0)
 
+def center_segments(segments):
+    """
+    In‑place subtract the circle center from every (x,y) in each segment.
+    segments: List[List[state_action_pair]]
+    """
+    from orientation.get_orientation import _CIRCLE_CENTER as C
+    cx, cy = C
+    for segment in segments:
+        for sa in segment:
+            sa.position[0] -= cx
+            sa.position[1] -= cy

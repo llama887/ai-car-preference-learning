@@ -1,3 +1,5 @@
+import copy
+from sklearn.cluster import KMeans
 import argparse
 import pickle
 import random
@@ -19,6 +21,8 @@ from debug_plots import load_models
 from rules import check_rules_one
 from subsample_state import get_grid_points
 import rules
+import orientation.get_orientation
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -61,12 +65,16 @@ def accuracy_per_xy(
     reward_model=None
 ):
     print("Splitting segments by reward and xy...")
-
     # 1) Group input segments by their ground-truth reward 0 or 1
     segments_by_reward = {0: [], 1: []}
-    for segment in trajectory_segments:
-        _, reward_value, _ = check_rules_one(segment, number_of_rules)
-        segments_by_reward[reward_value].append(segment)
+    for segment in tqdm(trajectory_segments):
+        s = copy.deepcopy(segment)
+        _, reward_value, _ = check_rules_one(s, number_of_rules)
+        s[0].position[0] -= orientation.get_orientation._CIRCLE_CENTER[0]
+        s[0].position[1] -= orientation.get_orientation._CIRCLE_CENTER[1]
+        s[1].position[0] -= orientation.get_orientation._CIRCLE_CENTER[0]
+        s[1].position[1] -= orientation.get_orientation._CIRCLE_CENTER[1]
+        segments_by_reward[reward_value].append(s)
 
     print(
         f"Number of segments with reward 0: {len(segments_by_reward[0])}, "
@@ -146,7 +154,6 @@ def accuracy_per_xy(
     return all_x, all_y, accuracies
 
 def get_cluster_centers_and_angles(x, y, n_clusters=8):
-    from sklearn.cluster import KMeans
 
     points = np.column_stack((x, y))
 
@@ -273,6 +280,12 @@ if __name__ == "__main__":
         nargs=1,
         help="Number of samples",
     )
+    parse.add_argument(
+        "-a",
+        "--arrows",
+        action="store_true",
+        help="Whether to show arrows in the plot",
+    )
     args = parse.parse_args()
     if args.samples:
         number_of_samples = args.samples[0]
@@ -285,7 +298,7 @@ if __name__ == "__main__":
     )
     start = time.time()
     plot_reward_heatmap(
-        get_samples(sample_pkl="grid_points.pkl"), args.model[0], args.rules[0]
+        get_samples(sample_pkl="grid_points.pkl"), args.model[0], args.rules[0], args.arrows
     )
     end = time.time()
     print(f"Finished in {end - start} seconds.")
