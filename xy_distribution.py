@@ -79,14 +79,14 @@ if __name__ == "__main__":
     for trajectory_pair in data:
         tp = copy.deepcopy(trajectory_pair)
         # subtract circle center to 0 center the data
-        tp[0][0].position[0]-= orientation.get_orientation._CIRCLE_CENTER[0]
-        tp[0][0].position[1]-= orientation.get_orientation._CIRCLE_CENTER[1]
-        tp[0][1].position[0]-= orientation.get_orientation._CIRCLE_CENTER[0]
-        tp[0][1].position[1]-= orientation.get_orientation._CIRCLE_CENTER[1]
-        tp[1][0].position[0]-= orientation.get_orientation._CIRCLE_CENTER[0]
-        tp[1][0].position[1]-= orientation.get_orientation._CIRCLE_CENTER[1]
-        tp[1][1].position[0]-= orientation.get_orientation._CIRCLE_CENTER[0]
-        tp[1][1].position[1]-= orientation.get_orientation._CIRCLE_CENTER[1]
+        tp[0][0].position[0]-= orientation.get_orientation.CIRCLE_CENTER[0]
+        tp[0][0].position[1]-= orientation.get_orientation.CIRCLE_CENTER[1]
+        tp[0][1].position[0]-= orientation.get_orientation.CIRCLE_CENTER[0]
+        tp[0][1].position[1]-= orientation.get_orientation.CIRCLE_CENTER[1]
+        tp[1][0].position[0]-= orientation.get_orientation.CIRCLE_CENTER[0]
+        tp[1][0].position[1]-= orientation.get_orientation.CIRCLE_CENTER[1]
+        tp[1][1].position[0]-= orientation.get_orientation.CIRCLE_CENTER[0]
+        tp[1][1].position[1]-= orientation.get_orientation.CIRCLE_CENTER[1]
         segments.append(tp[0])
     
     plot_xy_from_segments(segments, f"xy_distribution_post_centering.png")
