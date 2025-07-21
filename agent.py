@@ -668,10 +668,7 @@ def run_simulation(genomes, config):
         random_trajectory_segment = random.choice(random.choice(grid_points))
         random_position = random_trajectory_segment[0].position
         cars.append(
-            Car(
-                position=random_position,
-                angle=get_angle(random_position[0], random_position[1]),
-            )
+            safe_spawn_car()
         )
     for i, car in enumerate(cars):
         cars[i].id = i
