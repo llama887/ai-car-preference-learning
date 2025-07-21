@@ -332,6 +332,29 @@ class Car:
             saved_trajectories.append(
                 (self.num_satisfaction_segments, self.trajectory, self.reward)
             )
+    def compute_corners(self) -> None:
+        """Populate self.corners without moving the car (used at spawn‑time)."""
+        length = 0.5 * CAR_SIZE_X
+        offsets = (30, 150, 210, 330)
+        self.corners = [
+            [
+                self.center[0] + math.cos(math.radians(360 - (self.angle + off))) * length,
+                self.center[1] + math.sin(math.radians(360 - (self.angle + off))) * length,
+            ]
+            for off in offsets
+        ]
+
+    def has_spawn_collision(self, game_map: pygame.Surface) -> bool:
+        """Return True if *any* corner sits on the white border or off‑screen."""
+        self.compute_corners()
+        for x, y in self.corners:
+            try:
+                if game_map.get_at((int(x), int(y))) == BORDER_COLOR:
+                    return True
+            except IndexError:
+                # Off the surface entirely counts as a bad spawn
+                return True
+        return False
 
 
 def display_saved_segments(saved_segments):
@@ -620,6 +643,22 @@ def run_simulation(genomes, config):
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
     with open("grid_points.pkl", "rb") as f:
         grid_points = pickle.load(f)
+    invalid_spawns = set()
+    def safe_spawn_car(max_attempts: int = 25) -> Car:
+        """Return a Car whose initial sprite is fully on the black track."""
+        for _ in range(max_attempts):
+            segment = random.choice(random.choice(grid_points))
+            pos = segment[0].position
+            while tuple(pos) in invalid_spawns:
+                segment = random.choice(random.choice(grid_points))
+                pos = segment[0].position
+            new_car = Car(position=pos, angle=get_angle(pos[0], pos[1]))
+            if not new_car.has_spawn_collision(game_map):
+                return new_car
+            else:
+                invalid_spawns.add(tuple(pos))
+        # Fallback – to old spawn point if no valid spawn found
+        return Car(position=[830, 920], angle=0)
 
     # For All Genomes Passed Create A New Neural Network
     for i, g in genomes:

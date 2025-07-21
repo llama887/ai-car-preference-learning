@@ -23,6 +23,7 @@ from subsample_state import get_grid_points
 import rules
 import orientation.get_orientation
 from multiprocessing import Pool, cpu_count
+import multiprocessing as mp
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -71,21 +72,13 @@ def _process_segment(args):
     s[1].position[1] -= cy
     return reward_value, s
 
-def parallel_map_large(
-    func, iterable, desc=None, chunk_size=10000, total=None
-):
-    """
-    Parallel map with chunking for large data.
-    Yields results in order.
-    """
+def parallel_map_large(func, iterable, desc=None, chunk_size=10000, total=None):
+    ctx = mp.get_context("spawn")          # safe with CUDA / threads
     if total is None:
-        try:
-            total = len(iterable)
-        except Exception:
-            total = None
-    for i in tqdm(range(0, len(iterable), chunk_size), desc=desc):
-        chunk = iterable[i:i+chunk_size]
-        with Pool(int(cpu_count()*1.5)) as pool:
+        total = len(iterable)
+    for i in tqdm(range(0, total, chunk_size), desc=desc):
+        chunk = iterable[i:i + chunk_size]
+        with ctx.Pool(mp.cpu_count()) as pool:
             yield from pool.map(func, chunk)
 
 def accuracy_per_xy(

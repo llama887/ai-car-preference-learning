@@ -6,6 +6,7 @@ import sys
 from itertools import combinations
 
 import yaml
+import multiprocessing as mp
 
 import agent
 import reward
@@ -163,6 +164,7 @@ def parse_to_float(s):
 
 
 if __name__ == "__main__":
+    mp.set_start_method("spawn", force=True)
     parse = argparse.ArgumentParser(
         description="Training a Reward From Synthetic Preferences"
     )
