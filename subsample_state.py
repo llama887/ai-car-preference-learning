@@ -272,7 +272,7 @@ def get_grid_points(samples=2000000):
         raise ValueError(f"{gridpoints} is not enough points to subsample.")
 
     print(f"Searching for {gridpoints} grid points")
-    points = parallel_subsample_state("maps/circle.jpg", gridpoints)
+    points = parallel_subsample_state("maps/map.png", gridpoints)
     print(f"Found {len(points)} points.")
     _ = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
 
@@ -286,7 +286,7 @@ def get_grid_points(samples=2000000):
             CAR_SIZE_Y,
             WIDTH,
             HEIGHT,
-            "maps/circle.jpg",
+            "maps/map.png",
         )
         for point in points
         for angle_deviation in range(

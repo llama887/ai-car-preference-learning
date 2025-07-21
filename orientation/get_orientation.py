@@ -8,7 +8,7 @@ CIRCLE_CENTER = None
 def _compute_center():
     """Internal function to compute circle center from map"""
     try:
-        img = cv2.imread("maps/circle.jpg", cv2.IMREAD_GRAYSCALE)
+        img = cv2.imread("maps/map.png", cv2.IMREAD_GRAYSCALE)
         _, thresh = cv2.threshold(img, 200, 255, cv2.THRESH_BINARY_INV)
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
