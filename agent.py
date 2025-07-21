@@ -223,7 +223,7 @@ class Car:
             # Same For Y-Position
             self.position[1] += math.sin(math.radians(360 - self.angle)) * self.speed
             self.position[1] = max(self.position[1], 20)
-            self.position[1] = min(self.position[1], WIDTH - 120)
+            self.position[1] = min(self.position[1], HEIGHT - 120)
 
             # Calculate New Center
             self.center = [
@@ -643,6 +643,8 @@ def run_simulation(genomes, config):
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
     global game_map
     game_map = pygame.image.load("maps/map.png").convert()
+    global game_map
+    game_map = pygame.image.load("maps/circle.jpg").convert()
     with open("grid_points.pkl", "rb") as f:
         grid_points = pickle.load(f)
     invalid_spawns = set()
@@ -658,6 +660,7 @@ def run_simulation(genomes, config):
             if not new_car.has_spawn_collision(game_map):
                 return new_car
             else:
+                print(f"Invalid Spawn {pos}")
                 invalid_spawns.add(tuple(pos))
         # Fallback – to old spawn point if no valid spawn found
         return Car(position=[830, 920], angle=0)
@@ -667,8 +670,6 @@ def run_simulation(genomes, config):
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
         g.fitness = 0
-        random_trajectory_segment = random.choice(random.choice(grid_points))
-        random_position = random_trajectory_segment[0].position
         cars.append(
             safe_spawn_car()
         )
