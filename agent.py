@@ -456,7 +456,7 @@ def sample_segments(num_pairs, saved_segments):
     sampled_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
     for i in range(rules.NUMBER_OF_RULES + 1):
         segments_needed = math.ceil(
-            math.ceil(number_of_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]) if rules.SEGMENT_DISTRIBUTION_BY_RULES[i] > ROUNDING_THRESHOLD else 0
+            math.ceil(num_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]) if rules.SEGMENT_DISTRIBUTION_BY_RULES[i] > ROUNDING_THRESHOLD else 0
         )
         sampled_segments[i] = random.sample(saved_segments[i], segments_needed)
     return sampled_segments
@@ -645,31 +645,19 @@ def run_simulation(genomes, config):
     game_map = pygame.image.load("maps/circle.png").convert()
     with open("grid_points.pkl", "rb") as f:
         grid_points = pickle.load(f)
-    invalid_spawns = set()
-    def safe_spawn_car(max_attempts: int = 25) -> Car:
-        """Return a Car whose initial sprite is fully on the black track."""
-        for _ in range(max_attempts):
-            segment = random.choice(random.choice(grid_points))
-            pos = segment[0].position
-            while tuple(pos) in invalid_spawns:
-                segment = random.choice(random.choice(grid_points))
-                pos = segment[0].position
-            new_car = Car(position=pos, angle=get_angle(pos[0], pos[1]))
-            if not new_car.has_spawn_collision(game_map):
-                return new_car
-            else:
-                print(f"Invalid Spawn {pos}")
-                invalid_spawns.add(tuple(pos))
-        # Fallback – to old spawn point if no valid spawn found
-        return Car(position=[830, 920], angle=0)
 
     # For All Genomes Passed Create A New Neural Network
     for i, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
         g.fitness = 0
+        random_trajectory_segment = random.choice(random.choice(grid_points))
+        random_position = random_trajectory_segment[0].position
         cars.append(
-            safe_spawn_car()
+            Car(
+                position=random_position,
+                angle=get_angle(random_position[0], random_position[1]),
+            )
         )
     for i, car in enumerate(cars):
         cars[i].id = i

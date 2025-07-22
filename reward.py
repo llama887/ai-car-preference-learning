@@ -303,7 +303,7 @@ def distribute_data(train_subset, batch_size, num_models, preload=False):
 
 
 def distribute_data(train_subset, num_models):
-    return random.split(train_subset, [1/num_models for _ in range(num_models)])
+    return random_split(train_subset, [1/num_models for _ in range(num_models)])
 
 
 def prepare_single_trajectory(trajectory, max_length=2):
@@ -1589,7 +1589,7 @@ def train_reward_function(
                     ensemble.parameters(), lr=learning_rate, weight_decay=weight_decay
                 )
                 # Call train_ensemble without patience argument
-                training_output_stat = train_ensemble(
+                training_output_stat = train_ensemble_without_dataloaders(
                     ensemble=ensemble,
                     epochs=epochs,
                     swaps=swaps,
@@ -1709,7 +1709,7 @@ def ensemble_objective(trial):
 
     # train_ensemble now handles early stopping and returns the best avg validation loss
     # It also saves the best ensemble models internally during the trial.
-    best_avg_validation_loss = train_ensemble(
+    best_avg_validation_loss = train_ensemble_without_dataloaders(
         ensemble=ensemble,
         epochs=study.user_attrs["epochs"],
         swaps=swaps,
