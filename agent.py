@@ -642,9 +642,7 @@ def run_simulation(genomes, config):
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
     global game_map
-    game_map = pygame.image.load("maps/map.png").convert()
-    global game_map
-    game_map = pygame.image.load("maps/circle.jpg").convert()
+    game_map = pygame.image.load("maps/circle.png").convert()
     with open("grid_points.pkl", "rb") as f:
         grid_points = pickle.load(f)
     invalid_spawns = set()

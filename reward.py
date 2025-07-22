@@ -872,11 +872,12 @@ def train_ensemble_without_dataloaders(
             model_training_data = distribute_data(train_subset, n_models)
             for i in range(n_models):
                 model = ensemble.model_list[i]
+                model_dataset = model_training_data[i]
+                train_size_model = len(model_dataset.dataset)
                 model.train()
 
-                model_loss = 0.0
-                model_acc = 0.0
-                model_adjusted_acc = 0.0
+                model_loss, model_acc, model_adjusted_acc = 0.0, 0.0, 0.0
+                total_filtered = 0
 
                 # Shuffle indices
                 indices = list(range(train_size))
@@ -884,11 +885,11 @@ def train_ensemble_without_dataloaders(
                 # Manual batching
                 for idx in range(0, train_size, batch_size):
                     batch_idx = indices[idx:idx + batch_size]
-                    bt1 = train_dataset.dataset.first_trajectories[batch_idx]
-                    bt2 = train_dataset.dataset.second_trajectories[batch_idx]
-                    btpref = train_dataset.dataset.labels[batch_idx]
-                    bsc1 = train_dataset.dataset.score1[batch_idx]
-                    bsc2 = train_dataset.dataset.score2[batch_idx]
+                    bt1 = model_dataset.dataset.first_trajectories[batch_idx]
+                    bt2 = model_dataset.dataset.second_trajectories[batch_idx]
+                    btpref = model_dataset.dataset.labels[batch_idx]
+                    bsc1 = model_dataset.dataset.score1[batch_idx]
+                    bsc2 = model_dataset.dataset.score2[batch_idx]
 
                     # If not preloaded, move to device here
                     if not preload:
@@ -900,83 +901,26 @@ def train_ensemble_without_dataloaders(
 
                     # Forward and loss
                     combined = torch.cat([bt1, bt2], dim=0)
-                    rewards = net(combined)
+                    rewards = model(combined)
                     r1, r2 = torch.split(rewards, [bt1.shape[0], bt2.shape[0]], dim=0)
                     probs = bradley_terry_model(r1, r2)
                     loss = preference_loss(probs, btpref)
                     acc = calculate_accuracy(probs, btpref)
                     adj_acc = calculate_adjusted_accuracy(probs, btpref, bsc1, bsc2)
 
-                    loss.backward()
-                    total_loss += loss.item() * btpref.size(0)
-                    total_acc += acc * btpref.size(0)
+                    model_loss += loss.item() * btpref.size(0)  # Accumulate loss value
+                    model_acc += acc * btpref.size(0)
                     mask = (bsc1 != bsc2)
                     num_filtered = int(mask.sum().item())
                     if num_filtered > 0:
-                        total_adj_acc += adj_acc * num_filtered
+                        model_adj_acc += adj_acc * num_filtered
                         total_filtered += num_filtered
-                # Step optimizer
-                torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
-                optimizer.step()
-                scheduler.step()
-                for (
-                    batch_traj1,
-                    batch_traj2,
-                    batch_true_pref,
-                    batch_reward1,
-                    batch_reward2,
-                ) in training_dataloaders[i]:
-                    if not preload:
-                        (
-                            batch_traj1,
-                            batch_traj2,
-                            batch_true_pref,
-                            batch_reward1,
-                            batch_reward2,
-                        ) = load_tensors(
-                            [
-                                batch_traj1,
-                                batch_traj2,
-                                batch_true_pref,
-                                batch_reward1,
-                                batch_reward2,
-                            ]
-                        )
-
-                    combined_batch = torch.cat([batch_traj1, batch_traj2], dim=0)
-                    combined_rewards = model(combined_batch)
-                    rewards1, rewards2 = torch.split(
-                        combined_rewards,
-                        [batch_traj1.shape[0], batch_traj2.shape[0]],
-                        dim=0,
-                    )
-
-                    predicted_probabilities = bradley_terry_model(rewards1, rewards2)
-                    loss = preference_loss(
-                        predicted_probabilities, batch_true_pref
-                    )  # Calculate loss for backprop
-
-                    model_loss += loss.item() * batch_true_pref.size(
-                        0
-                    )  # Accumulate loss value
-                    model_acc += calculate_accuracy(
-                        predicted_probabilities, batch_true_pref
-                    ) * batch_true_pref.size(0)
-                    model_adjusted_acc += calculate_adjusted_accuracy(
-                        predicted_probabilities,
-                        batch_true_pref,
-                        batch_reward1,
-                        batch_reward2,
-                    ) * batch_true_pref.size(0)
-
                     # Accumulate gradients for the average loss later
-                    (
-                        loss / n_models
-                    ).backward()  # Scale loss for averaging before backward pass
+                    (loss / n_models).backward()  # Scale loss for averaging before backward pass
 
                 model_loss /= train_size_model
                 model_acc /= train_size_model
-                model_adjusted_acc /= train_size_model
+                model_adjusted_acc /= total_filtered if total_filtered > 0 else 0.0 
                 loss_across_models += (
                     model_loss  # Accumulate average loss for this model
                 )
@@ -996,74 +940,48 @@ def train_ensemble_without_dataloaders(
                 val_loss_across_models = 0.0  # Reset for the current validation epoch
                 val_acc_across_models = 0.0
                 adjusted_val_acc_across_models = 0.0
-                current_ensemble_val_loss = 0.0  # Accumulate total loss for averaging
 
                 for i in range(n_models):  # Validate each model
                     model = ensemble.model_list[i]
                     model.eval()  # Set model to evaluation mode
-                    model_val_loss = 0.0
-                    model_val_acc = 0.0
-                    model_val_adjusted_acc = 0.0
-
+                    model_val_loss, model_val_acc, model_val_adjusted_acc = 0.0, 0.0, 0.0
+                    val_filtered = 0
                     with torch.no_grad():
-                        for (
-                            validation_traj1,
-                            validation_traj2,
-                            validation_true_pref,
-                            validation_reward1,
-                            validation_reward2,
-                        ) in validation_dataloader:
+                        for idx in range(0, val_size, batch_size):
+                            bt1 = val_dataset.dataset.first_trajectories[idx:idx + batch_size]
+                            bt2 = val_dataset.dataset.second_trajectories[idx:idx + batch_size]
+                            btpref = val_dataset.dataset.labels[idx:idx + batch_size]
+                            bsc1 = val_dataset.dataset.score1[idx:idx + batch_size]
+                            bsc2 = val_dataset.dataset.score2[idx:idx + batch_size]
+
+                            # If not preloaded, move to device here
                             if not preload:
-                                (
-                                    validation_traj1,
-                                    validation_traj2,
-                                    validation_true_pref,
-                                    validation_reward1,
-                                    validation_reward2,
-                                ) = load_tensors(
-                                    [
-                                        validation_traj1,
-                                        validation_traj2,
-                                        validation_true_pref,
-                                        validation_reward1,
-                                        validation_reward2,
-                                    ]
-                                )
-                            combined_val_batch = torch.cat(
-                                [validation_traj1, validation_traj2], dim=0
-                            )
-                            combined_val_rewards = model(combined_val_batch)
-                            validation_rewards1, validation_rewards2 = torch.split(
-                                combined_val_rewards,
-                                [validation_traj1.shape[0], validation_traj2.shape[0]],
-                                dim=0,
-                            )
+                                bt1 = bt1.to(device, non_blocking=True)
+                                bt2 = bt2.to(device, non_blocking=True)
+                                btpref = btpref.to(device, non_blocking=True)
+                                bsc1 = bsc1.to(device, non_blocking=True)
+                                bsc2 = bsc2.to(device, non_blocking=True)
 
-                            validation_predicted_probabilities = bradley_terry_model(
-                                validation_rewards1, validation_rewards2
-                            )
-                            val_loss = preference_loss(
-                                validation_predicted_probabilities, validation_true_pref
-                            )
-                            model_val_loss += (
-                                val_loss.item() * validation_true_pref.size(0)
-                            )
-                            model_val_acc += calculate_accuracy(
-                                validation_predicted_probabilities, validation_true_pref
-                            ) * validation_true_pref.size(0)
-                            model_val_adjusted_acc += calculate_adjusted_accuracy(
-                                validation_predicted_probabilities,
-                                validation_true_pref,
-                                validation_reward1,
-                                validation_reward2,
-                            ) * validation_true_pref.size(0)
+                            combined = torch.cat([bt1, bt2], dim=0)
+                            rewards = model(combined)
+                            r1, r2 = torch.split(rewards, [bt1.shape[0], bt2.shape[0]], dim=0)
+                            probs = bradley_terry_model(r1, r2)
+                            loss = preference_loss(probs, btpref)
+                            acc = calculate_accuracy(probs, btpref)
+                            adj_acc = calculate_adjusted_accuracy(probs, btpref, bsc1, bsc2)
 
-                    model_val_loss /= (
-                        val_size  # Average loss for this model on validation set
-                    )
-                    model_val_acc /= val_size
-                    model_val_adjusted_acc /= val_size
-                    val_loss_across_models += model_val_loss  # Sum of average losses
+                            val_loss += loss.item() * btpref.size(0)
+                            val_acc += acc * btpref.size(0)
+                            mask = (bsc1 != bsc2)
+                            num_filtered = int(mask.sum().item())
+                            if num_filtered > 0:
+                                val_adj_acc += adj_acc * num_filtered
+                                val_filtered += num_filtered
+
+                    model_val_loss = val_loss / val_size
+                    model_val_acc = val_acc / val_size
+                    model_val_adjusted_acc = (val_adj_acc / val_filtered) if val_filtered > 0 else 0.0
+                    val_loss_across_models += model_val_loss  
                     val_acc_across_models += model_val_acc
                     adjusted_val_acc_across_models += model_val_adjusted_acc
 
