@@ -9,7 +9,7 @@ import rules
 from itertools import combinations
 from agent import show_database_segments, get_buckets
 
-DATABASE_DIR = './databases/database_gargantuar_1_length_backup/'
+DATABASE_DIR = './databases/database_gargantuar_1_length/'
 NEW_SIZE = 2000000
 print(f"Database directory: {DATABASE_DIR}")
 
