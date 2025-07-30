@@ -1,3 +1,7 @@
+import copy
+from typing import Any
+
+
 NUM_OBSERVATIONS = 5
 NUM_ACTIONS = 1
 POSITION_DIMENSIONS = 2
@@ -47,3 +51,11 @@ class StateActionPair:
 
     def __len__(self):
         return NUM_OBSERVATIONS + NUM_ACTIONS + POSITION_DIMENSIONS
+    
+    def __deepcopy__(self, memo: dict[str, Any]):
+        return StateActionPair(
+            copy.deepcopy(self.radars, memo),
+            copy.deepcopy(self.action, memo),
+            copy.deepcopy(self.position, memo),
+            self.alive,
+        )
