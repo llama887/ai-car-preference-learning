@@ -171,12 +171,12 @@ class TrajectoryDataset(Dataset):
                 self.trajectory_pairs = pickle.load(f)
 
             for trajectory_pair in self.trajectory_pairs:
-                trajectory_pair_copy = copy.deepcopy(trajectory_pair)
-                # --- make every cell an independent copy -------------------------------
-                first_element_first_pair   = copy.deepcopy(trajectory_pair[0][0])
-                first_element_second_pair  = copy.deepcopy(trajectory_pair[0][1])
-                second_element_first_pair  = copy.deepcopy(trajectory_pair[1][0])
-                second_element_second_pair = copy.deepcopy(trajectory_pair[1][1])
+                # trajectory_pair_copy = copy.deepcopy(trajectory_pair)
+                # # --- make every cell an independent copy -------------------------------
+                # first_element_first_pair   = copy.deepcopy(trajectory_pair[0][0])
+                # first_element_second_pair  = copy.deepcopy(trajectory_pair[0][1])
+                # second_element_first_pair  = copy.deepcopy(trajectory_pair[1][0])
+                # second_element_second_pair = copy.deepcopy(trajectory_pair[1][1])
                 # Flatten and cast to float32 for speed
                 self.first_trajectories.append(np.asarray(trajectory_pair[0], dtype=np.float32).ravel())
                 self.second_trajectories.append(np.asarray(trajectory_pair[1], dtype=np.float32).ravel())
@@ -203,12 +203,11 @@ class TrajectoryDataset(Dataset):
             #         state_action_pair.position[0] -= centre_x
             #         state_action_pair.position[1] -= centre_y
 
-                # --- rebuild the two‑by‑two structure ---------------------------------
-                trajectory_pair_copy[0][0] = first_element_first_pair
-                trajectory_pair_copy[0][1] = first_element_second_pair
-                trajectory_pair_copy[1][0] = second_element_first_pair
-                trajectory_pair_copy[1][1] = second_element_second_pair
-                segments.append(trajectory_pair_copy[0])
+                # # --- rebuild the two‑by‑two structure ---------------------------------
+                # trajectory_pair_copy[0][0] = first_element_first_pair
+                # trajectory_pair_copy[0][1] = first_element_second_pair
+                # trajectory_pair_copy[1][0] = second_element_first_pair
+                # trajectory_pair_copy[1][1] = second_element_second_pair
             #     # --- rebuild the two‑by‑two structure ---------------------------------
             #     trajectory_pair_copy = (
             #         (first_element_first_pair,  first_element_second_pair),
