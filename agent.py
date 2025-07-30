@@ -455,12 +455,20 @@ def calculate_new_point(point, distance, angle):
 
 def subtract_center_from_segments(segments):
     centre_x, centre_y = orientation.get_orientation.CIRCLE_CENTER
+    processed_object_identifiers: set[int] = set()
+
     for segment in segments:
         for state_action_pair in segment:
+            object_identifier: int = id(state_action_pair)
+            if object_identifier in processed_object_identifiers:
+                # This physical object was already centred elsewhere.
+                continue
+
             state_action_pair.position[0] -= centre_x
             state_action_pair.position[1] -= centre_y
-    return segments
+            processed_object_identifiers.add(object_identifier)
 
+    return segments
 
 def sample_segments(num_pairs, saved_segments):
     sampled_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
