@@ -169,40 +169,49 @@ class TrajectoryDataset(Dataset):
         else:
             with open(file_path, "rb") as f:
                 self.trajectory_pairs = pickle.load(f)
-            segments = []
+
             for trajectory_pair in self.trajectory_pairs:
-                # --- make every cell an independent copy -------------------------------
-                first_element_first_pair   = copy.deepcopy(trajectory_pair[0][0])
-                first_element_second_pair  = copy.deepcopy(trajectory_pair[0][1])
-                second_element_first_pair  = copy.deepcopy(trajectory_pair[1][0])
-                second_element_second_pair = copy.deepcopy(trajectory_pair[1][1])
-
-                # --- subtract the circle centre once for each distinct pair -----------
-                centre_x, centre_y = orientation.get_orientation.CIRCLE_CENTER
-                for state_action_pair in (
-                    first_element_first_pair,
-                    first_element_second_pair,
-                    second_element_first_pair,
-                    second_element_second_pair,
-                ):
-                    state_action_pair.position[0] -= centre_x
-                    state_action_pair.position[1] -= centre_y
-
-                # --- rebuild the two‑by‑two structure ---------------------------------
-                trajectory_pair_copy = (
-                    (first_element_first_pair,  first_element_second_pair),
-                    (second_element_first_pair, second_element_second_pair),
-                )
-                segments.append(trajectory_pair_copy[0])
-
                 # Flatten and cast to float32 for speed
-                self.first_trajectories.append(np.asarray(trajectory_pair_copy[0], dtype=np.float32).ravel())
-                self.second_trajectories.append(np.asarray(trajectory_pair_copy[1], dtype=np.float32).ravel())
-                self.labels.append(trajectory_pair_copy[2])
-                self.score1.append(trajectory_pair_copy[3])
-                self.score2.append(trajectory_pair_copy[4])
+                self.first_trajectories.append(np.asarray(trajectory_pair[0], dtype=np.float32).ravel())
+                self.second_trajectories.append(np.asarray(trajectory_pair[1], dtype=np.float32).ravel())
+                self.labels.append(trajectory_pair[2])
+                self.score1.append(trajectory_pair[3])
+                self.score2.append(trajectory_pair[4])
+                
+            # segments = []
+            # for trajectory_pair in self.trajectory_pairs:
+            #     # --- make every cell an independent copy -------------------------------
+            #     first_element_first_pair   = copy.deepcopy(trajectory_pair[0][0])
+            #     first_element_second_pair  = copy.deepcopy(trajectory_pair[0][1])
+            #     second_element_first_pair  = copy.deepcopy(trajectory_pair[1][0])
+            #     second_element_second_pair = copy.deepcopy(trajectory_pair[1][1])
 
-            plot_xy_from_segments(segments, f"{file_path}xy_distribution.png")
+            #     # --- subtract the circle centre once for each distinct pair -----------
+            #     centre_x, centre_y = orientation.get_orientation.CIRCLE_CENTER
+            #     for state_action_pair in (
+            #         first_element_first_pair,
+            #         first_element_second_pair,
+            #         second_element_first_pair,
+            #         second_element_second_pair,
+            #     ):
+            #         state_action_pair.position[0] -= centre_x
+            #         state_action_pair.position[1] -= centre_y
+
+            #     # --- rebuild the two‑by‑two structure ---------------------------------
+            #     trajectory_pair_copy = (
+            #         (first_element_first_pair,  first_element_second_pair),
+            #         (second_element_first_pair, second_element_second_pair),
+            #     )
+            #     segments.append(trajectory_pair_copy[0])
+
+            #     # Flatten and cast to float32 for speed
+            #     self.first_trajectories.append(np.asarray(trajectory_pair_copy[0], dtype=np.float32).ravel())
+            #     self.second_trajectories.append(np.asarray(trajectory_pair_copy[1], dtype=np.float32).ravel())
+            #     self.labels.append(trajectory_pair_copy[2])
+            #     self.score1.append(trajectory_pair_copy[3])
+            #     self.score2.append(trajectory_pair_copy[4])
+
+            # plot_xy_from_segments(segments, f"{file_path}xy_distribution.png")
 
             self.first_trajectories = torch.from_numpy(np.stack(self.first_trajectories, axis=0))
             self.second_trajectories = torch.from_numpy(np.stack(self.second_trajectories, axis=0))

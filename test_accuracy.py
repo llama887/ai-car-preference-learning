@@ -184,8 +184,8 @@ def test_model(model_path, hidden_size, batch_size=256):
 
     n_pairs = len(segment_rewards[0])
     for i in range(n_pairs):
-        segment_rewards[0][i] = segment_rewards[0][i][0][0]
-        segment_rewards[1][i] = segment_rewards[1][i][0][0]
+        segment_rewards[0][i] = segment_rewards[0][i][0]
+        segment_rewards[1][i] = segment_rewards[1][i][0]
 
 
     print("\nVerifying true scores match rules satisfied:")

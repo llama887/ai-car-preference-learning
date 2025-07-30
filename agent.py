@@ -22,6 +22,7 @@ import yaml
 
 import reward
 import rules
+import orientation.get_orientation
 from orientation.get_orientation import get_angle
 from reward import Ensemble, TrajectoryRewardNet, prepare_single_trajectory
 from segment import StateActionPair
@@ -384,7 +385,7 @@ def break_into_segments(trajectory, rules_per_step, done):
     trajectory_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
     if len(trajectory) < train_trajectory_length + 1:
         return
-
+    
     current_segment = trajectory[: train_trajectory_length + 1]
     current_rule_sum = sum(rules_per_step[:train_trajectory_length])
     current_rule_avg = int(round(current_rule_sum // train_trajectory_length))
@@ -452,13 +453,22 @@ def calculate_new_point(point, distance, angle):
     return [x1, y1]
 
 
+def subtract_center_from_segments(segments):
+    centre_x, centre_y = orientation.get_orientation.CIRCLE_CENTER
+    for segment in segments:
+        for state_action_pair in segment:
+            state_action_pair.position[0] -= centre_x
+            state_action_pair.position[1] -= centre_y
+    return segments
+
+
 def sample_segments(num_pairs, saved_segments):
     sampled_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
     for i in range(rules.NUMBER_OF_RULES + 1):
         segments_needed = math.ceil(
             math.ceil(num_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]) if rules.SEGMENT_DISTRIBUTION_BY_RULES[i] > ROUNDING_THRESHOLD else 0
         )
-        sampled_segments[i] = random.sample(saved_segments[i], segments_needed)
+        sampled_segments[i] = subtract_center_from_segments(random.sample(saved_segments[i], segments_needed))
     return sampled_segments
 
 
