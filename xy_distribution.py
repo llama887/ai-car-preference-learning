@@ -70,75 +70,10 @@ import copy
 import orientation.get_orientation
 
 if __name__ == "__main__":
-    with open("subsampled_trajectories_r1"
-    "/subsample_database_1000800_pairs_1_rules_1_length.pkl", "rb") as f:
+    with open("./trajectories/database_10000_pairs_1_rules_1_length.pkl", "rb") as f:
         data = pickle.load(f)
-    # plot_xy_from_trajectory_data_pkl(data, "xy_distribution.png")
+    plot_xy_from_trajectory_data_pkl(data, "xy_distribution_train.png")
+    with open("./databases/database_test_f86a92d5.pkl", "rb") as f:
+        data = pickle.load(f)
+    plot_xy_from_trajectory_data_pkl(data, "xy_distribution_test.png")
 
-    segments = []
-    for trajectory_pair in data:
-        # --- make every cell an independent copy -------------------------------
-        first_element_first_pair   = copy.deepcopy(trajectory_pair[0][0])
-        first_element_second_pair  = copy.deepcopy(trajectory_pair[0][1])
-        second_element_first_pair  = copy.deepcopy(trajectory_pair[1][0])
-        second_element_second_pair = copy.deepcopy(trajectory_pair[1][1])
-
-        # --- subtract the circle centre once for each distinct pair -----------
-        centre_x, centre_y = orientation.get_orientation.CIRCLE_CENTER
-        for state_action_pair in (
-            first_element_first_pair,
-            first_element_second_pair,
-            second_element_first_pair,
-            second_element_second_pair,
-        ):
-            state_action_pair.position[0] -= centre_x
-            state_action_pair.position[1] -= centre_y
-
-        # --- rebuild the two‑by‑two structure ---------------------------------
-        trajectory_pair_copy = (
-            (first_element_first_pair,  first_element_second_pair),
-            (second_element_first_pair, second_element_second_pair),
-        )
-
-        
-        if trajectory_pair_copy[0][0].position[0] // 25 < -30 or trajectory_pair_copy[0][0].position[1] // 25 < -30:
-            new_tp = copy.deepcopy(trajectory_pair)
-            print("Initial Position:", trajectory_pair[0][0].position, "\n", trajectory_pair_copy[0][0].position[0] // 25, "\n", trajectory_pair_copy[0][0].position[1] // 25)
-            print("Post Centering Positions:", trajectory_pair_copy[0][0].position)
-            print("CIRCLE_CENTER:", orientation.get_orientation.CIRCLE_CENTER)
-            print("Math:", f"{new_tp[0][0].position[0]} - {orientation.get_orientation.CIRCLE_CENTER[0]} =", new_tp[0][0].position[0]- orientation.get_orientation.CIRCLE_CENTER[0], "\n",
-                  f"{new_tp[0][0].position[1]} - {orientation.get_orientation.CIRCLE_CENTER[1]} =", new_tp[0][0].position[1]- orientation.get_orientation.CIRCLE_CENTER[1])
-            new_tp[0][0].position[0]-=orientation.get_orientation.CIRCLE_CENTER[0]
-            new_tp[0][0].position[1]-=orientation.get_orientation.CIRCLE_CENTER[1]
-            print("New Position:", new_tp[0][0].position)
-            print("\n---\n")
-
-        segments.append(trajectory_pair_copy[0])
-
-    # for trajectory_pair in data:
-    #     tp = copy.deepcopy(trajectory_pair)
-    #     # subtract circle center to 0 center the data
-    #     tp[0][0].position[0]-= orientation.get_orientation.CIRCLE_CENTER[0]
-    #     tp[0][0].position[1]-= orientation.get_orientation.CIRCLE_CENTER[1]
-    #     tp[0][1].position[0]-= orientation.get_orientation.CIRCLE_CENTER[0]
-    #     tp[0][1].position[1]-= orientation.get_orientation.CIRCLE_CENTER[1]
-    #     tp[1][0].position[0]-= orientation.get_orientation.CIRCLE_CENTER[0]
-    #     tp[1][0].position[1]-= orientation.get_orientation.CIRCLE_CENTER[1]
-    #     tp[1][1].position[0]-= orientation.get_orientation.CIRCLE_CENTER[0]
-    #     tp[1][1].position[1]-= orientation.get_orientation.CIRCLE_CENTER[1]
-
-    #     if tp[0][0].position[0] // 25 < -30 or tp[0][0].position[1] // 25 < -30:
-    #         new_tp = copy.deepcopy(trajectory_pair)
-    #         print("Initial Position:", trajectory_pair[0][0].position, "\n", tp[0][0].position[0] // 25, "\n", tp[0][0].position[1] // 25)
-    #         print("Post Centering Positions:", tp[0][0].position)
-    #         print("CIRCLE_CENTER:", orientation.get_orientation.CIRCLE_CENTER)
-    #         print("Math:", f"{new_tp[0][0].position[0]} - {orientation.get_orientation.CIRCLE_CENTER[0]} =", new_tp[0][0].position[0]- orientation.get_orientation.CIRCLE_CENTER[0], "\n",
-    #               f"{new_tp[0][0].position[1]} - {orientation.get_orientation.CIRCLE_CENTER[1]} =", new_tp[0][0].position[1]- orientation.get_orientation.CIRCLE_CENTER[1])
-    #         new_tp[0][0].position[0]-=orientation.get_orientation.CIRCLE_CENTER[0]
-    #         new_tp[0][0].position[1]-=orientation.get_orientation.CIRCLE_CENTER[1]
-    #         print("New Position:", new_tp[0][0].position)
-    #         print("\n---\n")
-    #     segments.append(tp[0])
-    
-    plot_xy_from_segments(segments, f"xy_distribution_post_centering.png")
-    
