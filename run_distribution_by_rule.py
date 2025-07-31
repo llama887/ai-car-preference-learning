@@ -39,14 +39,19 @@ os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 def generate_distribution(resolution, rules):
     distributions = {}
-    for i in range(resolution):
-        satisfaction = i / (resolution - 1)
-        non_satisfaction = (resolution - 1 - i) / ((resolution - 1) * rules)
-        distribution = []
-        for i in range(rules):
-            distribution.append(non_satisfaction)
-        distribution.append(satisfaction)
-        distributions[satisfaction] = distribution
+    satisfaction = [0.1, 0.2, 0.3]
+    non_satisfaction = [(1 - s) / rules for s in satisfaction]
+    # for i in range(resolution):
+    #     satisfaction = i / (resolution - 1)
+    #     non_satisfaction = (resolution - 1 - i) / ((resolution - 1) * rules)
+    #     distribution = []
+    #     for i in range(rules):
+    #         distribution.append(non_satisfaction)
+    #     distribution.append(satisfaction)
+    #     distributions[satisfaction] = distribution
+    for s, ns in zip(satisfaction, non_satisfaction):
+        distribution = [ns] * rules + [s]
+        distributions[s] = distribution
     return distributions
 
 def plot_data(figure_folder, data_points):
@@ -140,22 +145,22 @@ if __name__ == "__main__":
 
         model_id = str(satis)
         print("Starting training on trajectories...")
-        train_reward_function(
+        final_val_acc = train_reward_function(
             trajectories_file_path=database_path,
             epochs=EPOCHS,
             parameters_path=param_file,
             use_ensemble=use_ensemble,
             figure_folder_name=None,
             model_id=model_id,
-            return_stat=None,
-        )
+            return_stat="acc",
+        )["final_adjusted_validation_acc"]
         print("Finished training model...")
 
         model_path = [(reward.models_path + f"model_{model_id}_{EPOCHS}_epochs_{TRAJECTORY_PAIRS}_pairs_{rules.NUMBER_OF_RULES}_rules.pth")]
         test_acc, adjusted_test_acc = test_model_light(
             model_path, hidden_size, batch_size
         )
-        data_y.append(adjusted_test_acc)
+        data_y.append(final_val_acc)
     data_points = (data_x.copy(), data_y.copy())
 
     figure_folder = "distribution_experiment/"

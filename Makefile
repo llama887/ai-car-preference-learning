@@ -76,8 +76,8 @@ run_with_partial_rewards:
 
 
 run_distribution_by_rules:
-	python run_distribution_by_rule.py -r 6 -c 1
-	python run_distribution_by_rule.py -r 6 -c 2
+# 	python run_distribution_by_rule.py -r 6 -c 1
+# 	python run_distribution_by_rule.py -r 6 -c 2
 	python run_distribution_by_rule.py -r 6 -c 3
 	python distribution_plot_from_data.py
 

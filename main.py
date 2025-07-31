@@ -287,6 +287,7 @@ if __name__ == "__main__":
 
     model_weights = ""
     subsample_state_prefix = ""
+    final_val_acc = 0
     if args.reward is None:
         if args.master_database and "subsampled" in args.master_database:
             with open(args.master_database, "rb") as file:
@@ -347,17 +348,16 @@ if __name__ == "__main__":
         print(
             f"train_reward_function({database_path}, {args.epochs[0]}, {args.parameters}, {args.ensemble}, {args.figure}, )"
         )
-        train_reward_function(
+        final_val_acc = train_reward_function(
             trajectories_file_path=database_path,
             epochs=args.epochs[0],
             parameters_path=args.parameters,
             use_ensemble=args.ensemble,
             figure_folder_name=args.figure,
-            return_stat=None,
+            return_stat="acc",
             # save_at_end=args.save_at_end,
-        )
-
-        print("Finished training model...")
+        )["final_adjusted_validation_acc"]
+        print(f"Finished training model... {final_val_acc}")
 
         if not args.parameters:
             sys.exit()
@@ -421,15 +421,26 @@ if __name__ == "__main__":
         test_acc, adjusted_test_acc, acc_pairings = test_model(
             model_weights, hidden_size, batch_size
         )
+
         with open(output_file, "wb") as f:
             pickle.dump(
                 {
                     "test_acc": test_acc,
-                    "adjusted_test_acc": adjusted_test_acc,
+                    "adjusted_test_acc": final_val_acc,
                     "acc_pairings": acc_pairings,
                 },
                 f,
             )
+
+        # with open(output_file, "wb") as f:
+        #     pickle.dump(
+        #         {
+        #             "test_acc": test_acc,
+        #             "adjusted_test_acc": adjusted_test_acc,
+        #             "acc_pairings": acc_pairings,
+        #         },
+        #         f,
+        #     )
 
     if not args.skip_retrain:
         print("Simulating on trained reward function...")
