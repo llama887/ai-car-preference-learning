@@ -341,7 +341,7 @@ def test_model_light(model_path, hidden_size, batch_size=256):
         adjusted_test_acc = adjusted_correct / total_diff if total_diff > 0 else 0
 
     for i in range(len(segment_rewards)):
-        segment_rewards[i] = segment_rewards[i][0][0]
+        segment_rewards[i] = segment_rewards[i][0]
 
     df = pd.DataFrame(
         {
@@ -364,7 +364,10 @@ def test_model_light(model_path, hidden_size, batch_size=256):
     plt.savefig(f"{reward.figure_path}{title}.png")
     plt.close()
 
-    with open(f"{agent.trajectories_path}/violin_data.pkl", "wb") as f:
+    if agent.trajectories_path[-1] != "/":
+        agent.trajectories_path += "/"
+        
+    with open(f"{agent.trajectories_path}violin_data.pkl", "wb") as f:
         pickle.dump(df, f)
 
     print("TEST ACCURACY:", test_acc, "ADJUSTED TEST ACCURACY:", adjusted_test_acc)
