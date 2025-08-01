@@ -81,6 +81,13 @@ run_distribution_by_rules:
 	python run_distribution_by_rule.py -r 6 -c 3
 	python distribution_plot_from_data.py
 
+subtract_center_and_split_training_set_into_training_set_and_test_set:
+	rm -rf databases/database_gargantuar_testing*
+	python database_subtract_center.py
+	mv databases/database_gargantuar_1_length databases/database_gargantuar_1_length_poopoo
+	mv databases/database_gargantuar_1_length_new databases/database_gargantuar_1_length
+	python split_database.py
+
 
 run_distribution_rule_1:
 	python run_distribution_by_rule.py -r 6 -c 1
