@@ -102,11 +102,7 @@ run_with_partial_rewards_iter8:
 	python partial_rewards_by_index.py -i 8
 
 run_with_partial_rewards_iter9:
-	python partial_rewards_by_index.py -i 9
-
-run_with_partial_rewards_iter10:
 	python partial_rewards_by_index.py -i 10
-
 
 run_distribution_by_rules:
 # 	python run_distribution_by_rule.py -r 6 -c 1

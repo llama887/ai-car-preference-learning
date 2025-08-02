@@ -103,8 +103,8 @@ if __name__ == "__main__":
     )
 
     res = 3
-    epochs = 100
-    num_pairs = 1000
+    epochs = 100000
+    num_pairs = 1000000
     param_file = "./best_params.yaml"
 
     
