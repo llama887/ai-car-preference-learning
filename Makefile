@@ -124,8 +124,14 @@ run_distribution_rule_1:
 run_distribution_rule_2:
 	python run_distribution_by_rule.py -r 6 -c 2
 
-run_distribution_rule_3:
-	python run_distribution_by_rule.py -r 6 -c 3
+run_distribution_rule_3_1:
+	python run_distribution_by_rule.py -r 6 -c 3 -s 0.1
+
+run_distribution_rule_3_2:
+	python run_distribution_by_rule.py -r 6 -c 3 -s 0.2
+
+run_distribution_rule_3_3:
+	python run_distribution_by_rule.py -r 6 -c 3 -s 0.3
 
 
 collect_data:

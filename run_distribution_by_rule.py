@@ -37,9 +37,9 @@ os.environ["WANDB_SILENT"] = "true"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 
-def generate_distribution(resolution, rules):
+def generate_distribution(rules, satis):
     distributions = {}
-    satisfaction = [0.1, 0.2, 0.3]
+    satisfaction = [satis]
     non_satisfaction = [(1 - s) / rules for s in satisfaction]
     # for i in range(resolution):
     #     satisfaction = i / (resolution - 1)
@@ -103,6 +103,12 @@ if __name__ == "__main__":
         "--composition",
         type=int,
     )
+
+    parse.add_argument(
+        "-s",
+        "--satisfaction",
+        type=float,
+    )
     
 
     args = parse.parse_args()
@@ -123,7 +129,7 @@ if __name__ == "__main__":
     num_rules = args.composition
     rules.NUMBER_OF_RULES = num_rules
     rules.RULES_INCLUDED = [i for i in range(1, rules.NUMBER_OF_RULES + 1)]
-    distributions = generate_distribution(args.resolution, num_rules)
+    distributions = generate_distribution(num_rules, args.satisfaction)
     total_distributions = len(distributions)
     data_x = sorted(distributions.keys())
     data_y = []
