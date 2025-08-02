@@ -15,6 +15,7 @@ import numpy as np
 import scipy.stats as stats
 
 from agent import AGENTS_PER_GENERATION, load_models
+import 
 
 BASELINE_DIR = "models/"
 
@@ -66,6 +67,7 @@ def plot_baseline():
     
     adjusted_test_accs = {}
     for rules, pairs_dict in sorted(models_by_rules_and_pairs.items()):
+        
         if rules not in adjusted_test_accs:
             adjusted_test_accs[rules] = []
         for pairs, model_path in sorted(pairs_dict.items()):
