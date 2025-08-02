@@ -62,7 +62,7 @@ def process_distribution(args):
         start_simulation(
             config_path, num_pairs, num_pairs, "collect", headless, False
         )
-
+        
         try:
             accs = train_reward_function(
                 database_path, epochs, parameters, False, None, str(i+1), "acc"
@@ -71,11 +71,10 @@ def process_distribution(args):
             test_acc, adjusted_test_acc = test_model_light([f"models_partial/model_{model_id}_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"], hidden_size, batch_size)
             accs["final_test_acc"] = test_acc
             accs["final_adjusted_test_acc"] = adjusted_test_acc
-            return (a, b, c, accs)
         except Exception as e:
-            print(f"Error in processing distribution {i + 1}: {e}")
+            print(f"Error during training or testing: {e}")
+        return (a, b, c, accs)
     return None
-
 
 def calculate_iterations(res):
     i = 0
@@ -104,8 +103,8 @@ if __name__ == "__main__":
     )
 
     res = 3
-    epochs = 10000
-    num_pairs = 1000000
+    epochs = 100
+    num_pairs = 1000
     param_file = "./best_params.yaml"
 
     

@@ -63,18 +63,16 @@ def process_distribution(args):
             config_path, num_pairs, num_pairs, "collect", headless, False
         )
 
-        try:
-            accs = train_reward_function(
-                database_path, epochs, parameters, False, None, str(i+1), "acc"
-            )
-            model_id = i + 1
-            test_acc, adjusted_test_acc = test_model_light([f"models_partial/model_{model_id}_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"], hidden_size, batch_size)
-            accs["final_test_acc"] = test_acc
-            accs["final_adjusted_test_acc"] = adjusted_test_acc
-            return (a, b, c, accs)
-        except Exception as e:
-            print(f"Error in processing distribution {i + 1}: {e}")
-    return None
+        
+        accs = train_reward_function(
+            database_path, epochs, parameters, False, None, str(i+1), "acc"
+        )
+        model_id = i + 1
+        test_acc, adjusted_test_acc = test_model_light([f"models_partial/model_{model_id}_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"], hidden_size, batch_size)
+        accs["final_test_acc"] = test_acc
+        accs["final_adjusted_test_acc"] = adjusted_test_acc
+        return (a, b, c, accs)
+        
 
 
 def calculate_iterations(res):
