@@ -68,7 +68,7 @@ def process_distribution(args):
                 database_path, epochs, parameters, False, None, str(i+1), "acc"
             )
             model_id = i + 1
-            test_acc, adjusted_test_acc = test_model_light([f"models_partial/model_{model_id}_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"], hidden_size, batch_size)
+            test_acc, adjusted_test_acc = test_model_light([f"models_partial/model_{model_id}_{epochs}_epochs_{num_pairs}_pairs_{rules.NUMBER_OF_RULES}_rules.pth"], hidden_size, batch_size, violin_name=f"test_partial_violin_{i + 1}")
             accs["final_test_acc"] = test_acc
             accs["final_adjusted_test_acc"] = adjusted_test_acc
         except Exception as e:
