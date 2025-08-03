@@ -1691,7 +1691,7 @@ def objective(trial):
 
     # train_model now handles early stopping and returns the best validation loss
     # It also saves the best model internally during the trial.
-    best_validation_loss = train_model(
+    best_validation_loss = train_model_without_dataloader(
         file_path=study.user_attrs["file_path"],
         net=net,
         epochs=study.user_attrs["epochs"],

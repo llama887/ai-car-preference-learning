@@ -12,6 +12,7 @@ import random
 import re
 import sys
 import time
+import copy
 from collections import defaultdict, deque
 from itertools import combinations
 
@@ -453,22 +454,17 @@ def calculate_new_point(point, distance, angle):
     return [x1, y1]
 
 
-def subtract_center_from_segments(segments):
-    centre_x, centre_y = orientation.get_orientation.CIRCLE_CENTER
-    processed_object_identifiers: set[int] = set()
+# def subtract_center_from_segments(segments):
+#     centre_x, centre_y = orientation.get_orientation.CIRCLE_CENTER
 
-    for segment in segments:
-        for state_action_pair in segment:
-            object_identifier: int = id(state_action_pair)
-            if object_identifier in processed_object_identifiers:
-                # This physical object was already centred elsewhere.
-                continue
+#     for i, segment in enumerate(segments):
+#         for state_action_pair_idx in range(len(segment)):
+#             state_action_pair_copy = copy.deepcopy(segment[state_action_pair_idx])
+#             state_action_pair_copy.position[0] -= centre_x
+#             state_action_pair_copy.position[1] -= centre_y
+#             segments[i][state_action_pair_idx] = state_action_pair_copy
 
-            state_action_pair.position[0] -= centre_x
-            state_action_pair.position[1] -= centre_y
-            processed_object_identifiers.add(object_identifier)
-
-    return segments
+#     return segments
 
 def sample_segments(num_pairs, saved_segments):
     sampled_segments = [[] for _ in range(rules.NUMBER_OF_RULES + 1)]
@@ -476,7 +472,8 @@ def sample_segments(num_pairs, saved_segments):
         segments_needed = math.ceil(
             math.ceil(num_pairs * 2 * rules.SEGMENT_DISTRIBUTION_BY_RULES[i]) if rules.SEGMENT_DISTRIBUTION_BY_RULES[i] > ROUNDING_THRESHOLD else 0
         )
-        sampled_segments[i] = subtract_center_from_segments(random.sample(saved_segments[i], segments_needed))
+        sampled_segments[i] = random.sample(saved_segments[i], segments_needed)
+        # sampled_segments[i] = subtract_center_from_segments(random.sample(saved_segments[i], segments_needed))
     return sampled_segments
 
 

@@ -49,7 +49,7 @@ def generate_distribution(resolution, rules):
 
 def plot_data(figure_folder, data_points):
     plt.figure()
-    for num_rules in range(1, 4):
+    for num_rules in data_points:
         plt.plot(data_points[num_rules][0], data_points[num_rules][1],label=f"{num_rules} rules", marker='o')
     plt.xlabel("% Satisfaction Segments")
     plt.ylabel("Adjusted Testing Accuracy")

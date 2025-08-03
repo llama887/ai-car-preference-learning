@@ -23,7 +23,7 @@ from reward import (
     TrajectoryRewardNet
 )
 
-TESTSET_SIZE = 1000000
+TESTSET_SIZE = 500000
 TEST_DATA_PATH = f'./databases/database_gargantuar_testing_1_length/'
 
 def check_dataset(test_file):
@@ -283,7 +283,7 @@ def test_model(model_path, hidden_size, batch_size=256):
     return test_acc, adjusted_test_acc, acc_pairings
 
 
-def test_model_light(model_path, hidden_size, batch_size=256):
+def test_model_light(model_path, hidden_size, batch_size=256, violin_name="test_violin"):
     rules.PARTIAL_REWARD = False
     num_rules = rules.NUMBER_OF_RULES
     rules.SEGMENT_DISTRIBUTION_BY_RULES = [1/(2 * num_rules)] * num_rules + [1/2]
@@ -341,7 +341,7 @@ def test_model_light(model_path, hidden_size, batch_size=256):
         adjusted_test_acc = adjusted_correct / total_diff if total_diff > 0 else 0
 
     for i in range(len(segment_rewards)):
-        segment_rewards[i] = segment_rewards[i][0][0]
+        segment_rewards[i] = segment_rewards[i][0]
 
     df = pd.DataFrame(
         {
@@ -359,12 +359,14 @@ def test_model_light(model_path, hidden_size, batch_size=256):
         alpha=0.55,
     )
 
-    title = "test_violin"
     plt.legend()
-    plt.savefig(f"{reward.figure_path}{title}.png")
+    plt.savefig(f"{reward.figure_path}{violin_name}.png")
     plt.close()
 
-    with open(f"{agent.trajectories_path}/violin_data.pkl", "wb") as f:
+    if agent.trajectories_path[-1] != "/":
+        agent.trajectories_path += "/"
+        
+    with open(f"{agent.trajectories_path}{violin_name}_data.pkl", "wb") as f:
         pickle.dump(df, f)
 
     print("TEST ACCURACY:", test_acc, "ADJUSTED TEST ACCURACY:", adjusted_test_acc)

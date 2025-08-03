@@ -74,12 +74,48 @@ run_with_partial_rewards:
 	./scripts/run_partial_rewards.sh -r 3 -p 3
 	python simplex.py
 
+run_with_partial_rewards_iter0:
+	python partial_rewards_by_index.py -i 0
+
+run_with_partial_rewards_iter1:
+	python partial_rewards_by_index.py -i 1
+
+run_with_partial_rewards_iter2:
+	python partial_rewards_by_index.py -i 2
+
+run_with_partial_rewards_iter3:
+	python partial_rewards_by_index.py -i 3
+
+run_with_partial_rewards_iter4:
+	python partial_rewards_by_index.py -i 4
+
+run_with_partial_rewards_iter5:
+	python partial_rewards_by_index.py -i 5
+
+run_with_partial_rewards_iter6:
+	python partial_rewards_by_index.py -i 6
+
+run_with_partial_rewards_iter7:
+	python partial_rewards_by_index.py -i 7
+
+run_with_partial_rewards_iter8:
+	python partial_rewards_by_index.py -i 8
+
+run_with_partial_rewards_iter9:
+	python partial_rewards_by_index.py -i 10
 
 run_distribution_by_rules:
-	python run_distribution_by_rule.py -r 6 -c 1
-	python run_distribution_by_rule.py -r 6 -c 2
+# 	python run_distribution_by_rule.py -r 6 -c 1
+# 	python run_distribution_by_rule.py -r 6 -c 2
 	python run_distribution_by_rule.py -r 6 -c 3
 	python distribution_plot_from_data.py
+
+subtract_center_and_split_training_set_into_training_set_and_test_set:
+	rm -rf databases/database_gargantuar_testing*
+	python database_subtract_center.py
+	mv databases/database_gargantuar_1_length databases/database_gargantuar_1_length_poopoo
+	mv databases/database_gargantuar_1_length_new databases/database_gargantuar_1_length
+	python split_database.py
 
 
 run_distribution_rule_1:
@@ -88,8 +124,14 @@ run_distribution_rule_1:
 run_distribution_rule_2:
 	python run_distribution_by_rule.py -r 6 -c 2
 
-run_distribution_rule_3:
-	python run_distribution_by_rule.py -r 6 -c 3
+run_distribution_rule_3_1:
+	python run_distribution_by_rule.py -r 6 -c 3 -s 0.1
+
+run_distribution_rule_3_2:
+	python run_distribution_by_rule.py -r 6 -c 3 -s 0.2
+
+run_distribution_rule_3_3:
+	python run_distribution_by_rule.py -r 6 -c 3 -s 0.3
 
 
 collect_data:
