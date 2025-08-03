@@ -30,6 +30,17 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 number_of_samples = None
 number_of_rules = None
 
+def _shift_segment(segment, cx: float, cy: float):
+    """
+    Return a deep-copied segment whose every (x, y) is expressed
+    relative to (cx, cy).  Keeps the original segment intact.
+    """
+    s = copy.deepcopy(segment)
+    for sa in s:               # sa == state-action pair
+        sa.position[0] -= cx
+        sa.position[1] -= cy
+    return s
+
 
 def segment_to_tensor(segment):
     """
@@ -61,90 +72,129 @@ def segment_to_tensor(segment):
     return out  # stays on CPU
 
 
-def _process_segment(args):
-    segment, number_of_rules = args
-    s = copy.deepcopy(segment)
-    _, reward_value, _ = check_rules_one(s, number_of_rules)
-    cx, cy = orientation.get_orientation.CIRCLE_CENTER
-    s[0].position[0] -= cx
-    s[0].position[1] -= cy
-    s[1].position[0] -= cx
-    s[1].position[1] -= cy
-    return reward_value, s
+def _process_segment(args: tuple[int, list, int]) -> tuple[int, int]:
+    """
+    Light-weight worker function.
 
-def parallel_map_large(func, iterable, desc=None, chunk_size=10000, total=None):
-    ctx = mp.get_context("spawn")          # safe with CUDA / threads
+    Args
+    ----
+    args : (idx, segment, num_rules)
+        idx         – index of `segment` in the original list (stays in parent)
+        segment     – the trajectory segment itself
+        num_rules   – how many rules to evaluate
+
+    Returns
+    -------
+    (reward_value, idx)  – small, fixed-size tuple that is cheap to pipe back.
+    """
+    idx, segment, num_rules = args
+    _, reward_value, _ = check_rules_one(segment, num_rules)  # heavy work
+    return reward_value, idx
+
+
+def parallel_map_large(
+    func,
+    iterable,
+    desc: str | None = None,
+    chunk_size: int = 10_000,
+    total: int | None = None,
+):
+    """
+    Parallel map that keeps one Pool alive, recycles workers after a while,
+    and handles Ctrl-C cleanly.
+
+    • spawn context → CUDA-safe
+    • maxtasksperchild → prevents memory / semaphore leaks
+    • imap_unordered  → streams results, keeps pipes short
+    """
+    ctx = mp.get_context("spawn")
     if total is None:
-        total = len(iterable)
-    for i in tqdm(range(0, total, chunk_size), desc=desc):
-        chunk = iterable[i:i + chunk_size]
-        with ctx.Pool(mp.cpu_count()) as pool:
-            yield from pool.map(func, chunk)
+        try:
+            total = len(iterable)
+        except TypeError:
+            pass  # iterable is a generator
+
+    with ctx.Pool(
+        processes=ctx.cpu_count(),
+        maxtasksperchild=100,   # recycle workers every 100 tasks
+    ) as pool:
+        try:
+            for result in tqdm(
+                pool.imap_unordered(func, iterable, chunksize=chunk_size),
+                total=total,
+                desc=desc,
+            ):
+                yield result
+        except KeyboardInterrupt:
+            pool.terminate()
+            raise
+
 
 def accuracy_per_xy(
     trajectory_segments,
     number_of_rules,
     reward_model_directory=None,
-    reward_model=None
+    reward_model=None,
 ):
+    """
+    Sequential (single-process) computation of per-(x,y) accuracy.
+    """
 
-    print("Splitting segments by reward and xy...")
-    # Chunked parallel processing
-    results = list(
-        parallel_map_large(
-            _process_segment,
-            [(seg, number_of_rules) for seg in trajectory_segments],
-            desc="Processing segments",
-            chunk_size=100000,
-            total=len(trajectory_segments)
-        )
-    )
+    # ── 1. Evaluate rules ───────────────────────────────────────────────────
+    segments_by_reward: dict[int, list[int]] = {0: [], 1: []}
 
-    segments_by_reward = {0: [], 1: []}
-    for reward_value, s in results:
-        segments_by_reward[reward_value].append(s)
+    print("Evaluating rule set on segments (sequential)...")
+    for idx, seg in enumerate(tqdm(trajectory_segments)):
+        _, reward_value, _ = check_rules_one(seg, number_of_rules)
+        segments_by_reward[reward_value].append(idx)
 
     print(
         f"Number of segments with reward 0: {len(segments_by_reward[0])}, "
         f"reward 1: {len(segments_by_reward[1])}"
     )
 
-    # 2) Build paired lists as before
-    paired_segments_0 = []
-    paired_segments_1 = []
-    coordinate_list = []
-    for reward_value, segment_list in segments_by_reward.items():
-        opposite_list = segments_by_reward[1 if reward_value == 0 else 0]
-        assert opposite_list, f"No segments with reward {1 if reward_value == 0 else 0}"
-        for original_segment in segment_list:
-            sampled_opposite = random.choice(opposite_list)
+    # ── 2. Build positive / negative pairs and shift coordinates ────────────
+    paired_segments_0, paired_segments_1, coordinate_list = [], [], []
+
+    cx, cy = orientation.get_orientation.CIRCLE_CENTER
+
+    for reward_value, idx_list in segments_by_reward.items():
+        opposite_idx_list = segments_by_reward[1 ^ reward_value]
+        if not opposite_idx_list:
+            raise ValueError(f"No segments with reward {1 ^ reward_value}")
+
+        for idx in idx_list:
+            seg_a_world = trajectory_segments[idx]
+            seg_b_world = trajectory_segments[random.choice(opposite_idx_list)]
+
+            # Deep-copied, shifted versions for the model
+            seg_a = _shift_segment(seg_a_world, cx, cy)
+            seg_b = _shift_segment(seg_b_world, cx, cy)
+
             if reward_value == 0:
-                paired_segments_0.append(original_segment)
-                paired_segments_1.append(sampled_opposite)
+                paired_segments_0.append(seg_a)
+                paired_segments_1.append(seg_b)
             else:
-                paired_segments_0.append(sampled_opposite)
-                paired_segments_1.append(original_segment)
-            x_coord, y_coord = original_segment[0].position
-            coordinate_list.append((x_coord, y_coord))
+                paired_segments_0.append(seg_b)
+                paired_segments_1.append(seg_a)
+
+            coordinate_list.append((seg_a[0].position[0], seg_a[0].position[1]))
 
     number_of_pairs = len(paired_segments_0)
     assert number_of_pairs == len(paired_segments_1) == len(coordinate_list)
 
-
-    # 4) Sequential tensor conversion (original version)
+    # ── 3. Convert to tensors ───────────────────────────────────────────────
     print("Converting segments to flat tensors...")
-    tensor_list_0 = torch.stack([
-        segment_to_tensor(seg) for seg in tqdm(paired_segments_0)
-    ])
-    tensor_list_1 = torch.stack([
-        segment_to_tensor(seg) for seg in tqdm(paired_segments_1)
-    ])
+    tensor_list_0 = torch.stack([segment_to_tensor(s) for s in tqdm(paired_segments_0)])
+    tensor_list_1 = torch.stack([segment_to_tensor(s) for s in tqdm(paired_segments_1)])
 
-    # 5) GPU inference + correctness
+    # ── 4. Inference and per-xy accuracy ────────────────────────────────────
     model = reward_model or load_models([reward_model_directory])[0]
     model = model.to(device).eval()
-    batch_size = 8192
+
+    batch_size = 8_192
     correctness = np.empty(number_of_pairs, dtype=np.int32)
+
     with torch.no_grad():
         for i in range(0, number_of_pairs, batch_size):
             j = i + batch_size
@@ -154,14 +204,13 @@ def accuracy_per_xy(
             r1 = model(b1).cpu().numpy().ravel()
             correctness[i:j] = (r1 > r0).astype(np.int32)
 
-    # 6) Compute accuracies per (x,y)
     overall = correctness.mean()
     coords = np.array(coordinate_list)
     uniq, inv = np.unique(coords, axis=0, return_inverse=True)
     sums = np.bincount(inv, weights=correctness, minlength=uniq.shape[0])
     cnts = np.bincount(inv, minlength=uniq.shape[0])
     accs = (sums / cnts).tolist()
-    xs, ys = uniq[:,0].tolist(), uniq[:,1].tolist()
+    xs, ys = uniq[:, 0].tolist(), uniq[:, 1].tolist()
 
     print(f"Mean per-XY accuracy: {float(np.mean(accs))}")
     print(f"Overall accuracy:      {overall}")
