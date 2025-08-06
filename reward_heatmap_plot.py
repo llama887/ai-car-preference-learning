@@ -69,65 +69,8 @@ def segment_to_tensor(segment):
         out[idx:idx+2] = torch.tensor(state_action_pair.position, dtype=torch.float32)
         idx += 2
 
-    return out  # stays on CPU
+    return out  
 
-
-def _process_segment(args: tuple[int, list, int]) -> tuple[int, int]:
-    """
-    Light-weight worker function.
-
-    Args
-    ----
-    args : (idx, segment, num_rules)
-        idx         – index of `segment` in the original list (stays in parent)
-        segment     – the trajectory segment itself
-        num_rules   – how many rules to evaluate
-
-    Returns
-    -------
-    (reward_value, idx)  – small, fixed-size tuple that is cheap to pipe back.
-    """
-    idx, segment, num_rules = args
-    _, reward_value, _ = check_rules_one(segment, num_rules)  # heavy work
-    return reward_value, idx
-
-
-def parallel_map_large(
-    func,
-    iterable,
-    desc: str | None = None,
-    chunk_size: int = 10_000,
-    total: int | None = None,
-):
-    """
-    Parallel map that keeps one Pool alive, recycles workers after a while,
-    and handles Ctrl-C cleanly.
-
-    • spawn context → CUDA-safe
-    • maxtasksperchild → prevents memory / semaphore leaks
-    • imap_unordered  → streams results, keeps pipes short
-    """
-    ctx = mp.get_context("spawn")
-    if total is None:
-        try:
-            total = len(iterable)
-        except TypeError:
-            pass  # iterable is a generator
-
-    with ctx.Pool(
-        processes=ctx.cpu_count(),
-        maxtasksperchild=100,   # recycle workers every 100 tasks
-    ) as pool:
-        try:
-            for result in tqdm(
-                pool.imap_unordered(func, iterable, chunksize=chunk_size),
-                total=total,
-                desc=desc,
-            ):
-                yield result
-        except KeyboardInterrupt:
-            pool.terminate()
-            raise
 
 
 def accuracy_per_xy(
@@ -137,15 +80,15 @@ def accuracy_per_xy(
     reward_model=None,
 ):
     """
-    Sequential (single-process) computation of per-(x,y) accuracy.
+    Computation of per-(x,y) accuracy.
     """
+    normalized_segments = [_shift_segment(seg, *orientation.get_orientation.CIRCLE_CENTER) for seg in tqdm(trajectory_segments, desc="Normalizing segments")]
 
-    # ── 1. Evaluate rules ───────────────────────────────────────────────────
     segments_by_reward: dict[int, list[int]] = {0: [], 1: []}
 
-    print("Evaluating rule set on segments (sequential)...")
-    for idx, seg in enumerate(tqdm(trajectory_segments)):
+    for idx, seg in enumerate(tqdm(normalized_segments, desc="Evaluating rule set on segments")):
         _, reward_value, _ = check_rules_one(seg, number_of_rules)
+        assert reward_value in (0, 1), f"Unexpected reward value {reward_value}"
         segments_by_reward[reward_value].append(idx)
 
     print(
@@ -153,42 +96,37 @@ def accuracy_per_xy(
         f"reward 1: {len(segments_by_reward[1])}"
     )
 
-    # ── 2. Build positive / negative pairs and shift coordinates ────────────
     paired_segments_0, paired_segments_1, coordinate_list = [], [], []
 
-    cx, cy = orientation.get_orientation.CIRCLE_CENTER
+    r0_idx_list = segments_by_reward[0]
+    r1_idx_list = segments_by_reward[1]
 
-    for reward_value, idx_list in segments_by_reward.items():
-        opposite_idx_list = segments_by_reward[1 ^ reward_value]
-        if not opposite_idx_list:
-            raise ValueError(f"No segments with reward {1 ^ reward_value}")
+    for idx in tqdm(r0_idx_list, desc="Pairing segments with reward 0"):
+        r0_segment = normalized_segments[idx]
+        r1_segment = normalized_segments[random.choice(r1_idx_list)]
+        paired_segments_0.append(r0_segment)
+        paired_segments_1.append(r1_segment)
+        _, r0, _ = check_rules_one(r0_segment, number_of_rules)
+        _, r1, _ = check_rules_one(r1_segment, number_of_rules)
+        assert r0 == 0 and r1 == 1, f"Expected rewards 0 and 1, got {r0} and {r1}"
+        coordinate_list.append((r0_segment[0].position[0], r0_segment[0].position[1]))
 
-        for idx in idx_list:
-            seg_a_world = trajectory_segments[idx]
-            seg_b_world = trajectory_segments[random.choice(opposite_idx_list)]
-
-            # Deep-copied, shifted versions for the model
-            seg_a = _shift_segment(seg_a_world, cx, cy)
-            seg_b = _shift_segment(seg_b_world, cx, cy)
-
-            if reward_value == 0:
-                paired_segments_0.append(seg_a)
-                paired_segments_1.append(seg_b)
-            else:
-                paired_segments_0.append(seg_b)
-                paired_segments_1.append(seg_a)
-
-            coordinate_list.append((seg_a[0].position[0], seg_a[0].position[1]))
+    for idx in tqdm(r1_idx_list, desc="Pairing segments with reward 1"):
+        r1_segment = normalized_segments[idx]
+        r0_segment = normalized_segments[random.choice(r0_idx_list)]
+        paired_segments_0.append(r0_segment)
+        paired_segments_1.append(r1_segment)
+        _, r0, _ = check_rules_one(r0_segment, number_of_rules)
+        _, r1, _ = check_rules_one(r1_segment, number_of_rules)
+        assert r0 == 0 and r1 == 1, f"Expected rewards 0 and 1, got {r0} and {r1}"
+        coordinate_list.append((r1_segment[0].position[0], r1_segment[0].position[1]))
 
     number_of_pairs = len(paired_segments_0)
     assert number_of_pairs == len(paired_segments_1) == len(coordinate_list)
 
-    # ── 3. Convert to tensors ───────────────────────────────────────────────
-    print("Converting segments to flat tensors...")
-    tensor_list_0 = torch.stack([segment_to_tensor(s) for s in tqdm(paired_segments_0)])
-    tensor_list_1 = torch.stack([segment_to_tensor(s) for s in tqdm(paired_segments_1)])
+    tensor_list_0 = torch.stack([segment_to_tensor(s) for s in tqdm(paired_segments_0, desc="Converting segments with reward 0 to tensors")])
+    tensor_list_1 = torch.stack([segment_to_tensor(s) for s in tqdm(paired_segments_1, desc="Converting segments with reward 1 to tensors")])
 
-    # ── 4. Inference and per-xy accuracy ────────────────────────────────────
     model = reward_model or load_models([reward_model_directory])[0]
     model = model.to(device).eval()
 
