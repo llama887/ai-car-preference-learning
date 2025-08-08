@@ -348,8 +348,18 @@ if __name__ == "__main__":
     results = get_grid_points(samples)
 
     list_of_segments = []
+
+    import copy
+    import orientation.get_orientation
     for segment in results:
+        s = copy.deepcopy(segment)
+        for state_action_pair in s:               # sa == state-action pair
+            state_action_pair.position[0] -= orientation.get_orientation.CIRCLE_CENTER[0]
+            state_action_pair.position[1] -= orientation.get_orientation.CIRCLE_CENTER[1]
         list_of_segments.extend(segment)
+    from xy_distribution import plot_xy_from_segments
+    plot_xy_from_segments(list_of_segments, "subsampled_gargantuar_1_length.png")
+
     print(f"Found {len(list_of_segments)} segments.")
 
     
