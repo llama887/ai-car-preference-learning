@@ -353,7 +353,7 @@ if __name__ == "__main__":
     import orientation.get_orientation
     for segment in results:
         s = copy.deepcopy(segment)
-        for state_action_pair in s:               # sa == state-action pair
+        for state_action_pair in s:               
             state_action_pair.position[0] -= orientation.get_orientation.CIRCLE_CENTER[0]
             state_action_pair.position[1] -= orientation.get_orientation.CIRCLE_CENTER[1]
         list_of_segments.extend(segment)

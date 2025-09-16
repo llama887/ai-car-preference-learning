@@ -24,11 +24,88 @@ import rules
 import orientation.get_orientation
 from multiprocessing import Pool, cpu_count
 import multiprocessing as mp
+from typing import List, Tuple
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Arrow plotting params 
+ARROW_N_CLUSTERS: int = 16          # number of arrow clusters
+ARROW_SCALE: float = 10.0            # multiply the averaged dx, dy by this
+ARROW_MIN_MAG: float = 1         # minimum |vector| in data units to draw
+
+
+
 number_of_samples = None
 number_of_rules = None
+
+def _compute_clustered_arrows_from_segments(
+    segments: List[List],
+    n_arrows: int,
+    min_arrow_magnitude: float,
+    arrow_scale: float,
+) -> Tuple[List[float], List[float], List[float], List[float]]:
+    """
+    Build arrows directly from raw segments (no binning).
+    Each segment contributes:
+      start = (x1, y1)
+      disp  = (x2 - x1, y2 - y1)
+    Then KMeans on starts -> one averaged arrow per cluster.
+
+    Returns (qx, qy, qu, qv) ready for plt.quiver, all in DATA units.
+    """
+    # Normalize to match the heatmap's coordinate system
+    normalized: List[List] = [
+        _shift_segment(seg, *orientation.get_orientation.CIRCLE_CENTER) for seg in segments
+    ]
+
+    starts_xy: List[Tuple[float, float]] = []
+    disps_xy:  List[Tuple[float, float]] = []
+
+    for seg in normalized:
+        if len(seg) < 2:
+            continue
+        x1 = float(seg[0].position[0]); y1 = float(seg[0].position[1])
+        x2 = float(seg[1].position[0]); y2 = float(seg[1].position[1])
+        starts_xy.append((x1, y1))
+        disps_xy.append((x2 - x1, y2 - y1))
+
+    if not starts_xy:
+        return [], [], [], []
+
+    pts = np.asarray(starts_xy, dtype=float)
+    vec = np.asarray(disps_xy,  dtype=float)
+
+    k = int(min(max(1, n_arrows), len(pts)))
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    labels = kmeans.fit_predict(pts)
+
+    qx: List[float] = []
+    qy: List[float] = []
+    qu: List[float] = []
+    qv: List[float] = []
+
+    for cid in range(k):
+        mask = labels == cid
+        if not np.any(mask):
+            continue
+        cluster_pts = pts[mask]
+        cluster_vec = vec[mask]
+
+        # Arrow tail at cluster center; arrow is average displacement
+        cx, cy = cluster_pts.mean(axis=0).tolist()
+        vx, vy = cluster_vec.mean(axis=0).tolist()
+
+        mag = float(np.hypot(vx, vy))
+        if mag < min_arrow_magnitude:
+            continue
+
+        qx.append(cx)
+        qy.append(cy)
+        qu.append(vx * arrow_scale)
+        qv.append(vy * arrow_scale)
+
+    return qx, qy, qu, qv
+
 
 def _shift_segment(segment, cx: float, cy: float):
     """
@@ -201,23 +278,21 @@ def plot_reward_heatmap(
     ax.invert_yaxis()
 
     if arrows:
-        centers_and_angles = get_cluster_centers_and_angles(x, y)
-        arrow_length = 0.05 * (max(x) - min(x))
-        for center_x, center_y, angle in centers_and_angles:
-            dx = arrow_length * np.cos(np.radians(angle))
-            dy = arrow_length * np.sin(np.radians(angle))
-            arrow = FancyArrowPatch(
-                (center_x, center_y),
-                (center_x + dx, center_y + dy),
-                arrowstyle='-|>',
-                mutation_scale=15,
-                color='red',
-                linewidth=1.5,
-                zorder=10
+        qx, qy, qu, qv = _compute_clustered_arrows_from_segments(
+            samples,
+            n_arrows=ARROW_N_CLUSTERS,
+            min_arrow_magnitude=ARROW_MIN_MAG,
+            arrow_scale=ARROW_SCALE,
+        )
+        if len(qx) > 0:
+            plt.quiver(
+                qx, qy, qu, qv,
+                angles="xy", scale_units="xy", scale=1,
+                width=0.004, alpha=0.95,
             )
-            ax.add_patch(arrow)
-        ax.plot([], [], color='red', marker='>', linestyle='-',
-                label='Car Orientation', markersize=8)
+            ax.plot([], [], color='k', linestyle='-', label='Average motion (clustered)')
+    ax.legend()
+
     ax.legend()
 
     if number_of_samples and number_of_rules:
