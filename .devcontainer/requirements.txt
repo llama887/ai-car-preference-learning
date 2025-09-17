@@ -13,4 +13,4 @@ imageio
 scikit-image
 ipdb
 plotly
-
+prettytable

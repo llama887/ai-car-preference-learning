@@ -39,7 +39,7 @@ os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 def generate_distribution(rules, satis):
     distributions = {}
-    satisfaction = [satis]
+    satisfaction = [0.1, 0.2, 0.3]
     non_satisfaction = [(1 - s) / rules for s in satisfaction]
     # for i in range(resolution):
     #     satisfaction = i / (resolution - 1)

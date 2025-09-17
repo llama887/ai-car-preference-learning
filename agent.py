@@ -215,7 +215,7 @@ class Car:
             self.rotated_sprite = self.rotate_center(self.sprite, self.angle)
             self.position[0] += math.cos(math.radians(360 - self.angle)) * self.speed
             self.position[0] = max(self.position[0], 20)
-            self.position[0] = min(self.position[0], WIDTH - 120)
+            self.position[0] = min(self.position[0], WIDTH - 80)
 
             # Increase Distance and Time
             self.distance += self.speed
@@ -225,7 +225,7 @@ class Car:
             # Same For Y-Position
             self.position[1] += math.sin(math.radians(360 - self.angle)) * self.speed
             self.position[1] = max(self.position[1], 20)
-            self.position[1] = min(self.position[1], HEIGHT - 120)
+            self.position[1] = min(self.position[1], HEIGHT - 80)
 
             # Calculate New Center
             self.center = [

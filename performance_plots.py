@@ -47,7 +47,7 @@ def extract_acc(zip_file):
     acc_pickle = glob.glob("temp_trajectories/trajectories*/test_accuracy.pkl")
     with open(acc_pickle[0], "rb") as f:
         data = pickle.load(f)
-        test_acc = data['test_acc']
+        # test_acc = data['test_acc']
         adjusted_test_acc = data['adjusted_test_acc']
 
     return num_pairs, adjusted_test_acc
@@ -87,7 +87,7 @@ def extract_trajectories(zip_file):
     acc_pickle = glob.glob("temp_trajectories/trajectories*/test_accuracy.pkl")
     with open(acc_pickle[0], "rb") as f:
         data = pickle.load(f)
-        test_acc = data['test_acc']
+        # test_acc = data['test_acc']
         adjusted_test_acc = data['adjusted_test_acc']
         
     shutil.rmtree("temp_trajectories")

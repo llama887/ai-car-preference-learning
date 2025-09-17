@@ -102,7 +102,7 @@ run_with_partial_rewards_iter8:
 	python partial_rewards_by_index.py -i 8
 
 run_with_partial_rewards_iter9:
-	python partial_rewards_by_index.py -i 10
+	python partial_rewards_by_index.py -i 9
 
 run_distribution_by_rules:
 # 	python run_distribution_by_rule.py -r 6 -c 1
@@ -113,10 +113,9 @@ run_distribution_by_rules:
 subtract_center_and_split_training_set_into_training_set_and_test_set:
 	rm -rf databases/database_gargantuar_testing*
 	python database_subtract_center.py
-	mv databases/database_gargantuar_1_length databases/database_gargantuar_1_length_poopoo
+	mv databases/database_gargantuar_1_length databases/database_gargantuar_1_length_bad
 	mv databases/database_gargantuar_1_length_new databases/database_gargantuar_1_length
 	python split_database.py
-
 
 run_distribution_rule_1:
 	python run_distribution_by_rule.py -r 6 -c 1
@@ -138,19 +137,19 @@ collect_data:
 	rm -rf tmp
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	./scripts/parallel_data_collect.sh -t 20000000 -n 10 
-	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length.pkl 
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_1_length
 
 collect_testset:
 	rm -rf tmp
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
 	./scripts/parallel_data_collect.sh -t 20000000 -n 10
-	python ./combine_gargantuar.py -d tmp -o databases/database_gargantuar_testing_1_length
+	python ./combine_gargantuar.py -d tmp -o database_gargantuar_testing_1_length
 
 
 collect_data_all:
 	make collect_data
-	make subsample_collect_data_all
-	make collect_data_longer_segments
+# 	make subsample_collect_data_all
+	make collect_testset
 
 run_hpc_baseline_task:
 	if [ ! -f "grid_points.pkl" ]; then python save_gridpoints.py; fi
@@ -163,9 +162,9 @@ run_hpc_baseline_task:
 	fi
 
 run_one_rule_experiment:
-	stdbuf -oL python -u main.py -e 3000 -t 1000000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule1 --trajectory trajectories_rule1 -d "1/2" -d "1/2" -i 1 --headless --skip-retrain 2>&1 | tee logs/log_rule1.log &
-	stdbuf -oL python -u main.py -e 3000 -t 1000000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule2 --trajectory trajectories_rule2 -d "1/2" -d "1/2" -i 2 --headless --skip-retrain 2>&1 | tee logs/log_rule2.log &
-	stdbuf -oL python -u main.py -e 3000 -t 1000000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule3 --trajectory trajectories_rule3 -d "1/2" -d "1/2" -i 3 --headless --skip-retrain 2>&1 | tee logs/log_rule3.log &
+	stdbuf -oL python -u main.py -e 3000 -t 1000000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule1 --trajectory trajectories_rule1 -d "1/2" -d "1/2" -i 1 --headless --skip-retrain 2>&1 | tee logs/log_rule1.log
+	stdbuf -oL python -u main.py -e 3000 -t 1000000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule2 --trajectory trajectories_rule2 -d "1/2" -d "1/2" -i 2 --headless --skip-retrain 2>&1 | tee logs/log_rule2.log
+	stdbuf -oL python -u main.py -e 3000 -t 1000000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule3 --trajectory trajectories_rule3 -d "1/2" -d "1/2" -i 3 --headless --skip-retrain 2>&1 | tee logs/log_rule3.log
 
 one_rule_sequential:
 	stdbuf -oL python -u main.py -e 3000 -t 1000000 -g 200 -p ./best_params.yaml -c 1 --figure figures_rule1_1000000 --trajectory trajectories_rule1_1000000 -d "1/2" -d "1/2" -i 1 --headless --skip-retrain --model models_one_rule 2>&1 | tee logs/log_rule1.log &
@@ -205,3 +204,24 @@ clean:
 	rm -rf tmp
 	find . -type f -name '*.zip' -delete
 	find . -type f -name '*.pth' -delete
+
+heatmaps:
+	@echo "plotting 1000"
+	python reward_heatmap_plot.py -m models/model_1_100000_epochs_1000_pairs_1_rules.pth -r 1 -s 1000
+	python reward_heatmap_plot.py -m models/model_12_100000_epochs_1000_pairs_2_rules.pth -r 2 -s 1000
+	python reward_heatmap_plot.py -m models/model_123_100000_epochs_1000_pairs_3_rules.pth -r 3 -s 1000
+
+	@echo "plotting 10000"
+	python reward_heatmap_plot.py -m models/model_1_100000_epochs_10000_pairs_1_rules.pth  -r 1 -s 10000
+	python reward_heatmap_plot.py -m models/model_12_100000_epochs_10000_pairs_2_rules.pth  -r 2 -s 10000
+	python reward_heatmap_plot.py -m models/model_123_100000_epochs_10000_pairs_3_rules.pth  -r 3 -s 10000
+
+	@echo "plotting 100000"
+	python reward_heatmap_plot.py -m models/model_1_100000_epochs_100000_pairs_1_rules.pth -r 1 -s 100000
+	python reward_heatmap_plot.py -m models/model_12_100000_epochs_100000_pairs_2_rules.pth -r 2 -s 100000
+	python reward_heatmap_plot.py -m models/model_123_100000_epochs_100000_pairs_3_rules.pth -r 3 -s 100000
+
+	@echo "plotting 1000000"
+	python reward_heatmap_plot.py -m models/model_1_100000_epochs_1000000_pairs_1_rules.pth -r 1 -s 1000000
+	python reward_heatmap_plot.py -m models/model_12_100000_epochs_1000000_pairs_2_rules.pth -r 2 -s 1000000
+	python reward_heatmap_plot.py -m models/model_123_100000_epochs_1000000_pairs_3_rules.pth -r 3 -s 1000000

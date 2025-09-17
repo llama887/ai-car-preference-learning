@@ -348,7 +348,7 @@ if __name__ == "__main__":
         print(
             f"train_reward_function({database_path}, {args.epochs[0]}, {args.parameters}, {args.ensemble}, {args.figure}, )"
         )
-        final_val_acc = train_reward_function(
+        test_acc = train_reward_function(
             trajectories_file_path=database_path,
             epochs=args.epochs[0],
             parameters_path=args.parameters,
@@ -356,8 +356,8 @@ if __name__ == "__main__":
             figure_folder_name=args.figure,
             return_stat="acc",
             # save_at_end=args.save_at_end,
-        )["final_adjusted_validation_acc"]
-        print(f"Finished training model... {final_val_acc}")
+        )["test_acc"]
+        print(f"Finished training model... {test_acc}")
 
         if not args.parameters:
             sys.exit()
@@ -426,7 +426,7 @@ if __name__ == "__main__":
             pickle.dump(
                 {
                     "test_acc": test_acc,
-                    "adjusted_test_acc": final_val_acc,
+                    "adjusted_test_acc": adjusted_test_acc,
                     "acc_pairings": acc_pairings,
                 },
                 f,
