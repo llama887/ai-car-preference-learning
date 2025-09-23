@@ -67,7 +67,7 @@ mkdir -p logs
 
 
 # Remove previous results
-rm -rf figures* trajectories trajectories_t*
+rm -rf figures* trajectories_t*
 
 # Function to run a single instance of main.py
 run_instance() {

@@ -310,8 +310,8 @@ def get_grid_points(samples=2000000):
     for result in tmp_results:
         r, point, position = result
         results.append(r)
-        point_set.add(point)
-        position_set.add(position)
+        point_set.add(point) # what is this for 
+        position_set.add(position) # and this
 
     return results
 

@@ -8,6 +8,11 @@ def generate_grid_points():
     with open("grid_points.pkl", "wb") as f:
         pickle.dump(data, f)
 
+    combined_data = []
+    for data_set in data:
+        combined_data.extend(data_set)
+    with open("grid_points_segments.pkl", "wb") as f:
+        pickle.dump(combined_data, f)
 
 if __name__ == "__main__":
     generate_grid_points()

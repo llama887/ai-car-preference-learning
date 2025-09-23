@@ -228,9 +228,16 @@ def main() -> None:
     parser.add_argument(
         "--pkl",
         type=str,
-        default="trajectories_rule1/database_1000000_pairs_1_rules_1_length.pkl",
+        default="./trajectories_t1000000_r3/database_1000000_pairs_3_rules_1_length.pkl",
         help="Path to PKL file with trajectory tuples.",
     )
+    parser.add_argument(
+        "--segments",
+        type=str,
+        default="./grid_points_segments.pkl",
+        help="Path to PKL file with grid point segments.",
+    )
+
     parser.add_argument("--out", type=str, default="xy_distribution.png", help="Output image filename.")
     parser.add_argument("--bin-size", type=int, default=25, help="Bin size in pixels.")
     parser.add_argument("--arrow", action="store_true", help="Overlay clustered average arrows.")
@@ -240,19 +247,33 @@ def main() -> None:
     parser.add_argument("--arrow-scale", type=float, default=10, help="Scale factor applied to arrow vectors.")
     args = parser.parse_args()
 
-    with open(args.pkl, "rb") as fh:
-        data = pickle.load(fh)
 
-    plot_xy_from_trajectory_data_pkl(
-        data,
-        filename=args.out,
-        draw_arrows=args.arrow,
-        bin_size=args.bin_size,
-        min_count_for_arrow=args.min_arrow_count,
-        n_arrows=args.n_arrows,
-        arrow_scale=args.arrow_scale,
-        min_arrow_magnitude=args.min_arrow_mag,
-    )
+    if args.segments:
+        with open(args.segments, "rb") as fh:
+            segments = pickle.load(fh)
+        plot_xy_from_segments(
+            segments,
+            filename=args.out,
+            draw_arrows=args.arrow,
+            bin_size=args.bin_size,
+            min_count_for_arrow=args.min_arrow_count,
+            n_arrows=args.n_arrows,
+            arrow_scale=args.arrow_scale,
+            min_arrow_magnitude=args.min_arrow_mag,
+        )
+    else:
+        with open(args.pkl, "rb") as fh:
+            data = pickle.load(fh)
+        plot_xy_from_trajectory_data_pkl(
+            data,
+            filename=args.out,
+            draw_arrows=args.arrow,
+            bin_size=args.bin_size,
+            min_count_for_arrow=args.min_arrow_count,
+            n_arrows=args.n_arrows,
+            arrow_scale=args.arrow_scale,
+            min_arrow_magnitude=args.min_arrow_mag,
+        )
 
 
 if __name__ == "__main__":

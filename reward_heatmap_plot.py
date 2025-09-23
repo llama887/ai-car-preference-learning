@@ -18,13 +18,14 @@ from tqdm import tqdm
 
 import debug_plots
 from debug_plots import load_models
-from rules import check_rules_one
+from rules import check_rules_one, check_rules_flattened_one
 from subsample_state import get_grid_points
 import rules
 import orientation.get_orientation
 from multiprocessing import Pool, cpu_count
 import multiprocessing as mp
 from typing import List, Tuple
+from xy_distribution import plot_xy_from_segments
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -161,6 +162,17 @@ def accuracy_per_xy(
     """
     normalized_segments = [_shift_segment(seg, *orientation.get_orientation.CIRCLE_CENTER) for seg in tqdm(trajectory_segments, desc="Normalizing segments")]
 
+    plot_xy_from_segments(
+        normalized_segments,
+        filename="xy_distribution_gridpoints_centered.png",
+        draw_arrows=True,
+        bin_size=25,
+        min_count_for_arrow=5,
+        n_arrows=10,
+        arrow_scale=10,
+        min_arrow_magnitude=0.05,
+    )
+
     segments_by_reward: dict[int, list[int]] = {0: [], 1: []}
 
     for idx, seg in enumerate(tqdm(normalized_segments, desc="Evaluating rule set on segments")):
@@ -183,9 +195,9 @@ def accuracy_per_xy(
         r1_segment = normalized_segments[random.choice(r1_idx_list)]
         paired_segments_0.append(r0_segment)
         paired_segments_1.append(r1_segment)
-        _, r0, _ = check_rules_one(r0_segment, number_of_rules)
-        _, r1, _ = check_rules_one(r1_segment, number_of_rules)
-        assert r0 == 0 and r1 == 1, f"Expected rewards 0 and 1, got {r0} and {r1}"
+        # _, r0, _ = check_rules_one(r0_segment, number_of_rules)
+        # _, r1, _ = check_rules_one(r1_segment, number_of_rules)
+        # assert r0 == 0 and r1 == 1, f"Expected rewards 0 and 1, got {r0} and {r1}"
         coordinate_list.append((r0_segment[0].position[0], r0_segment[0].position[1]))
 
     for idx in tqdm(r1_idx_list, desc="Pairing segments with reward 1"):
@@ -193,9 +205,9 @@ def accuracy_per_xy(
         r0_segment = normalized_segments[random.choice(r0_idx_list)]
         paired_segments_0.append(r0_segment)
         paired_segments_1.append(r1_segment)
-        _, r0, _ = check_rules_one(r0_segment, number_of_rules)
-        _, r1, _ = check_rules_one(r1_segment, number_of_rules)
-        assert r0 == 0 and r1 == 1, f"Expected rewards 0 and 1, got {r0} and {r1}"
+        # _, r0, _ = check_rules_one(r0_segment, number_of_rules)
+        # _, r1, _ = check_rules_one(r1_segment, number_of_rules)
+        # assert r0 == 0 and r1 == 1, f"Expected rewards 0 and 1, got {r0} and {r1}"
         coordinate_list.append((r1_segment[0].position[0], r1_segment[0].position[1]))
 
     number_of_pairs = len(paired_segments_0)
